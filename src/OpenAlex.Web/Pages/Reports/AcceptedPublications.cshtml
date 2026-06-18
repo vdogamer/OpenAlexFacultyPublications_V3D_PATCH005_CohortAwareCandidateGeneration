@@ -1,0 +1,42 @@
+@page
+@model OpenAlex.Web.Pages.Reports.AcceptedPublicationsModel
+
+<h1>Accepted Publications</h1>
+
+<section class="card">
+    <a class="button" href="/Reports/AcceptedPublications?handler=Csv">Download CSV</a>
+</section>
+
+<table>
+    <thead>
+        <tr>
+            <th>Faculty</th>
+            <th>Publication</th>
+            <th>Author</th>
+            <th>Decision</th>
+            <th>Citations</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Rows)
+    {
+        <tr>
+            <td>
+                <strong>@item.FacultyDisplayName</strong><br />
+                <span class="small">@item.PrimaryEmail<br />@item.DepartmentName</span>
+            </td>
+            <td>
+                <strong>@item.WorkTitle</strong><br />
+                <span class="small">@item.PublicationYear | @item.WorkType</span><br />
+                @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
+                {
+                    <a href="@item.DoiUrl" target="_blank">DOI</a>
+                }
+            </td>
+            <td>@item.AuthorDisplayName<br /><span class="small">@item.AuthorOpenAlexId</span></td>
+            <td><span class="badge Accepted">@item.DecisionStatus</span><br /><span class="small">@item.ReviewedBy @item.ReviewedAtUtc?.ToString("u")</span></td>
+            <td>@item.CitedByCount</td>
+        </tr>
+    }
+    </tbody>
+</table>

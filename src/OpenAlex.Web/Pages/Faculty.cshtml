@@ -1,0 +1,41 @@
+@page
+@model OpenAlex.Web.Pages.FacultyModel
+
+<h1>Faculty</h1>
+
+<p><a class="button" href="/Admin/AddFaculty">Add Faculty</a></p>
+
+<form method="get" class="card">
+    <label for="search">Search faculty</label><br />
+    <input id="search" name="search" type="text" value="@Model.Search" />
+    <button type="submit">Search</button>
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>Faculty</th>
+            <th>Email</th>
+            <th>Department / Division</th>
+            <th>Title</th>
+            <th>IDs</th>
+            <th>Active</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Faculty)
+    {
+        <tr>
+            <td><strong>@item.DisplayName</strong></td>
+            <td>@item.PrimaryEmail</td>
+            <td>@item.DepartmentName<br /><span class="small">@item.DivisionName</span></td>
+            <td>@item.AppointmentTitle</td>
+            <td>
+                <span class="small">ORCID: @(item.Orcid ?? "-")</span><br />
+                <span class="small">OpenAlex: @(item.ClaimedOpenAlexAuthorId ?? "-")</span>
+            </td>
+            <td>@item.IsActive</td>
+        </tr>
+    }
+    </tbody>
+</table>

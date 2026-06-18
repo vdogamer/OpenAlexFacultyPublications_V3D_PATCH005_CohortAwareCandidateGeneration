@@ -1,0 +1,41 @@
+@page
+@model OpenAlex.Web.Pages.Admin.UsersModel
+
+<h1>Admin: Users and Roles</h1>
+
+<section class="card">
+    <p>This page reads the integrated auth tables from the V1N/V2G auth model.</p>
+    <p><a class="button" href="/Admin/AuthEvents">View authentication events</a></p>
+</section>
+
+<table>
+    <thead>
+        <tr>
+            <th>User</th>
+            <th>Display / Email</th>
+            <th>Roles</th>
+            <th>Enabled</th>
+            <th>Created</th>
+            <th>Last Login</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var user in Model.Users)
+    {
+        <tr>
+            <td>
+                <strong>@user.UserName</strong><br />
+                <span class="small">@user.ComputingId</span>
+            </td>
+            <td>
+                @user.DisplayName<br />
+                <span class="small">@user.Email</span>
+            </td>
+            <td>@user.RoleSummary</td>
+            <td>@user.IsEnabled</td>
+            <td>@user.CreatedAtUtc.ToString("u")</td>
+            <td>@(user.LastLoginAtUtc?.ToString("u") ?? "-")</td>
+        </tr>
+    }
+    </tbody>
+</table>

@@ -1,0 +1,46 @@
+@page
+@model OpenAlex.Web.Pages.Admin.DeploymentModel
+
+<h1>Admin: Deployment Information</h1>
+
+<section class="card">
+    <h2>Version</h2>
+    <p><strong>Package:</strong> OpenAlexFacultyPublications_V2H_DeploymentSchedulingManagerHandoff</p>
+    <p><strong>Recommended local web port:</strong> 5027</p>
+    <p><strong>Authentication mode:</strong> DemoCookie locally, ShibbolethHeaders for production-style deployment.</p>
+</section>
+
+<section class="card">
+    <h2>Local Worker Commands</h2>
+
+    <p>Run one job:</p>
+    <pre>cd src\OpenAlex.Worker
+dotnet run</pre>
+
+    <p>Set this in appsettings.json:</p>
+    <pre>"Worker": {
+  "Enabled": true,
+  "JobName": "InstitutionIngestion",
+  "RunOnceAndStop": true
+}</pre>
+
+    <p>Run the configured pipeline once:</p>
+    <pre>"Worker": {
+  "Enabled": true,
+  "JobName": "RunPipelineOnce",
+  "RunOnceAndStop": true
+}</pre>
+</section>
+
+<section class="card">
+    <h2>Production Checklist</h2>
+    <ul>
+        <li>Use production connection string from a secure source.</li>
+        <li>Set Auth:Mode to ShibbolethHeaders.</li>
+        <li>Confirm IIS/Shibboleth strips spoofed browser headers.</li>
+        <li>Run SQL readiness scripts.</li>
+        <li>Confirm admin user exists.</li>
+        <li>Run smoke test with Reader, Reviewer, and Admin accounts.</li>
+        <li>Keep worker disabled until a controlled job window is approved.</li>
+    </ul>
+</section>

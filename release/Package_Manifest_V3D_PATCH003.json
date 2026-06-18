@@ -1,0 +1,13 @@
+{
+  "package": "OpenAlexFacultyPublications_V3D_PATCH003_SchemaSafeManualFacultyIntake",
+  "created_utc": "2026-06-18T11:13:29+00:00",
+  "based_on": "OpenAlexFacultyPublications_V3D_PATCH002_ManualFacultyIntake",
+  "purpose": "Make manual faculty intake schema-safe and add diagnostic SQL",
+  "new_or_patched": [
+    "src/OpenAlex.Data/FacultyRepository.cs",
+    "src/OpenAlex.Web/Pages/Admin/AddFaculty.cshtml",
+    "src/OpenAlex.Web/Pages/Admin/AddFaculty.cshtml.cs",
+    "src/OpenAlex.Web/Program.cs",
+    "sql/197_ManualFacultyIntake_Schema_Check.sql"
+  ]
+}

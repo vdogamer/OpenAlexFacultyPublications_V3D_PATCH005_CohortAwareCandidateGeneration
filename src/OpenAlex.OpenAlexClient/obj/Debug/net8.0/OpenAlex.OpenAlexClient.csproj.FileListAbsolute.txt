@@ -1,0 +1,12 @@
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\bin\Debug\net8.0\OpenAlex.OpenAlexClient.deps.json
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\bin\Debug\net8.0\OpenAlex.OpenAlexClient.dll
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\bin\Debug\net8.0\OpenAlex.OpenAlexClient.pdb
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\OpenAlex.OpenAlexClient.csproj.AssemblyReference.cache
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\OpenAlex.OpenAlexClient.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\OpenAlex.OpenAlexClient.AssemblyInfoInputs.cache
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\OpenAlex.OpenAlexClient.AssemblyInfo.cs
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\OpenAlex.OpenAlexClient.csproj.CoreCompileInputs.cache
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\OpenAlex.OpenAlexClient.dll
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\refint\OpenAlex.OpenAlexClient.dll
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\OpenAlex.OpenAlexClient.pdb
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OpenAlexClient\obj\Debug\net8.0\ref\OpenAlex.OpenAlexClient.dll

@@ -1,0 +1,5 @@
+Write-Host "Run these scripts in SSMS against your OpenAlex test database:"
+Write-Host ":r sql/160_V3D_Create_Execution_Window_Tables.sql"
+Write-Host ":r sql/161_V3D_Seed_Default_Execution_Windows.sql"
+Write-Host ":r sql/162_V3D_Execution_Window_Readiness_Check.sql"
+Write-Host ":r sql/163_V3D_Execution_Window_Audit_Queries.sql"

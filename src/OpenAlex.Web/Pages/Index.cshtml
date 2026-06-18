@@ -1,0 +1,28 @@
+@page
+@model OpenAlex.Web.Pages.IndexModel
+
+<h1>Version 2B Integrated Dashboard</h1>
+
+<section class="card">
+    <p>
+        Version 2B starts reading the real V1 OpenAlex tables and reporting views from the integrated solution.
+    </p>
+</section>
+
+<div class="grid">
+    <section class="card"><div class="metric">@Model.Snapshot.Institutions</div><p>Institutions</p></section>
+    <section class="card"><div class="metric">@Model.Snapshot.Authors</div><p>Authors</p></section>
+    <section class="card"><div class="metric">@Model.Snapshot.Works</div><p>Works</p></section>
+    <section class="card"><div class="metric">@Model.Snapshot.Faculty</div><p>Faculty</p></section>
+    <section class="card"><div class="metric">@Model.Snapshot.AuthorCandidates</div><p>Author Candidates</p></section>
+    <section class="card"><div class="metric">@Model.Snapshot.AuthorDecisions</div><p>Author Decisions</p></section>
+    <section class="card"><div class="metric">@Model.Snapshot.PublicationCandidates</div><p>Publication Candidates</p></section>
+    <section class="card"><div class="metric">@Model.Snapshot.AcceptedPublications</div><p>Accepted Publications</p></section>
+</div>
+
+<section class="card">
+    <h2>Operational Status</h2>
+    <p><strong>Last ingestion run:</strong> @(Model.Snapshot.LastIngestionRunAtUtc?.ToString("u") ?? "-")</p>
+    <p><strong>Last operational log:</strong> @(Model.Snapshot.LastOperationalLogAtUtc?.ToString("u") ?? "-")</p>
+    <p><strong>Operational errors:</strong> @Model.Snapshot.OperationalErrors</p>
+</section>

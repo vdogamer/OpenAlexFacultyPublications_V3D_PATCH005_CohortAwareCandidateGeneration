@@ -1,0 +1,1 @@
+Write-Host "Run these scripts in SSMS:"; Write-Host ":r sql/150_V3C_Create_Role_Management_Extensions.sql"; Write-Host ":r sql/151_V3C_Seed_Default_External_Group_Mappings.sql"; Write-Host ":r sql/152_V3C_Role_Management_Readiness_Check.sql"; Write-Host ":r sql/153_V3C_Role_Management_Audit_Queries.sql";

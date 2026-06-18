@@ -1,0 +1,82 @@
+@page
+@model OpenAlex.Web.Pages.OperationsModel
+
+<h1>Operations Dashboard</h1>
+
+<section class="card">
+    <p>
+        Final operational dashboard for the integrated OpenAlex application. These cards summarize data readiness, review readiness, and operational risk.
+    </p>
+    <p>
+        <a class="button" href="/Operations/Runs">Runs</a>
+        <a class="button" href="/Operations/Logs">Logs</a>
+        <a class="button" href="/Operations/Errors">Errors</a>
+        <a class="button" href="/Operations/Health">Health</a>
+        <a class="button" href="/Admin/Jobs">Jobs</a>
+    </p>
+</section>
+
+<div class="metric-grid">
+@foreach (var metric in Model.Snapshot.Metrics)
+{
+    <section class="metric-card @metric.Status">
+        <h2>@metric.Label</h2>
+        <div class="metric-value">@metric.Value</div>
+        <p>@metric.Detail</p>
+    </section>
+}
+</div>
+
+<h2>Recent Runs</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Job / Filter</th>
+            <th>Started</th>
+            <th>Finished</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var run in Model.Snapshot.RecentRuns)
+    {
+        <tr>
+            <td>@run.IngestionRunId<br /><span class="small">@run.RunMode</span></td>
+            <td><span class="badge @run.Status">@run.Status</span></td>
+            <td>@run.InstitutionFilter</td>
+            <td>@(run.StartedAtUtc?.ToString("u") ?? "-")</td>
+            <td>@(run.FinishedAtUtc?.ToString("u") ?? "-")</td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+<h2>Recent Operational Logs</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Level</th>
+            <th>Application</th>
+            <th>Category / Event</th>
+            <th>Message</th>
+            <th>Created UTC</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Snapshot.RecentLogs)
+    {
+        <tr>
+            <td>@item.OperationalLogId</td>
+            <td><span class="badge @item.LogLevel">@item.LogLevel</span></td>
+            <td>@item.SourceApplication<br /><span class="small">@item.EnvironmentName</span></td>
+            <td>@item.Category<br /><span class="small">@item.EventName</span></td>
+            <td>@item.Message</td>
+            <td>@item.CreatedAtUtc.ToString("u")</td>
+        </tr>
+    }
+    </tbody>
+</table>

@@ -1,0 +1,68 @@
+@page
+@model OpenAlex.Web.Pages.Admin.JobsModel
+
+<h1>Admin: Integrated Jobs</h1>
+
+<section class="card">
+    <p>
+        This page lists the integrated worker jobs and recent ingestion runs. For safety, jobs are still run by the worker process, not directly from the web UI.
+    </p>
+    <p><a class="button" href="/Admin/Deployment">Deployment info</a></p>
+</section>
+
+<h2>Available Jobs</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Job</th>
+            <th>Type</th>
+            <th>Purpose</th>
+            <th>Writes Data</th>
+            <th>Worker Setting</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var job in Model.Snapshot.Jobs)
+    {
+        <tr>
+            <td><strong>@job.JobName</strong></td>
+            <td>@job.JobType</td>
+            <td>@job.Purpose</td>
+            <td>@job.WritesData</td>
+            <td><code>"JobName": "@job.JobName"</code></td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+<h2>Recent Ingestion Runs</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Filter / Job</th>
+            <th>Started / Finished</th>
+            <th>By</th>
+            <th>Errors</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var run in Model.Snapshot.RecentRuns)
+    {
+        <tr>
+            <td>@run.IngestionRunId<br /><span class="small">@run.RunMode</span></td>
+            <td><span class="badge @run.Status">@run.Status</span></td>
+            <td>@run.InstitutionFilter</td>
+            <td>
+                @(run.StartedAtUtc?.ToString("u") ?? "-")<br />
+                <span class="small">@(run.FinishedAtUtc?.ToString("u") ?? "-")</span>
+            </td>
+            <td>@run.StartedBy<br /><span class="small">@run.MachineName @run.ApplicationVersion</span></td>
+            <td>@run.ErrorCount / @run.WarningCount</td>
+        </tr>
+    }
+    </tbody>
+</table>

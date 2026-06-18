@@ -1,0 +1,200 @@
+body {
+    margin: 0;
+    background: #f7f7f7;
+    color: #222;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 1.5rem;
+    background: #222;
+    color: #fff;
+}
+
+.brand {
+    font-weight: 700;
+}
+
+.topbar a {
+    color: #fff;
+    text-decoration: none;
+    margin-right: 1rem;
+}
+
+.container {
+    max-width: 1250px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.metric {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+th, td {
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid #ddd;
+    padding: .65rem;
+}
+
+th {
+    background: #f0f0f0;
+}
+
+.badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: .2rem .55rem;
+    background: #e8e8e8;
+    font-size: .85rem;
+}
+
+.badge.Error, .badge.Critical {
+    background: #ffd8d8;
+}
+
+.badge.Warning {
+    background: #fff0c2;
+}
+
+.badge.Accepted {
+    background: #dff2df;
+}
+
+.small {
+    color: #666;
+    font-size: .9rem;
+}
+
+input[type=text] {
+    padding: .45rem;
+    min-width: 280px;
+}
+
+button, .button {
+    display: inline-block;
+    padding: .5rem .75rem;
+    border-radius: 4px;
+    border: 1px solid #333;
+    background: #333;
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+
+.authbar {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.authbar button {
+    padding: .25rem .5rem;
+    border: 1px solid #fff;
+    background: transparent;
+    color: #fff;
+}
+
+.notice {
+    background: #fff7d6;
+    border: 1px solid #e8d37a;
+    padding: .75rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+}
+
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 2rem;
+}
+
+.metric-card {
+    border: 1px solid #d5d5d5;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #fff;
+}
+
+.metric-card h2 {
+    margin-top: 0;
+    font-size: 1rem;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: .25rem 0;
+}
+
+.metric-card.Ready {
+    border-left: 6px solid #267a3e;
+}
+
+.metric-card.Warning {
+    border-left: 6px solid #b7791f;
+}
+
+.metric-card.Danger {
+    border-left: 6px solid #b42318;
+}
+
+.metric-card.Neutral {
+    border-left: 6px solid #667085;
+}
+
+.badge.Completed,
+.badge.Ready,
+.badge.Information,
+.badge.Info {
+    background: #e8f5e9;
+    color: #1b5e20;
+}
+
+.badge.Failed,
+.badge.Error,
+.badge.Critical,
+.badge.Danger {
+    background: #fdecea;
+    color: #b42318;
+}
+
+.badge.CompletedWithWarnings,
+.badge.Warning {
+    background: #fff4e5;
+    color: #b7791f;
+}
+
+
+.badge.Queued { background: #eef2ff; color: #3730a3; }
+.badge.Started { background: #e0f2fe; color: #075985; }
+.badge.Cancelled, .badge.Skipped { background: #f2f4f7; color: #344054; }

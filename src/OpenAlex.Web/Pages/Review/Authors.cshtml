@@ -1,0 +1,65 @@
+@page
+@model OpenAlex.Web.Pages.Review.AuthorsModel
+
+<h1>Author Review Queue</h1>
+
+<section class="card">
+    <p>
+        Review pending faculty-author candidates. Accepting or rejecting a candidate records a current decision and removes it from this pending queue.
+    </p>
+</section>
+
+@if (Model.Items.Count == 0)
+{
+    <section class="card">
+        <h2>No pending author candidates</h2>
+        <p>
+            There are no pending author candidates to review. Check the after-action SQL report for accepted/rejected decisions.
+        </p>
+    </section>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Faculty</th>
+                <th>OpenAlex Author</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Evidence</th>
+                <th>Review</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>
+                    <strong>@item.FacultyDisplayName</strong><br />
+                    <span class="small">@item.FacultyEmail<br />@item.DepartmentName</span>
+                </td>
+                <td>
+                    <strong>@item.AuthorDisplayName</strong><br />
+                    <span class="small">@item.AuthorOpenAlexId<br />@item.AuthorOrcid</span>
+                </td>
+                <td>@item.MatchScore</td>
+                <td>@item.CandidateStatus</td>
+                <td>@item.EvidenceSummary</td>
+                <td>
+                    <form method="post" asp-page-handler="Accept" style="margin-bottom:.5rem">
+                        <input type="hidden" name="id" value="@item.FacultyAuthorMatchCandidateId" />
+                        <input type="text" name="notes" placeholder="optional notes" />
+                        <button type="submit">Accept</button>
+                    </form>
+                    <form method="post" asp-page-handler="Reject">
+                        <input type="hidden" name="id" value="@item.FacultyAuthorMatchCandidateId" />
+                        <input type="text" name="notes" placeholder="optional notes" />
+                        <button type="submit">Reject</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

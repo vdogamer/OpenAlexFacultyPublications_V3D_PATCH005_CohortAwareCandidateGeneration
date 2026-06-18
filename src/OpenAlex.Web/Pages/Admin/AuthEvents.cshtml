@@ -1,0 +1,39 @@
+@page
+@model OpenAlex.Web.Pages.Admin.AuthEventsModel
+
+<h1>Admin: Authentication Events</h1>
+
+<section class="card">
+    <p><a class="button" href="/Admin/Users">Back to users</a></p>
+</section>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Source</th>
+            <th>Result</th>
+            <th>Failure</th>
+            <th>IP</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Events)
+    {
+        <tr>
+            <td>@item.AuthenticationEventId</td>
+            <td>
+                <strong>@item.UserName</strong><br />
+                <span class="small">@item.DisplayName<br />@item.Email</span>
+            </td>
+            <td>@item.SourceSystem</td>
+            <td>@item.AuthenticationSucceeded</td>
+            <td>@item.FailureReason</td>
+            <td>@item.IpAddress</td>
+            <td>@item.CreatedAtUtc.ToString("u")</td>
+        </tr>
+    }
+    </tbody>
+</table>

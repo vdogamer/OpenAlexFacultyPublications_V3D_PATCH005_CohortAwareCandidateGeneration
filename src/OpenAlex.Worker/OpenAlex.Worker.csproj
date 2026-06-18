@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenAlex.Data\OpenAlex.Data.csproj" />
+    <ProjectReference Include="..\OpenAlex.OpenAlexClient\OpenAlex.OpenAlexClient.csproj" />
+    <ProjectReference Include="..\OpenAlex.Matching\OpenAlex.Matching.csproj" />
+    <ProjectReference Include="..\OpenAlex.Reporting\OpenAlex.Reporting.csproj" />
+    <ProjectReference Include="..\OpenAlex.OperationalLogging\OpenAlex.OperationalLogging.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+  </ItemGroup>
+</Project>

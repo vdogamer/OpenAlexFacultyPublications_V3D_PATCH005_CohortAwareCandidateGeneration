@@ -1,0 +1,5 @@
+@page
+@model OpenAlex.Web.Pages.Admin.EditExternalGroupMappingModel
+<h1>Admin: Edit External Group Mapping</h1>
+@if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){<section class="notice">@Model.ErrorMessage</section>}
+<form method="post" class="card"><input type="hidden" asp-for="Id" /><label>External group/header value</label><br /><input asp-for="ExternalGroupValue" /><br /><br /><label>Match type</label><br /><select asp-for="MatchType"><option>Exact</option><option>Contains</option><option>EndsWith</option></select><br /><br /><label>Role</label><br /><select asp-for="AppRoleId">@foreach(var role in Model.Roles){<option value="@role.AppRoleId">@role.RoleName</option>}</select><br /><br /><label><input asp-for="IsEnabled" /> Enabled</label><br /><br /><label>Description</label><br /><textarea asp-for="MappingDescription" rows="4"></textarea><br /><br /><button type="submit">Save Mapping</button> <a class="button" href="/Admin/ExternalGroupMappings">Cancel</a></form>

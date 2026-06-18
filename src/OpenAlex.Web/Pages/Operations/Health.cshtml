@@ -1,0 +1,43 @@
+@page
+@model OpenAlex.Web.Pages.Operations.HealthModel
+
+<h1>Operational Health</h1>
+
+<section class="card">
+    <p>Source object: <code>@Model.Table.SourceObject</code></p>
+    <p>
+        <a class="button" href="/Operations">Operations Dashboard</a>
+        <a class="button" href="/Admin/Jobs">Jobs</a>
+    </p>
+</section>
+
+@if (Model.Table.Rows.Count == 0)
+{
+    <section class="card">
+        <p>No rows were found, or the source table/view does not exist in this database.</p>
+    </section>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+            @foreach (var column in Model.Table.Columns)
+            {
+                <th>@column</th>
+            }
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var row in Model.Table.Rows)
+        {
+            <tr>
+            @foreach (var column in Model.Table.Columns)
+            {
+                <td>@(row.Cells.TryGetValue(column, out var value) ? value : null)</td>
+            }
+            </tr>
+        }
+        </tbody>
+    </table>
+}

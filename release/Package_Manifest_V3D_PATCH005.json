@@ -1,0 +1,16 @@
+{
+  "package": "OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration",
+  "created_utc": "2026-06-18T17:23:50+00:00",
+  "based_on": "OpenAlexFacultyPublications_V3D_PATCH004_ReviewQueuePendingOnly",
+  "purpose": "Make candidate generation honor PilotFacultyCohort for 15-faculty expansion",
+  "new_setting": "CandidateGeneration:PilotCohortName",
+  "patched_files": [
+    "src/OpenAlex.Data/CandidateGenerationRepository.cs",
+    "src/OpenAlex.Worker/CandidateGenerationOptions.cs",
+    "src/OpenAlex.Worker/Jobs/FacultyAuthorCandidateGenerationJob.cs",
+    "src/OpenAlex.Worker/Jobs/FacultyPublicationCandidateGenerationJob.cs",
+    "src/OpenAlex.Worker/appsettings.example.json",
+    "sql/199_PATCH005_CohortAwareCandidateGeneration_Diagnostic.sql",
+    "docs/49_V3D_PATCH005_CohortAwareCandidateGeneration.md"
+  ]
+}

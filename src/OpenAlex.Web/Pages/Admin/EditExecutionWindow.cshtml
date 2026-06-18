@@ -1,0 +1,18 @@
+@page
+@model OpenAlex.Web.Pages.Admin.EditExecutionWindowModel
+<h1>Admin: Edit Execution Window</h1>
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <section class="notice">@Model.ErrorMessage</section> }
+<form method="post" class="card">
+<input type="hidden" asp-for="Id" />
+<label>Window name</label><br /><input asp-for="WindowName" /><br /><br />
+<label>Description</label><br /><textarea asp-for="WindowDescription" rows="4"></textarea><br /><br />
+<label>Applies to job name</label><br /><input asp-for="AppliesToJobName" /><p class="small">Leave blank for all jobs.</p>
+<label>Days of week CSV</label><br /><input asp-for="DaysOfWeekCsv" /><br /><br />
+<label>Start time local</label><br /><input asp-for="StartTimeLocalText" placeholder="19:00" /><br /><br />
+<label>End time local</label><br /><input asp-for="EndTimeLocalText" placeholder="22:00" /><br /><br />
+<label>Time zone ID</label><br /><input asp-for="TimeZoneId" /><br /><br />
+<label><input asp-for="AllowFullLoad" /> Allow FullLoad</label><br /><br />
+<label>Max requests per window</label><br /><input asp-for="MaxRequestsPerWindow" type="number" min="1" /><br /><br />
+<label><input asp-for="IsEnabled" /> Enabled</label><br /><br />
+<button type="submit">Save Window</button> <a class="button" href="/Admin/ExecutionWindows">Cancel</a>
+</form>

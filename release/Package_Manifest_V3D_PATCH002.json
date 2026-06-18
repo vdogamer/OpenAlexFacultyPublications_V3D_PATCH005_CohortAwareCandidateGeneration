@@ -1,0 +1,14 @@
+{
+  "package": "OpenAlexFacultyPublications_V3D_PATCH002_ManualFacultyIntake",
+  "created_utc": "2026-06-18T10:59:26+00:00",
+  "based_on": "OpenAlexFacultyPublications_V3D_PATCH001_ControlledOpenAlexTestLoad",
+  "purpose": "Add Admin manual faculty intake page for 15-faculty pilot expansion",
+  "new_pages": [
+    "/Admin/AddFaculty"
+  ],
+  "new_sql": [
+    "sql/196_ManualFaculty_Insert_Template.sql",
+    "sql/197_ManualFaculty_Count_And_Cohort_NextStep.sql"
+  ],
+  "next_step": "Add 10 more actual faculty, validate 15 rows, then run pilot cohort scripts"
+}

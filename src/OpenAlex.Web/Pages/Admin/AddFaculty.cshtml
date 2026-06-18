@@ -1,0 +1,87 @@
+@page
+@model OpenAlex.Web.Pages.Admin.AddFacultyModel
+
+<h1>Admin: Add Faculty</h1>
+
+<section class="card">
+    <p>
+        Add actual faculty rows for the pilot expansion. Use website-listed or internally confirmed faculty only.
+    </p>
+    <p>
+        ORCID and claimed OpenAlex Author ID are optional. The app will insert only the columns that exist in your current <code>openalex.Faculty</code> schema.
+    </p>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="notice">@Model.ErrorMessage</section>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+{
+    <section class="notice">@Model.SuccessMessage</section>
+}
+
+<form method="post" class="card">
+    <label>Display name <span class="required">*</span></label><br />
+    <input asp-for="Input.DisplayName" />
+
+    <br /><br />
+
+    <label>Primary email</label><br />
+    <input asp-for="Input.PrimaryEmail" />
+
+    <br /><br />
+
+    <label>Department</label><br />
+    <input asp-for="Input.DepartmentName" />
+
+    <br /><br />
+
+    <label>Division</label><br />
+    <input asp-for="Input.DivisionName" />
+
+    <br /><br />
+
+    <label>Appointment title</label><br />
+    <input asp-for="Input.AppointmentTitle" />
+
+    <br /><br />
+
+    <label>ORCID</label><br />
+    <input asp-for="Input.Orcid" placeholder="0000-0000-0000-0000" />
+
+    <br /><br />
+
+    <label>Claimed OpenAlex Author ID</label><br />
+    <input asp-for="Input.ClaimedOpenAlexAuthorId" placeholder="A1234567890" />
+
+    <br /><br />
+
+    <label>
+        <input asp-for="Input.IsActive" />
+        Active faculty row
+    </label>
+
+    <br /><br />
+
+    <button type="submit">Add Faculty</button>
+    <a class="button" href="/Faculty">Back to Faculty</a>
+</form>
+
+<section class="card">
+    <h2>Detected Faculty Columns</h2>
+    @if (Model.FacultyColumns.Count == 0)
+    {
+        <p>No columns were loaded. Check the error message above or verify that <code>openalex.Faculty</code> exists.</p>
+    }
+    else
+    {
+        <p>The intake page detected these columns:</p>
+        <pre>@string.Join(", ", Model.FacultyColumns)</pre>
+    }
+
+    <h2>After adding faculty</h2>
+    <p>After you add the additional faculty rows, confirm the total count and then populate the 15-faculty pilot cohort.</p>
+    <pre>SELECT COUNT(*) AS TotalFaculty FROM openalex.Faculty;</pre>
+</section>

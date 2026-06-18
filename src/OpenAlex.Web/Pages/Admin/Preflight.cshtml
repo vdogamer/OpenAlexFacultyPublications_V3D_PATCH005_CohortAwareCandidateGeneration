@@ -1,0 +1,33 @@
+@page
+@model OpenAlex.Web.Pages.Admin.PreflightModel
+
+<h1>Admin: Production Preflight</h1>
+
+<section class="card">
+    <p>This page checks application configuration before production review. It does not change data.</p>
+    <p><a class="button" href="/Admin/Deployment">Deployment</a> <a class="button" href="/Operations">Operations</a> <a class="button" href="/Admin/Jobs">Jobs</a></p>
+</section>
+
+<section class="card">
+    <h2>Readiness</h2>
+    <p><strong>Configuration status:</strong> @(Model.Result.IsReady ? "Ready" : "Needs attention")</p>
+</section>
+
+<section class="card">
+    <h2>Errors</h2>
+    @if (Model.Result.Errors.Count == 0) { <p>No blocking configuration errors found.</p> }
+    else { <ul>@foreach (var error in Model.Result.Errors) { <li>@error</li> }</ul> }
+</section>
+
+<section class="card">
+    <h2>Warnings</h2>
+    @if (Model.Result.Warnings.Count == 0) { <p>No warnings found.</p> }
+    else { <ul>@foreach (var warning in Model.Result.Warnings) { <li>@warning</li> }</ul> }
+</section>
+
+<section class="card">
+    <h2>SQL Preflight</h2>
+    <pre>:r sql/130_V3A_Production_Preflight.sql
+:r sql/131_V3A_Release_Verification.sql
+:r sql/132_V3A_Test_Data_Quality_Report.sql</pre>
+</section>

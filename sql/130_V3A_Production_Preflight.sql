@@ -1,0 +1,14 @@
+/* OpenAlex Version 3A — Production Preflight */
+SET NOCOUNT ON;
+SELECT DB_NAME() AS CurrentDatabase;
+DECLARE @Preflight TABLE (Area NVARCHAR(100), CheckName NVARCHAR(200), CheckStatus NVARCHAR(50), Details NVARCHAR(MAX));
+INSERT INTO @Preflight SELECT 'Database','Not system database',CASE WHEN DB_NAME() NOT IN ('master','model','msdb','tempdb') THEN 'Ready' ELSE 'Blocker' END,'Do not run against system databases.';
+INSERT INTO @Preflight SELECT 'Schema','openalex schema exists',CASE WHEN SCHEMA_ID(N'openalex') IS NOT NULL THEN 'Ready' ELSE 'Blocker' END,'The openalex schema is required.';
+INSERT INTO @Preflight SELECT 'Schema','Core ingestion tables',CASE WHEN OBJECT_ID(N'openalex.IngestionRun',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.RequestLog',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.IngestionRunSummary',N'U') IS NOT NULL THEN 'Ready' ELSE 'Blocker' END,'Required for worker run auditing.';
+INSERT INTO @Preflight SELECT 'Schema','Core OpenAlex tables',CASE WHEN OBJECT_ID(N'openalex.Institution',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.Author',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.Work',N'U') IS NOT NULL THEN 'Ready' ELSE 'Blocker' END,'Required for institution, author, and work ingestion.';
+INSERT INTO @Preflight SELECT 'Schema','Review workflow tables',CASE WHEN OBJECT_ID(N'openalex.FacultyAuthorMatchCandidate',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.FacultyAuthorMatchDecision',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.FacultyPublicationCandidate',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.FacultyPublicationDecision',N'U') IS NOT NULL THEN 'Ready' ELSE 'Blocker' END,'Required for human review workflow.';
+INSERT INTO @Preflight SELECT 'Schema','Auth tables',CASE WHEN OBJECT_ID(N'openalex.AppUser',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.AppRole',N'U') IS NOT NULL AND OBJECT_ID(N'openalex.AppUserRole',N'U') IS NOT NULL THEN 'Ready' ELSE 'Blocker' END,'Required for Reader/Reviewer/Admin role protection.';
+INSERT INTO @Preflight SELECT 'Schema','OperationalLog table',CASE WHEN OBJECT_ID(N'openalex.OperationalLog',N'U') IS NOT NULL THEN 'Ready' ELSE 'Warning' END,'Required for operational dashboard log visibility.';
+INSERT INTO @Preflight SELECT 'Data','Admin user exists',CASE WHEN OBJECT_ID(N'openalex.AppUser',N'U') IS NOT NULL AND EXISTS (SELECT 1 FROM openalex.AppUser WHERE UserName='admin.demo') THEN 'Ready' ELSE 'Warning' END,'admin.demo is needed for local smoke testing.';
+INSERT INTO @Preflight SELECT 'Data','Faculty rows exist',CASE WHEN OBJECT_ID(N'openalex.Faculty',N'U') IS NOT NULL AND EXISTS (SELECT 1 FROM openalex.Faculty) THEN 'Ready' ELSE 'Warning' END,'Faculty rows are required for candidate generation.';
+SELECT * FROM @Preflight ORDER BY CASE CheckStatus WHEN 'Blocker' THEN 1 WHEN 'Warning' THEN 2 WHEN 'Ready' THEN 3 ELSE 9 END, Area, CheckName;

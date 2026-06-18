@@ -1,0 +1,8 @@
+@page
+@model OpenAlex.Web.Pages.Admin.RolesModel
+<h1>Admin: Role Management</h1>
+<section class="card"><p>Manage Reader, Reviewer, and Admin role assignments. The app prevents disabling/removing the last enabled Admin.</p><p><a class="button" href="/Admin/ExternalGroupMappings">External Group Mappings</a> <a class="button" href="/Admin/Users">Users</a></p></section>
+@if (!string.IsNullOrWhiteSpace(Model.Message)) { <section class="notice">@Model.Message</section> }
+<table><thead><tr><th>User</th><th>Enabled</th><th>Roles</th><th>Actions</th></tr></thead><tbody>
+@foreach (var user in Model.Users) { <tr><td><strong>@user.UserName</strong><br /><span class="small">@user.DisplayName<br />@user.Email</span></td><td>@user.IsEnabled</td><td>@user.RoleSummary</td><td><a class="button" href="/Admin/EditUserRoles?id=@user.AppUserId">Edit roles</a><form method="post" asp-page-handler="ToggleEnabled" style="display:inline"><input type="hidden" name="id" value="@user.AppUserId" /><input type="hidden" name="enabled" value="@(!user.IsEnabled)" /><button type="submit">@(user.IsEnabled ? "Disable" : "Enable")</button></form></td></tr> }
+</tbody></table>

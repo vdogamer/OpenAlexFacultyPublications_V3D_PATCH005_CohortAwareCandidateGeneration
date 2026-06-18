@@ -1,0 +1,35 @@
+@page
+@model OpenAlex.Web.Pages.Account.LoginModel
+
+<h1>Login</h1>
+
+<section class="card">
+    <p>
+        Local demo mode uses users seeded in the auth tables.
+    </p>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="notice">@Model.ErrorMessage</div>
+    }
+
+    <form method="post">
+        <label for="username">Demo username</label><br />
+        <input id="username" name="username" type="text" value="@Model.UserName" />
+        <button type="submit">Login</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Demo users</h2>
+    <table>
+        <thead>
+            <tr><th>User</th><th>Expected role</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>manager.demo</td><td>Reader</td></tr>
+            <tr><td>reviewer.demo</td><td>Reader + Reviewer</td></tr>
+            <tr><td>admin.demo</td><td>Reader + Reviewer + Admin</td></tr>
+        </tbody>
+    </table>
+</section>

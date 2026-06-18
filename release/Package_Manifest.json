@@ -1,0 +1,14 @@
+{
+  "package": "OpenAlexFacultyPublications_V3D_BackgroundServiceExecutionWindows",
+  "created_utc": "2026-06-16T11:44:49+00:00",
+  "based_on": "OpenAlexFacultyPublications_V3C_RoleManagementExternalGroupMapping",
+  "purpose": "Add background service deployment materials and scheduled execution-window controls",
+  "new_tables": [
+    "openalex.JobExecutionWindow"
+  ],
+  "new_pages": [
+    "/Admin/ExecutionWindows",
+    "/Admin/EditExecutionWindow"
+  ],
+  "next_phase": "Version 3E Cancellation, Retry Policies, and Load Guardrails"
+}

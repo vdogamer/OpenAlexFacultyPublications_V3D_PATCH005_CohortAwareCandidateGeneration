@@ -1,0 +1,22 @@
+@page
+@model OpenAlex.Web.Pages.Admin.JobRequestsModel
+
+<h1>Admin: Job Requests</h1>
+<section class="card"><p>Queued requests are executed by the worker job <code>ProcessQueuedJobRequests</code>.</p><p><a class="button" href="/Admin/Scheduler">Scheduler</a> <a class="button" href="/Operations/Logs">Operational Logs</a></p></section>
+<table>
+<thead><tr><th>Request</th><th>Job</th><th>Status</th><th>Requested</th><th>Started / Finished</th><th>Worker</th><th>Error</th></tr></thead>
+<tbody>
+@foreach (var request in Model.Requests)
+{
+<tr>
+<td>@request.JobExecutionRequestId</td>
+<td>@request.JobName<br /><span class="small">@request.RunMode | MaxPages=@(request.MaxPages?.ToString() ?? "-") | MaxRecords=@(request.MaxRecords?.ToString() ?? "-")</span></td>
+<td><span class="badge @request.RequestStatus">@request.RequestStatus</span></td>
+<td>@request.RequestedBy<br /><span class="small">@request.RequestedAtUtc.ToString("u")</span><br />@request.RequestReason</td>
+<td>@(request.StartedAtUtc?.ToString("u") ?? "-")<br /><span class="small">@(request.FinishedAtUtc?.ToString("u") ?? "-")</span></td>
+<td>@request.WorkerMachineName<br /><span class="small">@request.WorkerApplicationVersion</span></td>
+<td>@request.ErrorMessage</td>
+</tr>
+}
+</tbody>
+</table>

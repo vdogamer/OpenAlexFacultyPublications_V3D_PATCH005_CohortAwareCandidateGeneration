@@ -1,0 +1,44 @@
+@page
+@model OpenAlex.Web.Pages.Admin.SchedulerModel
+
+<h1>Admin: Persisted Scheduler</h1>
+
+<section class="card">
+    <p>Queue controlled job requests for the worker. The web app does not execute these jobs directly.</p>
+    <p><a class="button" href="/Admin/JobRequests">View job requests</a> <a class="button" href="/Admin/Jobs">Integrated jobs dashboard</a></p>
+</section>
+
+<h2>Job Definitions</h2>
+<table>
+    <thead><tr><th>Job</th><th>Category</th><th>Defaults</th><th>Safety</th><th>Action</th></tr></thead>
+    <tbody>
+    @foreach (var job in Model.Snapshot.Jobs)
+    {
+        <tr>
+            <td><strong>@job.JobDisplayName</strong><br /><span class="small">@job.JobName</span><br /><span class="small">@job.JobDescription</span></td>
+            <td>@job.JobCategory</td>
+            <td>RunMode: @job.DefaultRunMode<br />MaxPages: @(job.DefaultMaxPages?.ToString() ?? "-")<br />MaxRecords: @(job.DefaultMaxRecords?.ToString() ?? "-")</td>
+            <td>Enabled: @job.IsEnabled<br />WritesData: @job.IsWriteJob<br />RequiresConfirmation: @job.RequiresConfirmation</td>
+            <td>@if (job.IsEnabled) { <a class="button" href="/Admin/RunJob?id=@job.JobDefinitionId">Queue Run</a> } else { <span>Disabled</span> }</td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+<h2>Recent Requests</h2>
+<table>
+    <thead><tr><th>Request</th><th>Job</th><th>Status</th><th>Requested</th><th>Started / Finished</th><th>Error</th></tr></thead>
+    <tbody>
+    @foreach (var request in Model.Snapshot.RecentRequests)
+    {
+        <tr>
+            <td>@request.JobExecutionRequestId</td>
+            <td>@request.JobName<br /><span class="small">@request.RunMode</span></td>
+            <td><span class="badge @request.RequestStatus">@request.RequestStatus</span></td>
+            <td>@request.RequestedBy<br /><span class="small">@request.RequestedAtUtc.ToString("u")</span></td>
+            <td>@(request.StartedAtUtc?.ToString("u") ?? "-")<br /><span class="small">@(request.FinishedAtUtc?.ToString("u") ?? "-")</span></td>
+            <td>@request.ErrorMessage</td>
+        </tr>
+    }
+    </tbody>
+</table>

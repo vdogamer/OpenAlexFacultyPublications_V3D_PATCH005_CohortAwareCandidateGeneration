@@ -1,0 +1,5 @@
+Write-Host "Run these scripts in SSMS against your OpenAlex test database:"
+Write-Host ":r sql/140_V3B_Create_Scheduler_Tables.sql"
+Write-Host ":r sql/141_V3B_Seed_Integrated_Jobs.sql"
+Write-Host ":r sql/142_V3B_Scheduler_Readiness_Check.sql"
+Write-Host ":r sql/143_V3B_Scheduler_Audit_Queries.sql"

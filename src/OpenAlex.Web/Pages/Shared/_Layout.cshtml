@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>OpenAlex Faculty Publications V3D</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">OpenAlex V3D</div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/Faculty">Faculty</a>
+            <a href="/Admin/AddFaculty">Add Faculty</a>
+            <a href="/Review/Authors">Author Review</a>
+            <a href="/Review/Publications">Publication Review</a>
+            <a href="/Reports/AcceptedPublications">Accepted Publications</a>
+            <a href="/Operations">Operations</a>
+            <a href="/Operations/Runs">Runs</a>
+            <a href="/Admin/ExecutionWindows">Windows</a>
+            <a href="/Admin/Scheduler">Scheduler</a>
+            <a href="/Admin/Jobs">Jobs</a>
+            <a href="/Admin/Preflight">Preflight</a>
+            <a href="/Admin/Deployment">Deployment</a>
+            <a href="/Admin/Roles">Roles</a>
+            <a href="/Admin/Users">Admin</a>
+        </nav>
+        <div class="authbar">
+            @if (User?.Identity?.IsAuthenticated == true)
+            {
+                <span>@User.Identity.Name</span>
+                <form method="post" action="/Account/Logout" style="display:inline">
+                    <button type="submit">Logout</button>
+                </form>
+            }
+            else
+            {
+                <a href="/Account/Login">Login</a>
+            }
+        </div>
+    </header>
+    <main class="container">
+        @RenderBody()
+    </main>
+</body>
+</html>

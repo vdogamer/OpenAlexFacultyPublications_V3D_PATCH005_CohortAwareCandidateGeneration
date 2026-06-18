@@ -1,0 +1,7 @@
+@page
+@model OpenAlex.Web.Pages.Admin.ExecutionWindowsModel
+<h1>Admin: Execution Windows</h1>
+<section class="card"><p>Execution windows define when queued worker jobs are allowed to run. Local testing can remain permissive; production should use approved narrow windows.</p><p><a class="button" href="/Admin/EditExecutionWindow">Add Window</a> <a class="button" href="/Admin/Scheduler">Scheduler</a> <a class="button" href="/Admin/JobRequests">Job Requests</a></p></section>
+<table><thead><tr><th>Window</th><th>Applies To</th><th>Days</th><th>Time</th><th>FullLoad</th><th>Max Requests</th><th>Enabled</th><th>Action</th></tr></thead><tbody>
+@foreach (var window in Model.Windows) { <tr><td><strong>@window.WindowName</strong><br /><span class="small">@window.WindowDescription</span></td><td>@(window.AppliesToJobName ?? "All jobs")</td><td>@window.DaysOfWeekCsv</td><td>@window.StartTimeLocal - @window.EndTimeLocal<br /><span class="small">@window.TimeZoneId</span></td><td>@window.AllowFullLoad</td><td>@window.MaxRequestsPerWindow</td><td>@window.IsEnabled</td><td><a class="button" href="/Admin/EditExecutionWindow?id=@window.JobExecutionWindowId">Edit</a></td></tr> }
+</tbody></table>

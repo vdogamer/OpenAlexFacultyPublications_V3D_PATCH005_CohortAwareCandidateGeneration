@@ -1,0 +1,12 @@
+{
+  "package": "OpenAlexFacultyPublications_V3D_PATCH004_ReviewQueuePendingOnly",
+  "created_utc": "2026-06-18T13:17:49+00:00",
+  "based_on": "OpenAlexFacultyPublications_V3D_PATCH003_SchemaSafeManualFacultyIntake",
+  "purpose": "Hide accepted/rejected author and publication candidates from pending review queues",
+  "patched_files": [
+    "src/OpenAlex.Data/ReviewQueueRepository.cs",
+    "src/OpenAlex.Web/Pages/Review/Authors.cshtml",
+    "src/OpenAlex.Web/Pages/Review/Publications.cshtml",
+    "sql/198_ReviewQueue_AfterAccept_Diagnostic.sql"
+  ]
+}

@@ -1,0 +1,5 @@
+@page
+@model OpenAlex.Web.Pages.Admin.ExternalGroupMappingsModel
+<h1>Admin: External Group Role Mappings</h1>
+<section class="card"><p>Map trusted Shibboleth group/header values to application roles. These mappings are applied in Shibboleth-header mode.</p><p><a class="button" href="/Admin/EditExternalGroupMapping">Add Mapping</a> <a class="button" href="/Admin/Roles">Role Management</a></p></section>
+<table><thead><tr><th>External Group</th><th>Match</th><th>Role</th><th>Enabled</th><th>Description</th><th>Action</th></tr></thead><tbody>@foreach(var mapping in Model.Mappings){<tr><td>@mapping.ExternalGroupValue</td><td>@mapping.MatchType</td><td>@mapping.RoleName</td><td>@mapping.IsEnabled</td><td>@mapping.MappingDescription</td><td><a class="button" href="/Admin/EditExternalGroupMapping?id=@mapping.AppExternalGroupRoleMappingId">Edit</a></td></tr>}</tbody></table>

@@ -1,0 +1,36 @@
+@page
+@model OpenAlex.Web.Pages.Admin.RunJobModel
+
+<h1>Admin: Queue Job Run</h1>
+
+@if (Model.Job is null)
+{
+    <section class="card"><p>Job definition was not found.</p><a class="button" href="/Admin/Scheduler">Back to Scheduler</a></section>
+}
+else
+{
+    <section class="card">
+        <h2>@Model.Job.JobDisplayName</h2>
+        <p><strong>Job:</strong> @Model.Job.JobName</p>
+        <p><strong>Category:</strong> @Model.Job.JobCategory</p>
+        <p>@Model.Job.JobDescription</p>
+        <p><strong>Writes data:</strong> @Model.Job.IsWriteJob</p>
+        <p><strong>Requires confirmation:</strong> @Model.Job.RequiresConfirmation</p>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <section class="notice">@Model.ErrorMessage</section> }
+
+    <form method="post" class="card">
+        <input type="hidden" asp-for="JobDefinitionId" />
+        <label>Run mode</label><br />
+        <select asp-for="RunMode"><option>SmokeTest</option><option>TestLoad</option><option>FullLoad</option></select><br /><br />
+        <label>Max pages</label><br /><input asp-for="MaxPages" type="number" min="0" /><br /><br />
+        <label>Max records</label><br /><input asp-for="MaxRecords" type="number" min="0" /><br /><br />
+        <label>Reason for this run</label><br /><textarea asp-for="RequestReason" rows="4"></textarea><br /><br />
+        <label>Confirmation text</label><br />
+        @if (Model.Job.RequiresConfirmation) { <p>Type the job name exactly to confirm: <code>@Model.Job.JobName</code></p> } else { <p>This job does not require confirmation text.</p> }
+        <input asp-for="ConfirmationText" /><br /><br />
+        <button type="submit">Queue Job Request</button>
+        <a class="button" href="/Admin/Scheduler">Cancel</a>
+    </form>
+}
