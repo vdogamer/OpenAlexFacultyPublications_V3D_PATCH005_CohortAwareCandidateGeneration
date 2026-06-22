@@ -179,8 +179,8 @@ public sealed class FacultyIdentityCandidateGenerationJob
         if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
         {
             var parsed = ParseFacultyName(faculty.DisplayName);
-            firstName = string.IsNullOrWhiteSpace(firstName) ? parsed.First : firstName;
-            lastName = string.IsNullOrWhiteSpace(lastName) ? parsed.Last : lastName;
+            firstName = string.IsNullOrWhiteSpace(firstName) ? parsed.First ?? string.Empty : firstName;
+            lastName = string.IsNullOrWhiteSpace(lastName) ? parsed.Last ?? string.Empty : lastName;
         }
 
         if (!string.IsNullOrWhiteSpace(faculty.ClaimedOpenAlexAuthorId))
@@ -360,7 +360,7 @@ public sealed class FacultyIdentityCandidateGenerationJob
 
     private static string GetEvidenceStatus(decimal evidenceScore, string discoveryMethod)
     {
-        if (discoveryMethod is "ClaimedOpenAlexAuthorId" or "OrcidLookup" && evidenceScore >= 90m)
+        if ((discoveryMethod is "ClaimedOpenAlexAuthorId" or "OrcidLookup") && evidenceScore >= 90m)
         {
             return "StrongIdentifierCandidate";
         }
