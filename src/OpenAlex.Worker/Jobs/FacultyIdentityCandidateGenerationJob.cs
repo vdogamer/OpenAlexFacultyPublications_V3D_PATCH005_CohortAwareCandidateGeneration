@@ -59,16 +59,18 @@ public sealed class FacultyIdentityCandidateGenerationJob
                 : await _candidateGenerationRepository.LoadFacultyForPilotCohortAsync(selectedCohortName, _options.MaxFacultyToProcess, cancellationToken);
 
             var selectedFacultyIds = faculties.Select(f => f.FacultyId).ToList();
+            var deletedStaleRows = await _identityCandidateRepository.DeleteForFacultyIdsAsync(selectedFacultyIds, cancellationToken);
 
             await _logger.LogInfoAsync(
                 "FacultyIdentityCandidateGeneration",
                 "CohortSelectionDiagnostics",
-                $"SelectedCohortName={selectedCohortName ?? "(none)"}; EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : faculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; MaxFacultyToProcess={_options.MaxFacultyToProcess}.",
+                $"SelectedCohortName={selectedCohortName ?? "(none)"}; EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : faculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; MaxFacultyToProcess={_options.MaxFacultyToProcess}; DeletedStaleIdentityCandidateRows={deletedStaleRows}.",
                 run.RunCorrelationId,
                 cancellationToken);
 
             var inserted = 0;
             var updated = 0;
+            var skippedWeak = 0;
             var facultyProcessed = 0;
             var candidateCountsByFaculty = faculties.ToDictionary(f => f.FacultyId, _ => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
@@ -105,6 +107,7 @@ public sealed class FacultyIdentityCandidateGenerationJob
 
                             if (candidate is null)
                             {
+                                skippedWeak++;
                                 continue;
                             }
 
@@ -135,7 +138,8 @@ public sealed class FacultyIdentityCandidateGenerationJob
             var summary =
                 $"Faculty identity candidate generation completed. SelectedCohortName={selectedCohortName ?? "(none)"}; " +
                 $"EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : faculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; " +
-                $"FacultyProcessed={facultyProcessed}; IdentityCandidatesInserted={inserted}; IdentityCandidatesUpdated={updated}; " +
+                $"DeletedStaleIdentityCandidateRows={deletedStaleRows}; FacultyProcessed={facultyProcessed}; " +
+                $"IdentityCandidatesInserted={inserted}; IdentityCandidatesUpdated={updated}; SkippedWeakCandidates={skippedWeak}; " +
                 $"CandidateCountsByFaculty={FormatCandidateCounts(candidateCountsByFaculty)}; " +
                 $"FacultyWithZeroIdentityCandidates={FormatIdList(facultyWithZeroIdentityCandidates)}.";
 
@@ -189,8 +193,7 @@ public sealed class FacultyIdentityCandidateGenerationJob
             {
                 DiscoveryMethod = "ClaimedOpenAlexAuthorId",
                 Value = NormalizeOpenAlexId(faculty.ClaimedOpenAlexAuthorId) ?? faculty.ClaimedOpenAlexAuthorId.Trim(),
-                IsClaimedAuthorId = true,
-                BaseEvidenceScore = 95m
+                IsClaimedAuthorId = true
             });
         }
 
@@ -200,8 +203,7 @@ public sealed class FacultyIdentityCandidateGenerationJob
             {
                 DiscoveryMethod = "OrcidLookup",
                 Value = "orcid:" + NormalizeOrcid(faculty.Orcid),
-                IsFilter = true,
-                BaseEvidenceScore = 92m
+                IsFilter = true
             });
         }
 
@@ -209,9 +211,8 @@ public sealed class FacultyIdentityCandidateGenerationJob
         {
             queries.Add(new IdentityDiscoveryQuery
             {
-                DiscoveryMethod = "ExactFullNameSearch",
-                Value = fullName,
-                BaseEvidenceScore = 70m
+                DiscoveryMethod = "FullNameSearch",
+                Value = fullName
             });
         }
 
@@ -220,16 +221,14 @@ public sealed class FacultyIdentityCandidateGenerationJob
             queries.Add(new IdentityDiscoveryQuery
             {
                 DiscoveryMethod = "FirstLastNameSearch",
-                Value = firstName + " " + lastName,
-                BaseEvidenceScore = 62m
+                Value = firstName + " " + lastName
             });
 
             var firstInitial = firstName.Substring(0, 1);
             queries.Add(new IdentityDiscoveryQuery
             {
                 DiscoveryMethod = "FirstInitialLastNameSearch",
-                Value = firstInitial + " " + lastName,
-                BaseEvidenceScore = 48m
+                Value = firstInitial + " " + lastName
             });
         }
 
@@ -240,8 +239,7 @@ public sealed class FacultyIdentityCandidateGenerationJob
             queries.Add(new IdentityDiscoveryQuery
             {
                 DiscoveryMethod = "FirstMiddleLastNameSearch",
-                Value = firstMiddleLast,
-                BaseEvidenceScore = 66m
+                Value = firstMiddleLast
             });
         }
 
@@ -259,14 +257,16 @@ public sealed class FacultyIdentityCandidateGenerationJob
     {
         var normalizedAuthorId = NormalizeOpenAlexId(discoveryQuery.Value) ?? discoveryQuery.Value;
         var shortId = GetOpenAlexShortId(normalizedAuthorId);
-        var evidenceScore = discoveryQuery.BaseEvidenceScore;
+        const decimal evidenceScore = 95m;
         var evidenceStatus = GetEvidenceStatus(evidenceScore, discoveryQuery.DiscoveryMethod);
+        var candidateType = GetCandidateType(evidenceScore, 100m, discoveryQuery.DiscoveryMethod, hasIdentifier: true);
 
         var evidence = new
         {
             faculty.FacultyId,
             FacultyDisplayName = faculty.DisplayName,
             discoveryQuery.DiscoveryMethod,
+            CandidateType = candidateType,
             CandidateAuthorOpenAlexId = normalizedAuthorId,
             CandidateAuthorOpenAlexShortId = shortId,
             Note = "Claimed/manual author ID is treated as a strong candidate for review, not an automatic acceptance."
@@ -282,7 +282,7 @@ public sealed class FacultyIdentityCandidateGenerationJob
             DiscoveryMethod = discoveryQuery.DiscoveryMethod,
             EvidenceScore = evidenceScore,
             EvidenceStatus = evidenceStatus,
-            EvidenceSummary = $"{discoveryQuery.DiscoveryMethod}: Faculty '{faculty.DisplayName}' has claimed/manual OpenAlex author ID '{normalizedAuthorId}'. EvidenceScore={evidenceScore}. Candidate requires review.",
+            EvidenceSummary = $"CandidateType={candidateType}; {discoveryQuery.DiscoveryMethod}: Faculty '{faculty.DisplayName}' has claimed/manual OpenAlex author ID '{normalizedAuthorId}'. EvidenceScore={evidenceScore}. Candidate requires review.",
             EvidenceJson = JsonSerializer.Serialize(evidence),
             IngestionRunId = ingestionRunId
         };
@@ -308,11 +308,19 @@ public sealed class FacultyIdentityCandidateGenerationJob
         var lastKnownInstitutionsJson = GetRawJson(author, "last_known_institutions");
         var institutionSummary = BuildInstitutionSummary(author, "last_known_institutions");
         var nameScore = ScoreName(faculty, displayName);
-        var institutionScore = institutionSummary.Contains("University of Virginia", StringComparison.OrdinalIgnoreCase) ? 10m : 0m;
-        var identifierBonus = discoveryQuery.DiscoveryMethod is "OrcidLookup" ? 8m : 0m;
+        var hasIdentifier = discoveryQuery.DiscoveryMethod is "OrcidLookup" && !string.IsNullOrWhiteSpace(orcid);
+
+        if (!hasIdentifier && nameScore <= 0m)
+        {
+            return null;
+        }
+
+        var institutionBonus = institutionSummary.Contains("University of Virginia", StringComparison.OrdinalIgnoreCase) ? 8m : 0m;
         var worksBonus = worksCount.GetValueOrDefault() > 0 ? 2m : 0m;
-        var evidenceScore = Math.Min(100m, discoveryQuery.BaseEvidenceScore + (nameScore * 0.15m) + institutionScore + identifierBonus + worksBonus);
+        var discoveryMethodAdjustment = GetDiscoveryMethodAdjustment(discoveryQuery.DiscoveryMethod, nameScore);
+        var evidenceScore = Math.Min(100m, GetBaseScoreFromNameScore(nameScore, hasIdentifier) + institutionBonus + worksBonus + discoveryMethodAdjustment);
         var evidenceStatus = GetEvidenceStatus(evidenceScore, discoveryQuery.DiscoveryMethod);
+        var candidateType = GetCandidateType(evidenceScore, nameScore, discoveryQuery.DiscoveryMethod, hasIdentifier);
 
         var evidence = new
         {
@@ -320,6 +328,7 @@ public sealed class FacultyIdentityCandidateGenerationJob
             FacultyDisplayName = faculty.DisplayName,
             discoveryQuery.DiscoveryMethod,
             QueryValue = discoveryQuery.Value,
+            CandidateType = candidateType,
             CandidateAuthorOpenAlexId = authorId,
             CandidateAuthorOpenAlexShortId = shortId,
             CandidateDisplayName = displayName,
@@ -329,11 +338,11 @@ public sealed class FacultyIdentityCandidateGenerationJob
             LastKnownInstitutions = institutionSummary,
             Scores = new
             {
-                BaseEvidenceScore = discoveryQuery.BaseEvidenceScore,
                 NameScore = nameScore,
-                InstitutionBonus = institutionScore,
-                IdentifierBonus = identifierBonus,
+                BaseScore = GetBaseScoreFromNameScore(nameScore, hasIdentifier),
+                InstitutionBonus = institutionBonus,
                 WorksBonus = worksBonus,
+                DiscoveryMethodAdjustment = discoveryMethodAdjustment,
                 EvidenceScore = evidenceScore
             },
             OpenAlexAuthorRawJson = author.GetRawText()
@@ -352,10 +361,61 @@ public sealed class FacultyIdentityCandidateGenerationJob
             DiscoveryMethod = discoveryQuery.DiscoveryMethod,
             EvidenceScore = Math.Round(evidenceScore, 4),
             EvidenceStatus = evidenceStatus,
-            EvidenceSummary = $"{discoveryQuery.DiscoveryMethod}: Faculty '{faculty.DisplayName}' discovered OpenAlex author '{displayName}' ({shortId}). EvidenceScore={Math.Round(evidenceScore, 4)}; NameScore={nameScore}; LastKnownInstitutions='{institutionSummary}'. Candidate requires review.",
+            EvidenceSummary = $"CandidateType={candidateType}; {discoveryQuery.DiscoveryMethod}: Faculty '{faculty.DisplayName}' discovered OpenAlex author '{displayName}' ({shortId}). EvidenceScore={Math.Round(evidenceScore, 4)}; NameScore={nameScore}; LastKnownInstitutions='{institutionSummary}'. Candidate requires review.",
             EvidenceJson = JsonSerializer.Serialize(evidence),
             IngestionRunId = ingestionRunId
         };
+    }
+
+    private static decimal GetBaseScoreFromNameScore(decimal nameScore, bool hasIdentifier)
+    {
+        if (hasIdentifier)
+        {
+            return 92m;
+        }
+
+        if (nameScore >= 100m) return 88m;
+        if (nameScore >= 95m) return 84m;
+        if (nameScore >= 82m) return 70m;
+        if (nameScore >= 65m) return 58m;
+        if (nameScore >= 55m) return 48m;
+        return 0m;
+    }
+
+    private static decimal GetDiscoveryMethodAdjustment(string discoveryMethod, decimal nameScore)
+    {
+        return discoveryMethod switch
+        {
+            "FullNameSearch" when nameScore >= 95m => 5m,
+            "FirstMiddleLastNameSearch" when nameScore >= 82m => 2m,
+            "FirstInitialLastNameSearch" when nameScore < 95m => -8m,
+            _ => 0m
+        };
+    }
+
+    private static string GetCandidateType(decimal evidenceScore, decimal nameScore, string discoveryMethod, bool hasIdentifier)
+    {
+        if (hasIdentifier || discoveryMethod == "ClaimedOpenAlexAuthorId")
+        {
+            return "PrimaryIdentityCandidate";
+        }
+
+        if (nameScore >= 95m && evidenceScore >= 80m)
+        {
+            return "PrimaryIdentityCandidate";
+        }
+
+        if (nameScore >= 82m && evidenceScore >= 60m)
+        {
+            return "PossibleProfileFragment";
+        }
+
+        if (nameScore >= 55m)
+        {
+            return "WeakPossibleMatch";
+        }
+
+        return "LikelyFalsePositive";
     }
 
     private static string GetEvidenceStatus(decimal evidenceScore, string discoveryMethod)
@@ -420,6 +480,14 @@ public sealed class FacultyIdentityCandidateGenerationJob
             facultyParsed.First[0] == authorParsed.First[0])
         {
             return 82m;
+        }
+
+        if (!string.IsNullOrWhiteSpace(facultyParsed.First) &&
+            !string.IsNullOrWhiteSpace(facultyParsed.Last) &&
+            authorFull.Contains(facultyParsed.First) &&
+            authorFull.Contains(facultyParsed.Last))
+        {
+            return 65m;
         }
 
         if (!string.IsNullOrWhiteSpace(facultyParsed.Last) && facultyParsed.Last == authorParsed.Last)
@@ -630,6 +698,5 @@ public sealed class FacultyIdentityCandidateGenerationJob
         public string Value { get; set; } = string.Empty;
         public bool IsFilter { get; set; }
         public bool IsClaimedAuthorId { get; set; }
-        public decimal BaseEvidenceScore { get; set; }
     }
 }
