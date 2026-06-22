@@ -30,6 +30,30 @@ public sealed class OpenAlexApiClient
         return GetCursorPageAsync("authors", filter, cursor, cancellationToken);
     }
 
+    public Task<OpenAlexCursorPage> GetAuthorsSearchPageAsync(string search, int? perPage = null, CancellationToken cancellationToken = default)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["search"] = search,
+            ["per-page"] = NormalizePerPage(perPage).ToString(),
+            ["select"] = "id,display_name,orcid,works_count,cited_by_count,last_known_institutions,affiliations,updated_date"
+        };
+
+        return GetListPageAsync("authors", query, cancellationToken);
+    }
+
+    public Task<OpenAlexCursorPage> GetAuthorsFilterPageAsync(string filter, int? perPage = null, CancellationToken cancellationToken = default)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["filter"] = filter,
+            ["per-page"] = NormalizePerPage(perPage).ToString(),
+            ["select"] = "id,display_name,orcid,works_count,cited_by_count,last_known_institutions,affiliations,updated_date"
+        };
+
+        return GetListPageAsync("authors", query, cancellationToken);
+    }
+
     public Task<OpenAlexCursorPage> GetWorksPageAsync(string filter, string cursor = "*", CancellationToken cancellationToken = default)
     {
         return GetCursorPageAsync("works", filter, cursor, cancellationToken);
@@ -50,22 +74,29 @@ public sealed class OpenAlexApiClient
         var query = new Dictionary<string, string?>
         {
             ["filter"] = filter,
-            ["per-page"] = Math.Clamp(_options.PerPage, 1, 200).ToString(),
+            ["per-page"] = NormalizePerPage(null).ToString(),
             ["cursor"] = cursor
         };
 
-        if (!string.IsNullOrWhiteSpace(_options.ApiKey))
+        return BuildRequestUri(endpoint, query);
+    }
+
+    public string BuildRequestUri(string endpoint, IReadOnlyDictionary<string, string?> query)
+    {
+        var items = new Dictionary<string, string?>(query, StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(_options.ApiKey) && !items.ContainsKey("api_key"))
         {
-            query["api_key"] = _options.ApiKey;
+            items["api_key"] = _options.ApiKey;
         }
 
         // Kept for backward compatibility/documentation. As of 2026, OpenAlex API keys replaced the old mailto polite-pool behavior.
-        if (!string.IsNullOrWhiteSpace(_options.MailTo))
+        if (!string.IsNullOrWhiteSpace(_options.MailTo) && !items.ContainsKey("mailto"))
         {
-            query["mailto"] = _options.MailTo;
+            items["mailto"] = _options.MailTo;
         }
 
-        return endpoint + "?" + string.Join("&", query
+        return endpoint + "?" + string.Join("&", items
             .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
             .Select(kvp => Uri.EscapeDataString(kvp.Key) + "=" + Uri.EscapeDataString(kvp.Value!)));
     }
@@ -73,7 +104,17 @@ public sealed class OpenAlexApiClient
     private async Task<OpenAlexCursorPage> GetCursorPageAsync(string endpoint, string filter, string cursor, CancellationToken cancellationToken)
     {
         var uri = BuildCursorRequestUri(endpoint, filter, cursor);
+        return await GetPageByUriAsync(uri, cancellationToken);
+    }
 
+    private async Task<OpenAlexCursorPage> GetListPageAsync(string endpoint, IReadOnlyDictionary<string, string?> query, CancellationToken cancellationToken)
+    {
+        var uri = BuildRequestUri(endpoint, query);
+        return await GetPageByUriAsync(uri, cancellationToken);
+    }
+
+    private async Task<OpenAlexCursorPage> GetPageByUriAsync(string uri, CancellationToken cancellationToken)
+    {
         using var response = await _httpClient.GetAsync(uri, cancellationToken);
         response.EnsureSuccessStatusCode();
 
@@ -104,6 +145,11 @@ public sealed class OpenAlexApiClient
             MetaPerPage = GetInt(meta, "per_page"),
             RawDocument = document
         };
+    }
+
+    private int NormalizePerPage(int? perPage)
+    {
+        return Math.Clamp(perPage ?? _options.PerPage, 1, 200);
     }
 
     private static string? GetString(JsonElement element, string propertyName)
