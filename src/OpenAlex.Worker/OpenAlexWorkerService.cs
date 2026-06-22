@@ -123,6 +123,13 @@ public sealed class OpenAlexWorkerService : BackgroundService
             return;
         }
 
+        if (string.Equals(_options.Value.JobName, "FacultyIdentityCandidateSummaryGeneration", StringComparison.OrdinalIgnoreCase))
+        {
+            var job = scope.ServiceProvider.GetRequiredService<FacultyIdentityCandidateSummaryGenerationJob>();
+            await job.ExecuteAsync(stoppingToken);
+            return;
+        }
+
         if (string.Equals(_options.Value.JobName, "FacultyAuthorCandidateGeneration", StringComparison.OrdinalIgnoreCase))
         {
             var job = scope.ServiceProvider.GetRequiredService<FacultyAuthorCandidateGenerationJob>();
