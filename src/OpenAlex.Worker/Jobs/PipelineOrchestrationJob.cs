@@ -121,6 +121,12 @@ public sealed class PipelineOrchestrationJob
             return;
         }
 
+        if (string.Equals(jobName, "FacultyIdentityWorkEvidenceScoring", StringComparison.OrdinalIgnoreCase))
+        {
+            await scope.ServiceProvider.GetRequiredService<FacultyIdentityWorkEvidenceScoringJob>().ExecuteAsync(cancellationToken);
+            return;
+        }
+
         if (string.Equals(jobName, "FacultyAuthorCandidateGeneration", StringComparison.OrdinalIgnoreCase))
         {
             await scope.ServiceProvider.GetRequiredService<FacultyAuthorCandidateGenerationJob>().ExecuteAsync(cancellationToken);
