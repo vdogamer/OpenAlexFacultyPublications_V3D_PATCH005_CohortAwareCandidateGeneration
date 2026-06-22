@@ -13,6 +13,37 @@ public sealed class FacultyIdentityCandidateRepository
         _connectionFactory = connectionFactory;
     }
 
+    public async Task<int> DeleteForFacultyIdsAsync(
+        IReadOnlyCollection<long> facultyIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (facultyIds.Count == 0)
+        {
+            return 0;
+        }
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(connection, "openalex.FacultyIdentityCandidate", "U", cancellationToken))
+        {
+            throw new InvalidOperationException("openalex.FacultyIdentityCandidate does not exist. Run sql/200_V3E_PATCH001_FacultyIdentityCandidate.sql first.");
+        }
+
+        var deleted = 0;
+        foreach (var facultyId in facultyIds.Distinct())
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = @"
+DELETE FROM openalex.FacultyIdentityCandidate
+WHERE FacultyId = @FacultyId;";
+            command.Parameters.AddWithValue("@FacultyId", facultyId);
+            deleted += await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return deleted;
+    }
+
     public async Task<FacultyIdentityCandidateUpsertResult> UpsertAsync(
         FacultyIdentityCandidateWriteModel candidate,
         CancellationToken cancellationToken = default)
