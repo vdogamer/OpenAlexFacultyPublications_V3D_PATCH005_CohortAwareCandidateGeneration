@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using OpenAlex.Data;
+using OpenAlex.Data.Models;
 using OpenAlex.OperationalLogging;
 
 namespace OpenAlex.Worker.Jobs;
@@ -44,8 +45,8 @@ public sealed class FacultyPublicationCandidateGenerationJob
 
         try
         {
-            var cohortFaculties = selectedCohortName is null
-                ? []
+            IReadOnlyList<FacultyCandidateSource> cohortFaculties = selectedCohortName is null
+                ? Array.Empty<FacultyCandidateSource>()
                 : await _repository.LoadFacultyForPilotCohortAsync(selectedCohortName, _options.MaxFacultyToProcess, cancellationToken);
 
             var selectedFacultyIds = cohortFaculties.Select(f => f.FacultyId).ToList();
