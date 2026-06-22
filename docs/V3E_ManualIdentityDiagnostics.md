@@ -39,6 +39,8 @@ Diagnostic goal:
 
 - Search awards by free-text name search.
 - Search awards by lead investigator given/family name filters.
+- Search awards by broad `text.search` filter.
+- Optionally test ORCID discovery when an ORCID value is supplied.
 - Capture funder, award ID, date range, amount, lead investigator, ORCID if available, and provenance.
 - Build a basic dedupe fingerprint for grouping repeated awards.
 
@@ -71,6 +73,13 @@ powershell -ExecutionPolicy Bypass -File .\tools\OpenAlexIdentityDiagnostics.ps1
   -WorkSamplePerAuthor 20
 ```
 
+Optional ORCID check for Jeffrey Martens:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\OpenAlexIdentityDiagnostics.ps1 `
+  -JeffreyMartensOrcid "https://orcid.org/0000-0000-0000-0000"
+```
+
 ## Output files
 
 The script writes files under:
@@ -94,6 +103,13 @@ Raw API responses are also retained:
 author-search-*.json
 works-by-author-*.json
 award-search-*.json
+```
+
+If an award query fails, the script now continues and writes:
+
+```text
+award-search-*-error.json
+award-query-errors.csv
 ```
 
 ## What to inspect first
