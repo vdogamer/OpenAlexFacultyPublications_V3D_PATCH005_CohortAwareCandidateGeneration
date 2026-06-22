@@ -14,6 +14,7 @@ Outputs:
     author-candidates.csv
     author-work-samples.csv
     award-search-*.json
+    award-search-*-error.json, if an individual award query fails
     award-candidates.csv
 
 Notes:
@@ -26,7 +27,8 @@ param(
     [string]$ApiKey = $env:OPENALEX_API_KEY,
     [string]$OutputRoot = "artifacts/openalex-identity-diagnostics",
     [int]$PerPage = 25,
-    [int]$WorkSamplePerAuthor = 10
+    [int]$WorkSamplePerAuthor = 10,
+    [string]$JeffreyMartensOrcid = ""
 )
 
 Set-StrictMode -Version 2.0
@@ -68,22 +70,74 @@ function New-OpenAlexUri {
     return $builder.Uri.AbsoluteUri
 }
 
+function Get-WebExceptionResponseBody {
+    param($Exception)
+
+    if ($null -eq $Exception -or $null -eq $Exception.Response) {
+        return ""
+    }
+
+    try {
+        $stream = $Exception.Response.GetResponseStream()
+        if ($null -eq $stream) {
+            return ""
+        }
+
+        $reader = New-Object System.IO.StreamReader($stream)
+        try {
+            return $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Close()
+        }
+    }
+    catch {
+        return ""
+    }
+}
+
 function Invoke-OpenAlexGet {
     param(
         [string]$Path,
         [hashtable]$Query,
-        [string]$RawOutputPath
+        [string]$RawOutputPath,
+        [switch]$ContinueOnError
     )
 
     $uri = New-OpenAlexUri -Path $Path -Query $Query
     Write-Host "GET $uri"
-    $response = Invoke-RestMethod -Uri $uri -Method Get -Headers @{ "User-Agent" = "OpenAlexFacultyPublications-V3E-Diagnostics" }
 
-    if ($RawOutputPath) {
-        $response | ConvertTo-Json -Depth 100 | Out-File -FilePath $RawOutputPath -Encoding UTF8
+    try {
+        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers @{ "User-Agent" = "OpenAlexFacultyPublications-V3E-Diagnostics" }
+
+        if ($RawOutputPath) {
+            $response | ConvertTo-Json -Depth 100 | Out-File -FilePath $RawOutputPath -Encoding UTF8
+        }
+
+        return $response
     }
+    catch {
+        $responseBody = Get-WebExceptionResponseBody -Exception $_.Exception
+        $errorPath = $null
 
-    return $response
+        if ($RawOutputPath) {
+            $errorPath = $RawOutputPath -replace '\.json$', '-error.json'
+            [pscustomobject]@{
+                Uri = $uri
+                ErrorMessage = $_.Exception.Message
+                ResponseBody = $responseBody
+            } | ConvertTo-Json -Depth 20 | Out-File -FilePath $errorPath -Encoding UTF8
+        }
+
+        Write-Warning "OpenAlex request failed. Error was saved to: $errorPath"
+        Write-Warning $_.Exception.Message
+
+        if ($ContinueOnError) {
+            return $null
+        }
+
+        throw
+    }
 }
 
 function Get-ShortOpenAlexId {
@@ -213,17 +267,33 @@ $workRows |
     Sort-Object AuthorOpenAlexShortId, PublicationYear -Descending |
     Export-Csv -Path (Join-Path $outputDir "author-work-samples.csv") -NoTypeInformation -Encoding UTF8
 
-$awardSearches = @(
-    @{ Label = "jeffrey-martens-search"; Query = @{ search = "Jeffrey Martens"; "per-page" = $PerPage; select = "id,display_name,funder_award_id,funder,amount,currency,start_year,end_year,start_date,end_date,lead_investigator,co_lead_investigator,investigators,funded_outputs_count,doi,provenance" } },
-    @{ Label = "jeffrey-martens-name-filter"; Query = @{ filter = "lead_investigator.given_name.search:Jeffrey,lead_investigator.family_name.search:Martens"; "per-page" = $PerPage; select = "id,display_name,funder_award_id,funder,amount,currency,start_year,end_year,start_date,end_date,lead_investigator,co_lead_investigator,investigators,funded_outputs_count,doi,provenance" } }
-)
+$awardSelect = "id,display_name,funder_award_id,funder,amount,currency,start_year,end_year,start_date,end_date,lead_investigator,co_lead_investigator,investigators,funded_outputs_count,doi,provenance"
+
+$awardSearches = New-Object System.Collections.Generic.List[hashtable]
+$awardSearches.Add(@{ Label = "jeffrey-martens-search"; Query = @{ search = "Jeffrey Martens"; "per-page" = $PerPage; select = $awardSelect } })
+$awardSearches.Add(@{ Label = "jeffrey-martens-name-filter"; Query = @{ filter = "lead_investigator.given_name:Jeffrey,lead_investigator.family_name:Martens"; "per-page" = $PerPage; select = $awardSelect } })
+$awardSearches.Add(@{ Label = "jeffrey-martens-text-search-filter"; Query = @{ filter = "text.search:Jeffrey Martens"; "per-page" = $PerPage; select = $awardSelect } })
+
+if (-not [string]::IsNullOrWhiteSpace($JeffreyMartensOrcid)) {
+    $awardSearches.Add(@{ Label = "jeffrey-martens-orcid-filter"; Query = @{ filter = "lead_investigator.orcid:$JeffreyMartensOrcid"; "per-page" = $PerPage; select = $awardSelect } })
+}
 
 $awardRows = New-Object System.Collections.Generic.List[object]
+$awardQueryErrors = New-Object System.Collections.Generic.List[object]
 
 foreach ($searchSpec in $awardSearches) {
     $label = $searchSpec.Label
     $rawPath = Join-Path $outputDir ("award-search-{0}.json" -f $label)
-    $response = Invoke-OpenAlexGet -Path "/awards" -Query $searchSpec.Query -RawOutputPath $rawPath
+    $response = Invoke-OpenAlexGet -Path "/awards" -Query $searchSpec.Query -RawOutputPath $rawPath -ContinueOnError
+
+    if ($null -eq $response) {
+        $awardQueryErrors.Add([pscustomobject]@{
+            Label = $label
+            RawOutputPath = $rawPath
+            ErrorOutputPath = ($rawPath -replace '\.json$', '-error.json')
+        })
+        continue
+    }
 
     foreach ($award in $response.results) {
         $lead = $award.lead_investigator
@@ -282,12 +352,18 @@ $awardRows |
     Sort-Object FacultyTestCase, FunderName, FunderAwardId, StartYear, DisplayName |
     Export-Csv -Path (Join-Path $outputDir "award-candidates.csv") -NoTypeInformation -Encoding UTF8
 
+if ($awardQueryErrors.Count -gt 0) {
+    $awardQueryErrors |
+        Export-Csv -Path (Join-Path $outputDir "award-query-errors.csv") -NoTypeInformation -Encoding UTF8
+}
+
 $summary = [pscustomobject]@{
     GeneratedAt = (Get-Date).ToString("s")
     OutputDirectory = $outputDir
     SusanPollartUniqueAuthorCandidateCount = $seenAuthorIds.Count
     SusanPollartWorkSampleRows = $workRows.Count
     JeffreyMartensAwardRows = $awardRows.Count
+    AwardQueryErrorCount = $awardQueryErrors.Count
     ApiKeyUsed = (-not [string]::IsNullOrWhiteSpace($ApiKey))
 }
 
@@ -298,3 +374,6 @@ Write-Host "Done. Review these files first:"
 Write-Host "  $(Join-Path $outputDir 'author-candidates.csv')"
 Write-Host "  $(Join-Path $outputDir 'author-work-samples.csv')"
 Write-Host "  $(Join-Path $outputDir 'award-candidates.csv')"
+if ($awardQueryErrors.Count -gt 0) {
+    Write-Warning "One or more award queries failed. Review: $(Join-Path $outputDir 'award-query-errors.csv')"
+}
