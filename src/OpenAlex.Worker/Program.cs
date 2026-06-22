@@ -23,6 +23,7 @@ builder.Services.AddScoped<InstitutionIngestionJob>();
 builder.Services.AddScoped<AuthorIngestionJob>();
 builder.Services.AddScoped<WorkIngestionJob>();
 builder.Services.AddScoped<FacultyIdentityCandidateGenerationJob>();
+builder.Services.AddScoped<FacultyIdentityCandidateWorkExpansionJob>();
 builder.Services.AddScoped<FacultyAuthorCandidateGenerationJob>();
 builder.Services.AddScoped<FacultyPublicationCandidateGenerationJob>();
 builder.Services.AddScoped<PipelineOrchestrationJob>();
