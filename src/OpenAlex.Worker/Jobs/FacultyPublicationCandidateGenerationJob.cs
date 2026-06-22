@@ -22,11 +22,13 @@ public sealed class FacultyPublicationCandidateGenerationJob
 
     public async Task ExecuteAsync(CancellationToken cancellationToken)
     {
+        var selectedCohortName = NormalizeCohortName(_options.PilotCohortName);
+
         var run = await _repository.StartRunAsync(
             _options.RunMode,
-            (string.IsNullOrWhiteSpace(_options.PilotCohortName)
+            (selectedCohortName is null
                 ? "FacultyPublicationCandidateGeneration"
-                : $"FacultyPublicationCandidateGeneration; PilotCohortName={_options.PilotCohortName}"),
+                : $"FacultyPublicationCandidateGeneration; PilotCohortName={selectedCohortName}"),
             null,
             _options.MaxPublicationCandidatesToGenerate,
             _options.ApplicationVersion,
@@ -36,17 +38,45 @@ public sealed class FacultyPublicationCandidateGenerationJob
         await _logger.LogInfoAsync(
             "FacultyPublicationCandidateGeneration",
             "RunStarted",
-            $"Started faculty-publication candidate generation run {run.IngestionRunId}. PilotCohortName={_options.PilotCohortName ?? "(none)"}.",
+            $"Started faculty-publication candidate generation run {run.IngestionRunId}. PilotCohortName={selectedCohortName ?? "(none)"}.",
             run.RunCorrelationId,
             cancellationToken);
 
         try
         {
+            var cohortFaculties = selectedCohortName is null
+                ? []
+                : await _repository.LoadFacultyForPilotCohortAsync(selectedCohortName, _options.MaxFacultyToProcess, cancellationToken);
+
+            var selectedFacultyIds = cohortFaculties.Select(f => f.FacultyId).ToList();
+
+            if (selectedCohortName is not null)
+            {
+                await _logger.LogInfoAsync(
+                    "FacultyPublicationCandidateGeneration",
+                    "CohortSelectionDiagnostics",
+                    $"SelectedCohortName={selectedCohortName}; EnabledCohortFacultyCount={cohortFaculties.Count}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; MaxFacultyToProcess={_options.MaxFacultyToProcess}.",
+                    run.RunCorrelationId,
+                    cancellationToken);
+            }
+
             var rows = await _repository.GetPublicationCandidateSourceRowsAsync(
                 _options.MaxPublicationCandidatesToGenerate,
                 _options.OnlyCurrentAcceptedAuthorDecisions,
-                _options.PilotCohortName,
+                selectedCohortName,
                 cancellationToken);
+
+            var candidateCountsByFaculty = selectedFacultyIds.ToDictionary(facultyId => facultyId, _ => 0);
+            foreach (var group in rows.GroupBy(row => row.FacultyId))
+            {
+                candidateCountsByFaculty[group.Key] = group.Count();
+            }
+
+            var facultyWithZeroPublicationCandidates = candidateCountsByFaculty
+                .Where(pair => pair.Value == 0)
+                .Select(pair => pair.Key)
+                .OrderBy(facultyId => facultyId)
+                .ToList();
 
             var inserted = 0;
             var updated = 0;
@@ -62,8 +92,16 @@ public sealed class FacultyPublicationCandidateGenerationJob
                 if (wasInserted) inserted++; else updated++;
             }
 
+            var facultyProcessedCount = selectedCohortName is null
+                ? rows.Select(row => row.FacultyId).Distinct().Count()
+                : cohortFaculties.Count;
+
             var summary =
-                $"Faculty-publication candidate generation completed. PilotCohortName={_options.PilotCohortName ?? "(none)"}; SourceRowsProcessed={rows.Count}; " +
+                $"Faculty-publication candidate generation completed. SelectedCohortName={selectedCohortName ?? "(none)"}; " +
+                $"EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : cohortFaculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; " +
+                $"FacultyProcessed={facultyProcessedCount}; SourceRowsProcessed={rows.Count}; " +
+                $"FacultyWithZeroPublicationCandidates={FormatIdList(facultyWithZeroPublicationCandidates)}; " +
+                $"CandidateCountsByFaculty={FormatCandidateCounts(candidateCountsByFaculty)}; " +
                 $"CandidatesInserted={inserted}; CandidatesUpdated={updated}.";
 
             await _repository.CompleteRunAsync(
@@ -94,5 +132,28 @@ public sealed class FacultyPublicationCandidateGenerationJob
 
             throw;
         }
+    }
+
+    private static string? NormalizeCohortName(string? cohortName)
+    {
+        return string.IsNullOrWhiteSpace(cohortName) ? null : cohortName.Trim();
+    }
+
+    private static string FormatIdList(IEnumerable<long> values)
+    {
+        var ordered = values.OrderBy(value => value).ToList();
+        return ordered.Count == 0 ? "(none)" : string.Join(",", ordered);
+    }
+
+    private static string FormatCandidateCounts(IReadOnlyDictionary<long, int> countsByFaculty)
+    {
+        if (countsByFaculty.Count == 0)
+        {
+            return "(none)";
+        }
+
+        return string.Join(",", countsByFaculty
+            .OrderBy(pair => pair.Key)
+            .Select(pair => $"{pair.Key}:{pair.Value}"));
     }
 }
