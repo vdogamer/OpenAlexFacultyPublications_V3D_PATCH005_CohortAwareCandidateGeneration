@@ -28,9 +28,10 @@ public sealed class FacultyAuthorCandidateGenerationJob
 
     public async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        var institutionFilter = string.IsNullOrWhiteSpace(_options.PilotCohortName)
+        var selectedCohortName = NormalizeCohortName(_options.PilotCohortName);
+        var institutionFilter = selectedCohortName is null
             ? "FacultyAuthorCandidateGeneration"
-            : $"FacultyAuthorCandidateGeneration; PilotCohortName={_options.PilotCohortName}";
+            : $"FacultyAuthorCandidateGeneration; PilotCohortName={selectedCohortName}";
 
         var run = await _repository.StartRunAsync(
             _options.RunMode,
@@ -44,15 +45,27 @@ public sealed class FacultyAuthorCandidateGenerationJob
         await _logger.LogInfoAsync(
             "FacultyAuthorCandidateGeneration",
             "RunStarted",
-            $"Started faculty-author candidate generation run {run.IngestionRunId}. PilotCohortName={_options.PilotCohortName ?? "(none)"}.",
+            $"Started faculty-author candidate generation run {run.IngestionRunId}. PilotCohortName={selectedCohortName ?? "(none)"}.",
             run.RunCorrelationId,
             cancellationToken);
 
         try
         {
-            var faculties = string.IsNullOrWhiteSpace(_options.PilotCohortName)
+            var faculties = selectedCohortName is null
                 ? await _repository.LoadFacultyAsync(_options.MaxFacultyToProcess, cancellationToken)
-                : await _repository.LoadFacultyForPilotCohortAsync(_options.PilotCohortName, _options.MaxFacultyToProcess, cancellationToken);
+                : await _repository.LoadFacultyForPilotCohortAsync(selectedCohortName, _options.MaxFacultyToProcess, cancellationToken);
+            var selectedFacultyIds = faculties.Select(f => f.FacultyId).ToList();
+
+            if (selectedCohortName is not null)
+            {
+                await _logger.LogInfoAsync(
+                    "FacultyAuthorCandidateGeneration",
+                    "CohortSelectionDiagnostics",
+                    $"SelectedCohortName={selectedCohortName}; EnabledCohortFacultyCount={faculties.Count}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; MaxFacultyToProcess={_options.MaxFacultyToProcess}.",
+                    run.RunCorrelationId,
+                    cancellationToken);
+            }
+
             var authors = await _repository.LoadAuthorsAsync(_options.MaxAuthorsToScan, cancellationToken);
             var institutions = await _repository.LoadAuthorInstitutionsAsync(authors.Select(a => a.AuthorId).ToList(), cancellationToken);
 
@@ -63,6 +76,7 @@ public sealed class FacultyAuthorCandidateGenerationJob
 
             var inserted = 0;
             var updated = 0;
+            var candidateCountsByFaculty = faculties.ToDictionary(f => f.FacultyId, _ => 0);
 
             foreach (var faculty in faculties)
             {
@@ -87,19 +101,34 @@ public sealed class FacultyAuthorCandidateGenerationJob
                     }
                 }
 
-                foreach (var candidate in candidateRows
+                var selectedCandidates = candidateRows
                     .OrderByDescending(c => c.MatchScore)
                     .ThenByDescending(c => c.NameScore)
-                    .Take(_options.MaxCandidatesPerFaculty))
+                    .Take(_options.MaxCandidatesPerFaculty)
+                    .ToList();
+
+                candidateCountsByFaculty[faculty.FacultyId] = selectedCandidates.Count;
+
+                foreach (var candidate in selectedCandidates)
                 {
                     var wasInserted = await _repository.UpsertAuthorCandidateAsync(candidate, cancellationToken);
                     if (wasInserted) inserted++; else updated++;
                 }
             }
 
+            var facultyWithZeroAuthorCandidates = candidateCountsByFaculty
+                .Where(pair => pair.Value == 0)
+                .Select(pair => pair.Key)
+                .OrderBy(facultyId => facultyId)
+                .ToList();
+
             var summary =
-                $"Faculty-author candidate generation completed. FacultyProcessed={faculties.Count}; " +
-                $"AuthorsScanned={authors.Count}; CandidatesInserted={inserted}; CandidatesUpdated={updated}.";
+                $"Faculty-author candidate generation completed. SelectedCohortName={selectedCohortName ?? "(none)"}; " +
+                $"EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : faculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; " +
+                $"FacultyProcessed={faculties.Count}; AuthorsScanned={authors.Count}; " +
+                $"FacultyWithZeroAuthorCandidates={FormatIdList(facultyWithZeroAuthorCandidates)}; " +
+                $"CandidateCountsByFaculty={FormatCandidateCounts(candidateCountsByFaculty)}; " +
+                $"CandidatesInserted={inserted}; CandidatesUpdated={updated}.";
 
             await _repository.CompleteRunAsync(
                 run.IngestionRunId,
@@ -129,6 +158,29 @@ public sealed class FacultyAuthorCandidateGenerationJob
 
             throw;
         }
+    }
+
+    private static string? NormalizeCohortName(string? cohortName)
+    {
+        return string.IsNullOrWhiteSpace(cohortName) ? null : cohortName.Trim();
+    }
+
+    private static string FormatIdList(IEnumerable<long> values)
+    {
+        var ordered = values.OrderBy(value => value).ToList();
+        return ordered.Count == 0 ? "(none)" : string.Join(",", ordered);
+    }
+
+    private static string FormatCandidateCounts(IReadOnlyDictionary<long, int> countsByFaculty)
+    {
+        if (countsByFaculty.Count == 0)
+        {
+            return "(none)";
+        }
+
+        return string.Join(",", countsByFaculty
+            .OrderBy(pair => pair.Key)
+            .Select(pair => $"{pair.Key}:{pair.Value}"));
     }
 
     private AuthorCandidateWriteModel? ScoreCandidate(
