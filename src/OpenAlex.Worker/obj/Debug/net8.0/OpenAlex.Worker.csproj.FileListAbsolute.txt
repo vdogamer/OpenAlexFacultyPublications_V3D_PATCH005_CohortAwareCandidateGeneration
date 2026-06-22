@@ -97,3 +97,4 @@ C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_Coh
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.genruntimeconfig.cache
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\ref\OpenAlex.Worker.dll
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\bin\Debug\net8.0\appsettings.json
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.sourcelink.json
