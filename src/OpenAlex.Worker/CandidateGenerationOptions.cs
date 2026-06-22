@@ -13,6 +13,6 @@ public sealed class CandidateGenerationOptions
     public decimal MinimumMatchScore { get; set; } = 60;
     public bool OnlyCurrentAcceptedAuthorDecisions { get; set; } = true;
     public string PublicationCandidateStatus { get; set; } = "PendingReview";
-    public string StartedBy { get; set; } = "OpenAlex.V2F.Worker";
-    public string ApplicationVersion { get; set; } = "2F";
+    public string StartedBy { get; set; } = "OpenAlex.Worker";
+    public string ApplicationVersion { get; set; } = "3E";
 }
