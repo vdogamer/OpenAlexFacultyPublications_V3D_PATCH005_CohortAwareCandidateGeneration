@@ -290,6 +290,52 @@ ORDER BY c.PilotOrder, f.DisplayName;";
         return rows;
     }
 
+    public async Task<PilotCohortFacultySnapshot?> GetPilotCohortFacultySnapshotAsync(
+        string? pilotCohortName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(pilotCohortName))
+        {
+            return null;
+        }
+
+        var facultyIds = new List<long>();
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(connection, "openalex.PilotFacultyCohort", "U", cancellationToken))
+        {
+            throw new InvalidOperationException("PilotCohortName was provided, but openalex.PilotFacultyCohort does not exist. Run sql/190_PilotExpansion_Create_Cohort_Table.sql first.");
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT
+    f.FacultyId
+FROM openalex.PilotFacultyCohort c
+JOIN openalex.Faculty f
+    ON c.FacultyId = f.FacultyId
+WHERE c.CohortName = @PilotCohortName
+  AND c.IsEnabled = 1
+  AND f.IsActive = 1
+ORDER BY c.PilotOrder, f.DisplayName;";
+        command.Parameters.AddWithValue("@PilotCohortName", pilotCohortName.Trim());
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            facultyIds.Add(reader.GetInt64(0));
+        }
+
+        return new PilotCohortFacultySnapshot
+        {
+            CohortName = pilotCohortName.Trim(),
+            EnabledActiveFacultyCount = facultyIds.Count,
+            EnabledActiveFacultyIds = facultyIds
+        };
+    }
+
     public async Task<IReadOnlyList<AuthorCandidateSource>> LoadAuthorsAsync(int top, CancellationToken cancellationToken = default)
     {
         var rows = new List<AuthorCandidateSource>();

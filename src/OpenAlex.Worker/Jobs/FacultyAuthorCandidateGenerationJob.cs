@@ -50,11 +50,23 @@ public sealed class FacultyAuthorCandidateGenerationJob
 
         try
         {
+            var cohortSnapshot = await _repository.GetPilotCohortFacultySnapshotAsync(_options.PilotCohortName, cancellationToken);
             var faculties = string.IsNullOrWhiteSpace(_options.PilotCohortName)
                 ? await _repository.LoadFacultyAsync(_options.MaxFacultyToProcess, cancellationToken)
                 : await _repository.LoadFacultyForPilotCohortAsync(_options.PilotCohortName, _options.MaxFacultyToProcess, cancellationToken);
             var authors = await _repository.LoadAuthorsAsync(_options.MaxAuthorsToScan, cancellationToken);
             var institutions = await _repository.LoadAuthorInstitutionsAsync(authors.Select(a => a.AuthorId).ToList(), cancellationToken);
+            var selectedFacultyIds = faculties.Select(f => f.FacultyId).ToList();
+
+            await _logger.LogInfoAsync(
+                "FacultyAuthorCandidateGeneration",
+                "CohortSelection",
+                $"SelectedCohortName={FormatCohortName(_options.PilotCohortName)}; " +
+                $"EnabledCohortFacultyCount={FormatEnabledCohortFacultyCount(cohortSnapshot)}; " +
+                $"EnabledCohortFacultyIds={FormatIds(cohortSnapshot?.EnabledActiveFacultyIds)}; " +
+                $"SelectedFacultyIds={FormatIds(selectedFacultyIds)}.",
+                run.RunCorrelationId,
+                cancellationToken);
 
             var configuredInstitutionIds = _openAlexOptions.InstitutionIds
                 .SelectMany(id => new[] { NormalizeOpenAlexId(id), GetOpenAlexShortId(id) })
@@ -63,6 +75,7 @@ public sealed class FacultyAuthorCandidateGenerationJob
 
             var inserted = 0;
             var updated = 0;
+            var candidateCountsByFaculty = selectedFacultyIds.ToDictionary(facultyId => facultyId, _ => 0);
 
             foreach (var faculty in faculties)
             {
@@ -87,19 +100,35 @@ public sealed class FacultyAuthorCandidateGenerationJob
                     }
                 }
 
-                foreach (var candidate in candidateRows
+                var selectedCandidates = candidateRows
                     .OrderByDescending(c => c.MatchScore)
                     .ThenByDescending(c => c.NameScore)
-                    .Take(_options.MaxCandidatesPerFaculty))
+                    .Take(_options.MaxCandidatesPerFaculty)
+                    .ToList();
+
+                candidateCountsByFaculty[faculty.FacultyId] = selectedCandidates.Count;
+
+                foreach (var candidate in selectedCandidates)
                 {
                     var wasInserted = await _repository.UpsertAuthorCandidateAsync(candidate, cancellationToken);
                     if (wasInserted) inserted++; else updated++;
                 }
             }
 
+            var facultyWithZeroAuthorCandidates = candidateCountsByFaculty
+                .Where(pair => pair.Value == 0)
+                .Select(pair => pair.Key)
+                .ToList();
+
             var summary =
-                $"Faculty-author candidate generation completed. FacultyProcessed={faculties.Count}; " +
-                $"AuthorsScanned={authors.Count}; CandidatesInserted={inserted}; CandidatesUpdated={updated}.";
+                "Faculty-author candidate generation completed. " +
+                $"SelectedCohortName={FormatCohortName(_options.PilotCohortName)}; " +
+                $"EnabledCohortFacultyCount={FormatEnabledCohortFacultyCount(cohortSnapshot)}; " +
+                $"SelectedFacultyIds={FormatIds(selectedFacultyIds)}; " +
+                $"FacultyProcessed={faculties.Count}; AuthorsScanned={authors.Count}; " +
+                $"FacultyWithZeroAuthorCandidates={FormatIds(facultyWithZeroAuthorCandidates)}; " +
+                $"AuthorCandidateCountsByFaculty={FormatCandidateCounts(candidateCountsByFaculty)}; " +
+                $"CandidatesInserted={inserted}; CandidatesUpdated={updated}.";
 
             await _repository.CompleteRunAsync(
                 run.IngestionRunId,
@@ -129,6 +158,39 @@ public sealed class FacultyAuthorCandidateGenerationJob
 
             throw;
         }
+    }
+
+    private static string FormatCohortName(string? cohortName)
+    {
+        return string.IsNullOrWhiteSpace(cohortName) ? "(none)" : cohortName.Trim();
+    }
+
+    private static string FormatEnabledCohortFacultyCount(PilotCohortFacultySnapshot? snapshot)
+    {
+        return snapshot is null ? "(not configured)" : snapshot.EnabledActiveFacultyCount.ToString();
+    }
+
+    private static string FormatIds(IEnumerable<long>? facultyIds)
+    {
+        if (facultyIds is null)
+        {
+            return "[]";
+        }
+
+        var ids = facultyIds.ToList();
+        return ids.Count == 0 ? "[]" : "[" + string.Join(",", ids) + "]";
+    }
+
+    private static string FormatCandidateCounts(IReadOnlyDictionary<long, int> candidateCountsByFaculty)
+    {
+        if (candidateCountsByFaculty.Count == 0)
+        {
+            return "[]";
+        }
+
+        return "[" + string.Join("; ", candidateCountsByFaculty
+            .OrderBy(pair => pair.Key)
+            .Select(pair => pair.Key + "=" + pair.Value)) + "]";
     }
 
     private AuthorCandidateWriteModel? ScoreCandidate(
