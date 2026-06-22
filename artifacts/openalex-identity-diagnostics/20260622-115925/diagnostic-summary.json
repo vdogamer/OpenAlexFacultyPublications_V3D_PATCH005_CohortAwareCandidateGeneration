@@ -1,0 +1,9 @@
+﻿{
+    "GeneratedAt":  "2026-06-22T11:59:28",
+    "OutputDirectory":  "artifacts\\openalex-identity-diagnostics\\20260622-115925",
+    "SusanPollartUniqueAuthorCandidateCount":  6,
+    "SusanPollartWorkSampleRows":  48,
+    "JeffreyMartensAwardRows":  0,
+    "AwardQueryErrorCount":  0,
+    "ApiKeyUsed":  true
+}

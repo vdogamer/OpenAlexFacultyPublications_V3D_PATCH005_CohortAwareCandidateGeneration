@@ -13,3 +13,4 @@ C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_Coh
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OperationalLogging\obj\Debug\net8.0\refint\OpenAlex.OperationalLogging.dll
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OperationalLogging\obj\Debug\net8.0\OpenAlex.OperationalLogging.pdb
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OperationalLogging\obj\Debug\net8.0\ref\OpenAlex.OperationalLogging.dll
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.OperationalLogging\obj\Debug\net8.0\OpenAlex.OperationalLogging.sourcelink.json

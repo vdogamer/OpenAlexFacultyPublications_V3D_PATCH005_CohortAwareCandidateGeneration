@@ -1,0 +1,52 @@
+﻿{
+    "meta":  {
+                 "count":  0,
+                 "db_response_time_ms":  5,
+                 "page":  1,
+                 "per_page":  25,
+                 "groups_count":  null,
+                 "x_query":  {
+                                 "oql":  "awards where all (\n    lead_investigator.family_name is Martens,\n    lead_investigator.given_name is Jeffrey\n  )\nreturn OpenAlex ID, title, funder award ID, funder, amount, currency, start year, end year, start date, end date, lead investigator, co lead investigator, investigator, funded outputs count, DOI, provenance",
+                                 "oqo":  {
+                                             "get_rows":  "awards",
+                                             "filter_rows":  [
+                                                                 {
+                                                                     "column_id":  "lead_investigator.family_name",
+                                                                     "value":  "Martens"
+                                                                 },
+                                                                 {
+                                                                     "column_id":  "lead_investigator.given_name",
+                                                                     "value":  "Jeffrey"
+                                                                 }
+                                                             ],
+                                             "select":  [
+                                                            "id",
+                                                            "display_name",
+                                                            "funder_award_id",
+                                                            "funder",
+                                                            "amount",
+                                                            "currency",
+                                                            "start_year",
+                                                            "end_year",
+                                                            "start_date",
+                                                            "end_date",
+                                                            "lead_investigator",
+                                                            "co_lead_investigator",
+                                                            "investigators",
+                                                            "funded_outputs_count",
+                                                            "doi",
+                                                            "provenance"
+                                                        ],
+                                             "per_page":  25
+                                         },
+                                 "url":  "/awards?filter=lead_investigator.family_name:Martens,lead_investigator.given_name:Jeffrey\u0026select=id,display_name,funder_award_id,funder,amount,currency,start_year,end_year,start_date,end_date,lead_investigator,co_lead_investigator,investigators,funded_outputs_count,doi,provenance\u0026per_page=25"
+                             },
+                 "cost_usd":  0.0001
+             },
+    "results":  [
+
+                ],
+    "group_by":  [
+
+                 ]
+}

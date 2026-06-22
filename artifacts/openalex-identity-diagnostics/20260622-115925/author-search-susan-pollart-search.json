@@ -1,0 +1,2005 @@
+﻿{
+    "meta":  {
+                 "count":  6,
+                 "db_response_time_ms":  27,
+                 "page":  1,
+                 "per_page":  25,
+                 "groups_count":  null,
+                 "x_query":  {
+                                 "oql":  "authors where text has (Susan Pollart)\nreturn id, name, ORCID, works count, citation count, last known institutions, affiliations, updated date",
+                                 "oqo":  {
+                                             "get_rows":  "authors",
+                                             "filter_rows":  [
+                                                                 {
+                                                                     "column_id":  "text.search",
+                                                                     "value":  "Susan Pollart",
+                                                                     "operator":  "has"
+                                                                 }
+                                                             ],
+                                             "select":  [
+                                                            "id",
+                                                            "display_name",
+                                                            "orcid",
+                                                            "works_count",
+                                                            "cited_by_count",
+                                                            "last_known_institutions",
+                                                            "affiliations",
+                                                            "updated_date"
+                                                        ],
+                                             "per_page":  25
+                                         },
+                                 "url":  "/authors?filter=text.search:Susan Pollart\u0026select=id,display_name,orcid,works_count,cited_by_count,last_known_institutions,affiliations,updated_date\u0026per_page=25"
+                             },
+                 "cost_usd":  0.001
+             },
+    "results":  [
+                    {
+                        "id":  "https://openalex.org/A5019353041",
+                        "display_name":  "Susan M. Pollart",
+                        "orcid":  "https://orcid.org/0000-0002-7495-8786",
+                        "works_count":  43,
+                        "cited_by_count":  1876,
+                        "last_known_institutions":  [
+                                                        {
+                                                            "id":  "https://openalex.org/I27837315",
+                                                            "ror":  "https://ror.org/00jmfr291",
+                                                            "display_name":  "University of Michigan",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I27837315"
+                                                                        ]
+                                                        },
+                                                        {
+                                                            "id":  "https://openalex.org/I4210118354",
+                                                            "ror":  "https://ror.org/02ejgsx19",
+                                                            "display_name":  "Ramah Navajo School Board",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I4210118354"
+                                                                        ]
+                                                        },
+                                                        {
+                                                            "id":  "https://openalex.org/I51556381",
+                                                            "ror":  "https://ror.org/0153tk833",
+                                                            "display_name":  "University of Virginia",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I51556381"
+                                                                        ]
+                                                        }
+                                                    ],
+                        "affiliations":  [
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I111979921",
+                                                                     "ror":  "https://ror.org/000e0be47",
+                                                                     "display_name":  "Northwestern University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I111979921"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I130238516",
+                                                                     "ror":  "https://ror.org/017zqws13",
+                                                                     "display_name":  "University of Minnesota",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I130238516"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1318720529",
+                                                                     "ror":  "https://ror.org/04q6cg820",
+                                                                     "display_name":  "Association of American Medical Colleges",
+                                                                     "country_code":  "US",
+                                                                     "type":  "funder",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1318720529"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014,
+                                                               2013,
+                                                               2012
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I149251103",
+                                                                     "ror":  "https://ror.org/00ysqcn41",
+                                                                     "display_name":  "Thomas Jefferson University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I149251103"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1925986",
+                                                                     "ror":  "https://ror.org/04b6x2g63",
+                                                                     "display_name":  "Loyola University Chicago",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1925986"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014,
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I27837315",
+                                                                     "ror":  "https://ror.org/00jmfr291",
+                                                                     "display_name":  "University of Michigan",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I27837315"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2799765794",
+                                                                     "ror":  "https://ror.org/00wn7d965",
+                                                                     "display_name":  "University of Virginia Health System",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2799765794"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2019,
+                                                               2016,
+                                                               2014,
+                                                               2013,
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210118354",
+                                                                     "ror":  "https://ror.org/02ejgsx19",
+                                                                     "display_name":  "Ramah Navajo School Board",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210118354"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210127285",
+                                                                     "ror":  "https://ror.org/02wxwcd04",
+                                                                     "display_name":  "Charlottesville Medical Research",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210127285"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1991,
+                                                               1988
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210134211",
+                                                                     "ror":  "https://ror.org/046kb4y45",
+                                                                     "display_name":  "University of Virginia Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2799765794",
+                                                                                     "https://openalex.org/I4210134211"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1993
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I51556381",
+                                                                     "ror":  "https://ror.org/0153tk833",
+                                                                     "display_name":  "University of Virginia",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I51556381"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025,
+                                                               2024,
+                                                               2023,
+                                                               2019,
+                                                               2018,
+                                                               2012,
+                                                               2011,
+                                                               2009,
+                                                               1991,
+                                                               1990,
+                                                               1989,
+                                                               1988,
+                                                               1987
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I80046288",
+                                                                     "ror":  "https://ror.org/02qp2hh41",
+                                                                     "display_name":  "Walden University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I80046288"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2019
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I858669146",
+                                                                     "ror":  "https://ror.org/04fcaga30",
+                                                                     "display_name":  "Jefferson College",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I858669146"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             }
+                                         ],
+                        "updated_date":  "2026-06-17T12:17:59"
+                    },
+                    {
+                        "id":  "https://openalex.org/A5014563555",
+                        "display_name":  "Richard Pumphrey",
+                        "orcid":  null,
+                        "works_count":  88,
+                        "cited_by_count":  5313,
+                        "last_known_institutions":  [
+                                                        {
+                                                            "id":  "https://openalex.org/I4210092852",
+                                                            "ror":  "https://ror.org/00he80998",
+                                                            "display_name":  "Manchester University NHS Foundation Trust",
+                                                            "country_code":  "GB",
+                                                            "type":  "healthcare",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I4210092852"
+                                                                        ]
+                                                        }
+                                                    ],
+                        "affiliations":  [
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1281708379",
+                                                                     "ror":  "https://ror.org/05ga8m074",
+                                                                     "display_name":  "Pennine Acute Hospitals NHS Trust",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1281708379"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1996
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1298207432",
+                                                                     "ror":  "https://ror.org/04r33pf22",
+                                                                     "display_name":  "Guy\u0027s Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1298207432",
+                                                                                     "https://openalex.org/I200166805",
+                                                                                     "https://openalex.org/I4210111135"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1980
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2800129641",
+                                                                     "ror":  "https://ror.org/00zn2c847",
+                                                                     "display_name":  "Great Ormond Street Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2800129641",
+                                                                                     "https://openalex.org/I2800349819"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2002
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2800281165",
+                                                                     "ror":  "https://ror.org/03jkz2y73",
+                                                                     "display_name":  "Leicester Royal Infirmary",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2800281165",
+                                                                                     "https://openalex.org/I2802445252"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2001
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2800360054",
+                                                                     "ror":  "https://ror.org/019bxes45",
+                                                                     "display_name":  "University Dental Hospital of Manchester",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2800360054",
+                                                                                     "https://openalex.org/I4210092852"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2016
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2800666604",
+                                                                     "ror":  "https://ror.org/00bjck208",
+                                                                     "display_name":  "Glasgow Royal Infirmary",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2800201399",
+                                                                                     "https://openalex.org/I2800666604"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1977
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2801120601",
+                                                                     "ror":  "https://ror.org/02e22bh87",
+                                                                     "display_name":  "Western Infirmary",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2800201399",
+                                                                                     "https://openalex.org/I2801120601"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1976
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2801440235",
+                                                                     "ror":  "https://ror.org/02xesw687",
+                                                                     "display_name":  "North Manchester General Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2801440235",
+                                                                                     "https://openalex.org/I4210092852"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1994
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2801926401",
+                                                                     "ror":  "https://ror.org/03kr30n36",
+                                                                     "display_name":  "Manchester Royal Infirmary",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2801926401",
+                                                                                     "https://openalex.org/I4210092852"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2011,
+                                                               2010,
+                                                               2008,
+                                                               2007,
+                                                               2006,
+                                                               1990,
+                                                               1986,
+                                                               1985
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I28407311",
+                                                                     "ror":  "https://ror.org/027m9bs27",
+                                                                     "display_name":  "University of Manchester",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I28407311"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2016,
+                                                               2015,
+                                                               2013,
+                                                               2011,
+                                                               2008,
+                                                               1982
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I40120149",
+                                                                     "ror":  "https://ror.org/052gg0110",
+                                                                     "display_name":  "University of Oxford",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I40120149"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1982
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210087748",
+                                                                     "ror":  "https://ror.org/001x4vz59",
+                                                                     "display_name":  "St Mary\u0027s Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2800602287",
+                                                                                     "https://openalex.org/I4210087748",
+                                                                                     "https://openalex.org/I4210092852"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2008,
+                                                               2006,
+                                                               2004,
+                                                               2003,
+                                                               2001,
+                                                               2000,
+                                                               1999,
+                                                               1992,
+                                                               1990,
+                                                               1988,
+                                                               1986
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210091761",
+                                                                     "ror":  "https://ror.org/00dt08z19",
+                                                                     "display_name":  "Argyll and Bute Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210091761",
+                                                                                     "https://openalex.org/I4210099570"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210092034",
+                                                                     "ror":  "https://ror.org/00m860944",
+                                                                     "display_name":  "St. Mary\u0027s Hospital",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210092034"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1986
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210092852",
+                                                                     "ror":  "https://ror.org/00he80998",
+                                                                     "display_name":  "Manchester University NHS Foundation Trust",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210092852"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2024,
+                                                               2023,
+                                                               2014
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210111611",
+                                                                     "ror":  "https://ror.org/027rkpb34",
+                                                                     "display_name":  "Salford Royal Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210111611",
+                                                                                     "https://openalex.org/I4405259061"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1982
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210133745",
+                                                                     "ror":  "https://ror.org/041j39g66",
+                                                                     "display_name":  "St. Mary’s Hospital",
+                                                                     "country_code":  "ZA",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210133745"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2005,
+                                                               1996,
+                                                               1994,
+                                                               1991,
+                                                               1988,
+                                                               1985
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210142292",
+                                                                     "ror":  "https://ror.org/050cwzy61",
+                                                                     "display_name":  "St Mary\u0027s Hospital",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210142292"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1986
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210148352",
+                                                                     "ror":  "https://ror.org/03k6q9261",
+                                                                     "display_name":  "St. Mary\u0027s Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2802827176",
+                                                                                     "https://openalex.org/I4210148352"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1986
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210150798",
+                                                                     "ror":  "https://ror.org/05vpsdj37",
+                                                                     "display_name":  "Wythenshawe Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210092852",
+                                                                                     "https://openalex.org/I4210150798"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2002
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210160221",
+                                                                     "ror":  "https://ror.org/052vjje65",
+                                                                     "display_name":  "Royal Manchester Children\u0027s Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210092852",
+                                                                                     "https://openalex.org/I4210160221"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210163695",
+                                                                     "ror":  "https://ror.org/053fx7g25",
+                                                                     "display_name":  "Royal Bolton Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210163695"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1982
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210166072",
+                                                                     "ror":  "https://ror.org/05w2bg876",
+                                                                     "display_name":  "South Eastern Health and Social Care Trust",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210166072"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1994
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210166773",
+                                                                     "ror":  "https://ror.org/05x8xdg58",
+                                                                     "display_name":  "St. Mary\u0027s Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210090003",
+                                                                                     "https://openalex.org/I4210166773"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2009,
+                                                               2006,
+                                                               2004,
+                                                               2003,
+                                                               2001,
+                                                               2000,
+                                                               1999,
+                                                               1992,
+                                                               1988,
+                                                               1986,
+                                                               1981
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I45129253",
+                                                                     "ror":  "https://ror.org/02jx3x895",
+                                                                     "display_name":  "University College London",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I124357947",
+                                                                                     "https://openalex.org/I45129253"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2002
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I54459138",
+                                                                     "ror":  "https://ror.org/01tmqtf75",
+                                                                     "display_name":  "University of Salford",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I54459138"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1982
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I55143463",
+                                                                     "ror":  "https://ror.org/048tbm396",
+                                                                     "display_name":  "University of Turin",
+                                                                     "country_code":  "IT",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I55143463"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2002
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I7882870",
+                                                                     "ror":  "https://ror.org/00vtgdb53",
+                                                                     "display_name":  "University of Glasgow",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I7882870"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1976
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I79619799",
+                                                                     "ror":  "https://ror.org/03angcq70",
+                                                                     "display_name":  "University of Birmingham",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I79619799"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2007
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I94658018",
+                                                                     "ror":  "https://ror.org/01cq23130",
+                                                                     "display_name":  "University of Memphis",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I94658018"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014
+                                                           ]
+                                             }
+                                         ],
+                        "updated_date":  "2026-06-21T12:17:34"
+                    },
+                    {
+                        "id":  "https://openalex.org/A5086453715",
+                        "display_name":  "Susan Pollart Squillace",
+                        "orcid":  null,
+                        "works_count":  13,
+                        "cited_by_count":  1431,
+                        "last_known_institutions":  null,
+                        "affiliations":  [
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2801047068",
+                                                                     "ror":  "https://ror.org/01d9cs377",
+                                                                     "display_name":  "University Health System",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2801047068"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2001
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210127285",
+                                                                     "ror":  "https://ror.org/02wxwcd04",
+                                                                     "display_name":  "Charlottesville Medical Research",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210127285"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1992
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210152370",
+                                                                     "ror":  "https://ror.org/0493tt883",
+                                                                     "display_name":  "Carl T. Hayden Veterans Affairs Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1322918889",
+                                                                                     "https://openalex.org/I2799886695",
+                                                                                     "https://openalex.org/I4210113157",
+                                                                                     "https://openalex.org/I4210138663",
+                                                                                     "https://openalex.org/I4210152370"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1994
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210152671",
+                                                                     "ror":  "https://ror.org/040wmvn07",
+                                                                     "display_name":  "Ping (United States)",
+                                                                     "country_code":  "US",
+                                                                     "type":  "company",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210152671"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1994
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210153046",
+                                                                     "ror":  "https://ror.org/053dkp921",
+                                                                     "display_name":  "Los Alamos Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210153046"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1999
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I51556381",
+                                                                     "ror":  "https://ror.org/0153tk833",
+                                                                     "display_name":  "University of Virginia",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I51556381"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2001,
+                                                               1999,
+                                                               1997,
+                                                               1996
+                                                           ]
+                                             }
+                                         ],
+                        "updated_date":  "2026-06-20T12:17:27"
+                    },
+                    {
+                        "id":  "https://openalex.org/A5036507987",
+                        "display_name":  "Kent A. Griffith",
+                        "orcid":  "https://orcid.org/0000-0003-2598-4328",
+                        "works_count":  465,
+                        "cited_by_count":  18205,
+                        "last_known_institutions":  [
+                                                        {
+                                                            "id":  "https://openalex.org/I27837315",
+                                                            "ror":  "https://ror.org/00jmfr291",
+                                                            "display_name":  "University of Michigan",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I27837315"
+                                                                        ]
+                                                        },
+                                                        {
+                                                            "id":  "https://openalex.org/I4210119866",
+                                                            "ror":  "https://ror.org/02mfxyv79",
+                                                            "display_name":  "Michigan Cancer Research Consortium",
+                                                            "country_code":  "US",
+                                                            "type":  "other",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I4210119866"
+                                                                        ]
+                                                        }
+                                                    ],
+                        "affiliations":  [
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I103084370",
+                                                                     "ror":  "https://ror.org/04sk34n56",
+                                                                     "display_name":  "Total (France)",
+                                                                     "country_code":  "FR",
+                                                                     "type":  "company",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I103084370"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I113979032",
+                                                                     "ror":  "https://ror.org/04wt43v05",
+                                                                     "display_name":  "Twitter (United States)",
+                                                                     "country_code":  "US",
+                                                                     "type":  "company",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I113979032"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2017,
+                                                               2016
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1174212",
+                                                                     "ror":  "https://ror.org/03taz7m60",
+                                                                     "display_name":  "University of Southern California",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1174212"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020,
+                                                               2019
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1283280774",
+                                                                     "ror":  "https://ror.org/04b6nzv94",
+                                                                     "display_name":  "Brigham and Women\u0027s Hospital",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1283280774",
+                                                                                     "https://openalex.org/I48633490"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2006
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1285301757",
+                                                                     "ror":  "https://ror.org/01j7c0b24",
+                                                                     "display_name":  "Rush University Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1285301757"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2009
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1295876152",
+                                                                     "ror":  "https://ror.org/027zt9171",
+                                                                     "display_name":  "Houston Methodist",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1295876152"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1316902750",
+                                                                     "ror":  "https://ror.org/03xjacd83",
+                                                                     "display_name":  "Cleveland Clinic",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1316902750"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2006
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1322918889",
+                                                                     "ror":  "https://ror.org/05rsv9s98",
+                                                                     "display_name":  "United States Department of Veterans Affairs",
+                                                                     "country_code":  "US",
+                                                                     "type":  "government",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1322918889"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1328302364",
+                                                                     "ror":  "https://ror.org/00e7taa66",
+                                                                     "display_name":  "Ingalls Memorial Hospital",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1328302364"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1334819555",
+                                                                     "ror":  "https://ror.org/02yrq0923",
+                                                                     "display_name":  "Memorial Sloan Kettering Cancer Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1334819555"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I138006243",
+                                                                     "ror":  "https://ror.org/03m2x1q45",
+                                                                     "display_name":  "University of Arizona",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I138006243"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2001,
+                                                               2000,
+                                                               1979
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I145311948",
+                                                                     "ror":  "https://ror.org/00za53h95",
+                                                                     "display_name":  "Johns Hopkins University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I145311948"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2024,
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I150468666",
+                                                                     "ror":  "https://ror.org/03czfpz43",
+                                                                     "display_name":  "Emory University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I150468666"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I181547552",
+                                                                     "ror":  "https://ror.org/02pttbw34",
+                                                                     "display_name":  "Baylor College of Medicine",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I181547552",
+                                                                                     "https://openalex.org/I2801539370"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I183935753",
+                                                                     "ror":  "https://ror.org/0220mzb33",
+                                                                     "display_name":  "King\u0027s College London",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I124357947",
+                                                                                     "https://openalex.org/I183935753"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I196764719",
+                                                                     "ror":  "https://ror.org/0348ff195",
+                                                                     "display_name":  "Breast Cancer Research Foundation",
+                                                                     "country_code":  "US",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I196764719"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2018
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I205783295",
+                                                                     "ror":  "https://ror.org/05bnh6r87",
+                                                                     "display_name":  "Cornell University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I205783295"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I241749",
+                                                                     "ror":  "https://ror.org/013meh722",
+                                                                     "display_name":  "University of Cambridge",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I241749"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020,
+                                                               2019
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I27837315",
+                                                                     "ror":  "https://ror.org/00jmfr291",
+                                                                     "display_name":  "University of Michigan",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I27837315"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2026,
+                                                               2025,
+                                                               2024,
+                                                               2023,
+                                                               2022,
+                                                               2021,
+                                                               2020,
+                                                               2019,
+                                                               2018,
+                                                               2017,
+                                                               2016,
+                                                               2015,
+                                                               2014,
+                                                               2013,
+                                                               2012,
+                                                               2011,
+                                                               2010,
+                                                               2009,
+                                                               2008,
+                                                               2007,
+                                                               2006,
+                                                               2005,
+                                                               2004,
+                                                               2003,
+                                                               2001
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2802576581",
+                                                                     "ror":  "https://ror.org/01ckbq028",
+                                                                     "display_name":  "Whittington Hospital",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2802576581",
+                                                                                     "https://openalex.org/I4210129898"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1973
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2802654988",
+                                                                     "ror":  "https://ror.org/03zayce58",
+                                                                     "display_name":  "Princess Margaret Cancer Centre",
+                                                                     "country_code":  "CA",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1325899441",
+                                                                                     "https://openalex.org/I2802654988"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2802711169",
+                                                                     "ror":  "https://ror.org/05etxs293",
+                                                                     "display_name":  "Diamond Light Source",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2802711169"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2802841970",
+                                                                     "ror":  "https://ror.org/00c01js51",
+                                                                     "display_name":  "The Ohio State University Wexner Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2802841970"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210089348",
+                                                                     "ror":  "https://ror.org/008pnp284",
+                                                                     "display_name":  "Data Archiving and Networked Services (DANS)",
+                                                                     "country_code":  "NL",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1322597698",
+                                                                                     "https://openalex.org/I2800991832",
+                                                                                     "https://openalex.org/I4210089348"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2017
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210089489",
+                                                                     "ror":  "https://ror.org/0083hz885",
+                                                                     "display_name":  "Health Services Research \u0026 Development",
+                                                                     "country_code":  "US",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1322918889",
+                                                                                     "https://openalex.org/I2799886695",
+                                                                                     "https://openalex.org/I4210089489"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210090317",
+                                                                     "ror":  "https://ror.org/00ee40h97",
+                                                                     "display_name":  "The Barbara Ann Karmanos Cancer Institute",
+                                                                     "country_code":  "US",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2800590384",
+                                                                                     "https://openalex.org/I4210090317"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2006
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210101190",
+                                                                     "ror":  "https://ror.org/01575p865",
+                                                                     "display_name":  "Cancer Research And Biostatistics",
+                                                                     "country_code":  "US",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210101190"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014,
+                                                               2007
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210105771",
+                                                                     "ror":  "https://ror.org/01q5m4507",
+                                                                     "display_name":  "Endometriosis",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210105771"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013,
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210106397",
+                                                                     "ror":  "https://ror.org/01m178w43",
+                                                                     "display_name":  "Lahey Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210106397"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2024
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210106489",
+                                                                     "ror":  "https://ror.org/012pb6c26",
+                                                                     "display_name":  "National Heart Lung and Blood Institute",
+                                                                     "country_code":  "US",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1299022934",
+                                                                                     "https://openalex.org/I1299303238",
+                                                                                     "https://openalex.org/I4210106489"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2001
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210107226",
+                                                                     "ror":  "https://ror.org/01gsy1c54",
+                                                                     "display_name":  "Naval Aerospace Medical Research Laboratory",
+                                                                     "country_code":  "US",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1330347796",
+                                                                                     "https://openalex.org/I3130687028",
+                                                                                     "https://openalex.org/I4210107226",
+                                                                                     "https://openalex.org/I4399598358"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1977
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210109259",
+                                                                     "ror":  "https://ror.org/01r5p9y80",
+                                                                     "display_name":  "Methodist Hospital",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2802827176",
+                                                                                     "https://openalex.org/I4210109259"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210111179",
+                                                                     "ror":  "https://ror.org/0291ys696",
+                                                                     "display_name":  "Michigan United",
+                                                                     "country_code":  "US",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210111179"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2023,
+                                                               2022,
+                                                               2017,
+                                                               2016,
+                                                               2013,
+                                                               2012,
+                                                               2007,
+                                                               2003
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210114445",
+                                                                     "ror":  "https://ror.org/01zcpa714",
+                                                                     "display_name":  "Michigan Medicine",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210114445"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025,
+                                                               2023,
+                                                               2020,
+                                                               2016,
+                                                               2013,
+                                                               2011,
+                                                               2004,
+                                                               2003
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210117453",
+                                                                     "ror":  "https://ror.org/02jzgtq86",
+                                                                     "display_name":  "Dana-Farber Cancer Institute",
+                                                                     "country_code":  "US",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210117453"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2018,
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210117557",
+                                                                     "ror":  "https://ror.org/027t4kk23",
+                                                                     "display_name":  "Michigan Center for Translational Pathology",
+                                                                     "country_code":  "US",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210114445",
+                                                                                     "https://openalex.org/I4210117557"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2024,
+                                                               2022,
+                                                               2020,
+                                                               2019,
+                                                               2018,
+                                                               2016,
+                                                               2014,
+                                                               2013,
+                                                               2012,
+                                                               2011,
+                                                               2008,
+                                                               2007,
+                                                               2005
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210117998",
+                                                                     "ror":  "https://ror.org/02hkkqt25",
+                                                                     "display_name":  "Maine Farmland Trust",
+                                                                     "country_code":  "US",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210117998"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2015
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210119866",
+                                                                     "ror":  "https://ror.org/02mfxyv79",
+                                                                     "display_name":  "Michigan Cancer Research Consortium",
+                                                                     "country_code":  "US",
+                                                                     "type":  "other",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210119866"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2026,
+                                                               2024,
+                                                               2008
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210119896",
+                                                                     "ror":  "https://ror.org/02bbqcn27",
+                                                                     "display_name":  "King\u0027s College School",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210119896"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210122509",
+                                                                     "ror":  "https://ror.org/039n0s143",
+                                                                     "display_name":  "Ann Arbor VA Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1322918889",
+                                                                                     "https://openalex.org/I2799886695",
+                                                                                     "https://openalex.org/I4210102099",
+                                                                                     "https://openalex.org/I4210122509",
+                                                                                     "https://openalex.org/I4210127612"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013,
+                                                               2009
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210128862",
+                                                                     "ror":  "https://ror.org/02sz71d65",
+                                                                     "display_name":  "Methodist Hospital",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210128862"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210131007",
+                                                                     "ror":  "https://ror.org/02xe89706",
+                                                                     "display_name":  "John Wiley \u0026 Sons (United States)",
+                                                                     "country_code":  "US",
+                                                                     "type":  "company",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210131007"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2006
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210133941",
+                                                                     "ror":  "https://ror.org/03m27ps35",
+                                                                     "display_name":  "Applied Pulsed Power (United States)",
+                                                                     "country_code":  "US",
+                                                                     "type":  "company",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210133941"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210140958",
+                                                                     "ror":  "https://ror.org/045pcya52",
+                                                                     "display_name":  "Ann Arbor Center for Independent Living",
+                                                                     "country_code":  "US",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210140958"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020,
+                                                               2014
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210141621",
+                                                                     "ror":  "https://ror.org/03ywskk07",
+                                                                     "display_name":  "Faculdade de Medicina de Jundiaí",
+                                                                     "country_code":  "BR",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210141621"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210144608",
+                                                                     "ror":  "https://ror.org/0494jpz02",
+                                                                     "display_name":  "Centre de Recherche en Cancérologie de Marseille",
+                                                                     "country_code":  "FR",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1294671590",
+                                                                                     "https://openalex.org/I1294671590",
+                                                                                     "https://openalex.org/I154526488",
+                                                                                     "https://openalex.org/I21491767",
+                                                                                     "https://openalex.org/I4210096427",
+                                                                                     "https://openalex.org/I4210144608",
+                                                                                     "https://openalex.org/I4210150365"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210156703",
+                                                                     "ror":  "https://ror.org/05dt4bt98",
+                                                                     "display_name":  "The Faraday Institution",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "nonprofit",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210156703"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210157065",
+                                                                     "ror":  "https://ror.org/0552r4b12",
+                                                                     "display_name":  "Sylvester Comprehensive Cancer Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I145608581",
+                                                                                     "https://openalex.org/I4210101935",
+                                                                                     "https://openalex.org/I4210157065"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2007
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210157459",
+                                                                     "ror":  "https://ror.org/05p8v7d26",
+                                                                     "display_name":  "Biostatistical Consulting (United States)",
+                                                                     "country_code":  "US",
+                                                                     "type":  "company",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210157459"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2007
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210164401",
+                                                                     "ror":  "https://ror.org/05m5b8x20",
+                                                                     "display_name":  "Sidney Kimmel Comprehensive Cancer Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "facility",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2799853436",
+                                                                                     "https://openalex.org/I4210164401"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4390039285",
+                                                                     "ror":  "https://ror.org/05asdy483",
+                                                                     "display_name":  "U-M Rogel Cancer Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210114445",
+                                                                                     "https://openalex.org/I4390039285"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2022,
+                                                               2009,
+                                                               2008,
+                                                               2007,
+                                                               2006,
+                                                               2005,
+                                                               2003
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I45129253",
+                                                                     "ror":  "https://ror.org/02jx3x895",
+                                                                     "display_name":  "University College London",
+                                                                     "country_code":  "GB",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I124357947",
+                                                                                     "https://openalex.org/I45129253"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1973
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I51556381",
+                                                                     "ror":  "https://ror.org/0153tk833",
+                                                                     "display_name":  "University of Virginia",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I51556381"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I52357470",
+                                                                     "ror":  "https://ror.org/00rs6vg23",
+                                                                     "display_name":  "The Ohio State University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I52357470"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013,
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I72427458",
+                                                                     "ror":  "https://ror.org/01a5v8x09",
+                                                                     "display_name":  "JDSU (United States)",
+                                                                     "country_code":  "US",
+                                                                     "type":  "company",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I72427458"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2015
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I72816309",
+                                                                     "ror":  "https://ror.org/04bdffz58",
+                                                                     "display_name":  "Drexel University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I72816309"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I79576946",
+                                                                     "ror":  "https://ror.org/00b30xv10",
+                                                                     "display_name":  "University of Pennsylvania",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I79576946"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2015
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I95457486",
+                                                                     "ror":  "https://ror.org/01an7q238",
+                                                                     "display_name":  "University of California, Berkeley",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I95457486"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2020
+                                                           ]
+                                             }
+                                         ],
+                        "updated_date":  "2026-06-21T12:17:34"
+                    },
+                    {
+                        "id":  "https://openalex.org/A5091834432",
+                        "display_name":  "S POLLART",
+                        "orcid":  null,
+                        "works_count":  7,
+                        "cited_by_count":  205,
+                        "last_known_institutions":  [
+                                                        {
+                                                            "id":  "https://openalex.org/I51556381",
+                                                            "ror":  "https://ror.org/0153tk833",
+                                                            "display_name":  "University of Virginia",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I51556381"
+                                                                        ]
+                                                        }
+                                                    ],
+                        "affiliations":  [
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210127285",
+                                                                     "ror":  "https://ror.org/02wxwcd04",
+                                                                     "display_name":  "Charlottesville Medical Research",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210127285"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1991
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I51556381",
+                                                                     "ror":  "https://ror.org/0153tk833",
+                                                                     "display_name":  "University of Virginia",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I51556381"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2008,
+                                                               1991,
+                                                               1987
+                                                           ]
+                                             }
+                                         ],
+                        "updated_date":  "2026-05-15T12:20:29"
+                    },
+                    {
+                        "id":  "https://openalex.org/A5095007591",
+                        "display_name":  "Susan Pollart",
+                        "orcid":  null,
+                        "works_count":  1,
+                        "cited_by_count":  0,
+                        "last_known_institutions":  null,
+                        "affiliations":  [
+
+                                         ],
+                        "updated_date":  null
+                    }
+                ],
+    "group_by":  [
+
+                 ]
+}

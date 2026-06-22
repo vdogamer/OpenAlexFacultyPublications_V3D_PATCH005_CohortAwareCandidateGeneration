@@ -1,0 +1,352 @@
+﻿{
+    "meta":  {
+                 "count":  2,
+                 "db_response_time_ms":  17,
+                 "page":  1,
+                 "per_page":  25,
+                 "groups_count":  null,
+                 "x_query":  {
+                                 "oql":  "authors where text has (S M Pollart)\nreturn id, name, ORCID, works count, citation count, last known institutions, affiliations, updated date",
+                                 "oqo":  {
+                                             "get_rows":  "authors",
+                                             "filter_rows":  [
+                                                                 {
+                                                                     "column_id":  "text.search",
+                                                                     "value":  "S M Pollart",
+                                                                     "operator":  "has"
+                                                                 }
+                                                             ],
+                                             "select":  [
+                                                            "id",
+                                                            "display_name",
+                                                            "orcid",
+                                                            "works_count",
+                                                            "cited_by_count",
+                                                            "last_known_institutions",
+                                                            "affiliations",
+                                                            "updated_date"
+                                                        ],
+                                             "per_page":  25
+                                         },
+                                 "url":  "/authors?filter=text.search:S M Pollart\u0026select=id,display_name,orcid,works_count,cited_by_count,last_known_institutions,affiliations,updated_date\u0026per_page=25"
+                             },
+                 "cost_usd":  0.001
+             },
+    "results":  [
+                    {
+                        "id":  "https://openalex.org/A5019353041",
+                        "display_name":  "Susan M. Pollart",
+                        "orcid":  "https://orcid.org/0000-0002-7495-8786",
+                        "works_count":  43,
+                        "cited_by_count":  1876,
+                        "last_known_institutions":  [
+                                                        {
+                                                            "id":  "https://openalex.org/I27837315",
+                                                            "ror":  "https://ror.org/00jmfr291",
+                                                            "display_name":  "University of Michigan",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I27837315"
+                                                                        ]
+                                                        },
+                                                        {
+                                                            "id":  "https://openalex.org/I4210118354",
+                                                            "ror":  "https://ror.org/02ejgsx19",
+                                                            "display_name":  "Ramah Navajo School Board",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I4210118354"
+                                                                        ]
+                                                        },
+                                                        {
+                                                            "id":  "https://openalex.org/I51556381",
+                                                            "ror":  "https://ror.org/0153tk833",
+                                                            "display_name":  "University of Virginia",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I51556381"
+                                                                        ]
+                                                        }
+                                                    ],
+                        "affiliations":  [
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I111979921",
+                                                                     "ror":  "https://ror.org/000e0be47",
+                                                                     "display_name":  "Northwestern University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I111979921"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I130238516",
+                                                                     "ror":  "https://ror.org/017zqws13",
+                                                                     "display_name":  "University of Minnesota",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I130238516"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1318720529",
+                                                                     "ror":  "https://ror.org/04q6cg820",
+                                                                     "display_name":  "Association of American Medical Colleges",
+                                                                     "country_code":  "US",
+                                                                     "type":  "funder",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1318720529"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014,
+                                                               2013,
+                                                               2012
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I149251103",
+                                                                     "ror":  "https://ror.org/00ysqcn41",
+                                                                     "display_name":  "Thomas Jefferson University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I149251103"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I1925986",
+                                                                     "ror":  "https://ror.org/04b6x2g63",
+                                                                     "display_name":  "Loyola University Chicago",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I1925986"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2014,
+                                                               2013
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I27837315",
+                                                                     "ror":  "https://ror.org/00jmfr291",
+                                                                     "display_name":  "University of Michigan",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I27837315"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I2799765794",
+                                                                     "ror":  "https://ror.org/00wn7d965",
+                                                                     "display_name":  "University of Virginia Health System",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2799765794"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2019,
+                                                               2016,
+                                                               2014,
+                                                               2013,
+                                                               2011
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210118354",
+                                                                     "ror":  "https://ror.org/02ejgsx19",
+                                                                     "display_name":  "Ramah Navajo School Board",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210118354"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210127285",
+                                                                     "ror":  "https://ror.org/02wxwcd04",
+                                                                     "display_name":  "Charlottesville Medical Research",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210127285"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1991,
+                                                               1988
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210134211",
+                                                                     "ror":  "https://ror.org/046kb4y45",
+                                                                     "display_name":  "University of Virginia Medical Center",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I2799765794",
+                                                                                     "https://openalex.org/I4210134211"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1993
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I51556381",
+                                                                     "ror":  "https://ror.org/0153tk833",
+                                                                     "display_name":  "University of Virginia",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I51556381"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2025,
+                                                               2024,
+                                                               2023,
+                                                               2019,
+                                                               2018,
+                                                               2012,
+                                                               2011,
+                                                               2009,
+                                                               1991,
+                                                               1990,
+                                                               1989,
+                                                               1988,
+                                                               1987
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I80046288",
+                                                                     "ror":  "https://ror.org/02qp2hh41",
+                                                                     "display_name":  "Walden University",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I80046288"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2019
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I858669146",
+                                                                     "ror":  "https://ror.org/04fcaga30",
+                                                                     "display_name":  "Jefferson College",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I858669146"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2013
+                                                           ]
+                                             }
+                                         ],
+                        "updated_date":  "2026-06-17T12:17:59"
+                    },
+                    {
+                        "id":  "https://openalex.org/A5091834432",
+                        "display_name":  "S POLLART",
+                        "orcid":  null,
+                        "works_count":  7,
+                        "cited_by_count":  205,
+                        "last_known_institutions":  [
+                                                        {
+                                                            "id":  "https://openalex.org/I51556381",
+                                                            "ror":  "https://ror.org/0153tk833",
+                                                            "display_name":  "University of Virginia",
+                                                            "country_code":  "US",
+                                                            "type":  "education",
+                                                            "lineage":  [
+                                                                            "https://openalex.org/I51556381"
+                                                                        ]
+                                                        }
+                                                    ],
+                        "affiliations":  [
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I4210127285",
+                                                                     "ror":  "https://ror.org/02wxwcd04",
+                                                                     "display_name":  "Charlottesville Medical Research",
+                                                                     "country_code":  "US",
+                                                                     "type":  "healthcare",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I4210127285"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               1991
+                                                           ]
+                                             },
+                                             {
+                                                 "institution":  {
+                                                                     "id":  "https://openalex.org/I51556381",
+                                                                     "ror":  "https://ror.org/0153tk833",
+                                                                     "display_name":  "University of Virginia",
+                                                                     "country_code":  "US",
+                                                                     "type":  "education",
+                                                                     "lineage":  [
+                                                                                     "https://openalex.org/I51556381"
+                                                                                 ]
+                                                                 },
+                                                 "years":  [
+                                                               2008,
+                                                               1991,
+                                                               1987
+                                                           ]
+                                             }
+                                         ],
+                        "updated_date":  "2026-05-15T12:20:29"
+                    }
+                ],
+    "group_by":  [
+
+                 ]
+}

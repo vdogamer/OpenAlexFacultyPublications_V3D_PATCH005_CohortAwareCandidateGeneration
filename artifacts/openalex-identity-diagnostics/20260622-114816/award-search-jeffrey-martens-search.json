@@ -1,0 +1,49 @@
+﻿{
+    "meta":  {
+                 "count":  0,
+                 "db_response_time_ms":  43,
+                 "page":  1,
+                 "per_page":  25,
+                 "groups_count":  null,
+                 "x_query":  {
+                                 "oql":  "awards where text has (Jeffrey Martens)\nreturn OpenAlex ID, title, funder award ID, funder, amount, currency, start year, end year, start date, end date, lead investigator, co lead investigator, investigator, funded outputs count, DOI, provenance",
+                                 "oqo":  {
+                                             "get_rows":  "awards",
+                                             "filter_rows":  [
+                                                                 {
+                                                                     "column_id":  "text.search",
+                                                                     "value":  "Jeffrey Martens",
+                                                                     "operator":  "has"
+                                                                 }
+                                                             ],
+                                             "select":  [
+                                                            "id",
+                                                            "display_name",
+                                                            "funder_award_id",
+                                                            "funder",
+                                                            "amount",
+                                                            "currency",
+                                                            "start_year",
+                                                            "end_year",
+                                                            "start_date",
+                                                            "end_date",
+                                                            "lead_investigator",
+                                                            "co_lead_investigator",
+                                                            "investigators",
+                                                            "funded_outputs_count",
+                                                            "doi",
+                                                            "provenance"
+                                                        ],
+                                             "per_page":  25
+                                         },
+                                 "url":  "/awards?filter=text.search:Jeffrey Martens\u0026select=id,display_name,funder_award_id,funder,amount,currency,start_year,end_year,start_date,end_date,lead_investigator,co_lead_investigator,investigators,funded_outputs_count,doi,provenance\u0026per_page=25"
+                             },
+                 "cost_usd":  0.0001
+             },
+    "results":  [
+
+                ],
+    "group_by":  [
+
+                 ]
+}
