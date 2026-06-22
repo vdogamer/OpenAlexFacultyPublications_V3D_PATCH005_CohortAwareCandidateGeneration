@@ -8,7 +8,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 builder.Services.Configure<InstitutionIngestionOptions>(builder.Configuration.GetSection("InstitutionIngestion"));
-builder.Services.Configure<AuthorIngestionOptions>(builder.Configuration.GetSection("AuthorIngestion"));
+builder.Services.Configure<AuthorIngestionOptions>(builder.Configuration.GetSection("AuthorInestion"));
 builder.Services.Configure<WorkIngestionOptions>(builder.Configuration.GetSection("WorkIngestion"));
 builder.Services.Configure<CandidateGenerationOptions>(builder.Configuration.GetSection("CandidateGeneration"));
 builder.Services.Configure<PipelineOrchestrationOptions>(builder.Configuration.GetSection("Pipeline"));
@@ -25,6 +25,7 @@ builder.Services.AddScoped<WorkIngestionJob>();
 builder.Services.AddScoped<FacultyIdentityCandidateGenerationJob>();
 builder.Services.AddScoped<FacultyIdentityCandidateWorkExpansionJob>();
 builder.Services.AddScoped<FacultyIdentityWorkEvidenceScoringJob>();
+builder.Services.AddScoped<FacultyIdentityCandidateSummaryGenerationJob>();
 builder.Services.AddScoped<FacultyAuthorCandidateGenerationJob>();
 builder.Services.AddScoped<FacultyPublicationCandidateGenerationJob>();
 builder.Services.AddScoped<PipelineOrchestrationJob>();
