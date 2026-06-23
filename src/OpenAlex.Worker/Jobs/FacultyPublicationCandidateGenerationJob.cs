@@ -8,15 +8,18 @@ namespace OpenAlex.Worker.Jobs;
 public sealed class FacultyPublicationCandidateGenerationJob
 {
     private readonly CandidateGenerationRepository _repository;
+    private readonly AcceptedIdentityPublicationBridgeRepository _acceptedIdentityBridgeRepository;
     private readonly IOperationalLogger _logger;
     private readonly CandidateGenerationOptions _options;
 
     public FacultyPublicationCandidateGenerationJob(
         CandidateGenerationRepository repository,
+        AcceptedIdentityPublicationBridgeRepository acceptedIdentityBridgeRepository,
         IOperationalLogger logger,
         IOptions<CandidateGenerationOptions> options)
     {
         _repository = repository;
+        _acceptedIdentityBridgeRepository = acceptedIdentityBridgeRepository;
         _logger = logger;
         _options = options.Value;
     }
@@ -61,6 +64,21 @@ public sealed class FacultyPublicationCandidateGenerationJob
                     cancellationToken);
             }
 
+            var bridgeResult = await _acceptedIdentityBridgeRepository.SyncAcceptedIdentitiesAsync(
+                run.IngestionRunId,
+                selectedCohortName,
+                _options.StartedBy,
+                cancellationToken);
+
+            await _logger.LogInfoAsync(
+                "FacultyPublicationCandidateGeneration",
+                "AcceptedIdentityBridge",
+                bridgeResult.Skipped
+                    ? $"Accepted identity bridge skipped. Reason={bridgeResult.SkipReason}"
+                    : $"AcceptedIdentityRows={bridgeResult.AcceptedIdentityRows}; AuthorCandidateRowsInserted={bridgeResult.AuthorCandidateRowsInserted}; AuthorCandidateRowsUpdated={bridgeResult.AuthorCandidateRowsUpdated}; AuthorDecisionRowsInserted={bridgeResult.AuthorDecisionRowsInserted}; ExistingAcceptedAuthorDecisionsSkipped={bridgeResult.ExistingAcceptedAuthorDecisionsSkipped}.",
+                run.RunCorrelationId,
+                cancellationToken);
+
             var rows = await _repository.GetPublicationCandidateSourceRowsAsync(
                 _options.MaxPublicationCandidatesToGenerate,
                 _options.OnlyCurrentAcceptedAuthorDecisions,
@@ -100,6 +118,8 @@ public sealed class FacultyPublicationCandidateGenerationJob
             var summary =
                 $"Faculty-publication candidate generation completed. SelectedCohortName={selectedCohortName ?? "(none)"}; " +
                 $"EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : cohortFaculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; " +
+                $"AcceptedIdentityBridgeSkipped={bridgeResult.Skipped}; AcceptedIdentityRows={bridgeResult.AcceptedIdentityRows}; " +
+                $"BridgeAuthorCandidatesInserted={bridgeResult.AuthorCandidateRowsInserted}; BridgeAuthorCandidatesUpdated={bridgeResult.AuthorCandidateRowsUpdated}; BridgeAuthorDecisionsInserted={bridgeResult.AuthorDecisionRowsInserted}; ExistingAcceptedAuthorDecisionsSkipped={bridgeResult.ExistingAcceptedAuthorDecisionsSkipped}; " +
                 $"FacultyProcessed={facultyProcessedCount}; SourceRowsProcessed={rows.Count}; " +
                 $"FacultyWithZeroPublicationCandidates={FormatIdList(facultyWithZeroPublicationCandidates)}; " +
                 $"CandidateCountsByFaculty={FormatCandidateCounts(candidateCountsByFaculty)}; " +
@@ -108,7 +128,7 @@ public sealed class FacultyPublicationCandidateGenerationJob
             await _repository.CompleteRunAsync(
                 run.IngestionRunId,
                 summary,
-                authorsProcessed: 0,
+                authorsProcessed: bridgeResult.AcceptedIdentityRows,
                 worksProcessed: rows.Count,
                 cancellationToken);
 
