@@ -33,8 +33,8 @@ DECLARE @ShortFirstName NVARCHAR(200) = N'Jeff';
 DECLARE @LastName NVARCHAR(200) = N'Martens';
 
 -- TODO: Replace these placeholder values before running.
-DECLARE @VerifiedOrcid NVARCHAR(256) = N'https://orcid.org/0000-0000-0000-0000';
-DECLARE @VerifiedOpenAlexAuthorId NVARCHAR(128) = N'https://openalex.org/A0000000000';
+DECLARE @VerifiedOrcid NVARCHAR(256) = N'https://orcid.org/0000-0002-0451-2703';
+DECLARE @VerifiedOpenAlexAuthorId NVARCHAR(128) = N'https://openalex.org/A5000288080';
 
 DECLARE @FacultyId BIGINT;
 DECLARE @DisplayColumn SYSNAME;
