@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OpenAlex.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9b55b27be1d0e3fd3ce11f2bf4dc1dbdba48dbe1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4d510c271c69a09741b4490fa2203111f5eee9d")]
 [assembly: System.Reflection.AssemblyProductAttribute("OpenAlex.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OpenAlex.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

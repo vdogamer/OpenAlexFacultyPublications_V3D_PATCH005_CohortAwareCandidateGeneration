@@ -1,6 +1,6 @@
 namespace OpenAlex.Data.Models;
 
-public sealed class FacultyIdentityCandidateSummarySource
+public class FacultyIdentityCandidateSummarySource
 {
     public long FacultyId { get; set; }
     public string? FacultyDisplayName { get; set; }
