@@ -13,6 +13,7 @@ public static class OpenAlexDataServiceCollectionExtensions
         services.AddScoped<DashboardRepository>();
         services.AddScoped<FacultyRepository>();
         services.AddScoped<ReviewQueueRepository>();
+        services.AddScoped<IdentityReviewRepository>();
         services.AddScoped<ReportingRepository>();
         services.AddScoped<OperationsRepository>();
         services.AddScoped<InstitutionIngestionRepository>();
