@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OpenAlex.Matching")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9b55b27be1d0e3fd3ce11f2bf4dc1dbdba48dbe1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+da4e683ac3e5e7c30751b86c7ed5bd856e0640a6")]
 [assembly: System.Reflection.AssemblyProductAttribute("OpenAlex.Matching")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OpenAlex.Matching")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
