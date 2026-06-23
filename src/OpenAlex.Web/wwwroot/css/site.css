@@ -91,9 +91,9 @@ th {
     font-size: .9rem;
 }
 
-input[type=text] {
+input[type=text], select {
     padding: .45rem;
-    min-width: 280px;
+    min-width: 220px;
 }
 
 button, .button {
@@ -107,6 +107,10 @@ button, .button {
     cursor: pointer;
 }
 
+.button.secondary {
+    background: #666;
+    border-color: #666;
+}
 
 .authbar {
     margin-left: auto;
@@ -130,7 +134,6 @@ button, .button {
     margin: 1rem 0;
 }
 
-
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -145,7 +148,8 @@ button, .button {
     background: #fff;
 }
 
-.metric-card h2 {
+.metric-card h2,
+.metric-card h3 {
     margin-top: 0;
     font-size: 1rem;
 }
@@ -175,7 +179,10 @@ button, .button {
 .badge.Completed,
 .badge.Ready,
 .badge.Information,
-.badge.Info {
+.badge.Info,
+.badge.LikelyIdentity,
+.badge.AcceptedIdentity,
+.badge.StrongWorkEvidence {
     background: #e8f5e9;
     color: #1b5e20;
 }
@@ -183,18 +190,63 @@ button, .button {
 .badge.Failed,
 .badge.Error,
 .badge.Critical,
-.badge.Danger {
+.badge.Danger,
+.badge.LikelyFalsePositive,
+.badge.RejectedIdentity,
+.badge.ConflictingWorkEvidence {
     background: #fdecea;
     color: #b42318;
 }
 
 .badge.CompletedWithWarnings,
-.badge.Warning {
+.badge.Warning,
+.badge.NeedsManualReview,
+.badge.NeedsMoreEvidence,
+.badge.ModerateWorkEvidence {
     background: #fff4e5;
     color: #b7791f;
 }
 
+.badge.PossibleSplitProfile,
+.badge.WeakWorkEvidence {
+    background: #eef2ff;
+    color: #3730a3;
+}
+
+.badge.WeakCandidate,
+.badge.NeedsManualReview {
+    background: #f2f4f7;
+    color: #344054;
+}
 
 .badge.Queued { background: #eef2ff; color: #3730a3; }
 .badge.Started { background: #e0f2fe; color: #075985; }
 .badge.Cancelled, .badge.Skipped { background: #f2f4f7; color: #344054; }
+
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: end;
+}
+
+.filter-form label {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    font-weight: 700;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.review-actions {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    margin-bottom: .75rem;
+    flex-wrap: wrap;
+}
