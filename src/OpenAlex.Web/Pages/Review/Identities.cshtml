@@ -1,0 +1,120 @@
+@page
+@model OpenAlex.Web.Pages.Review.IdentitiesModel
+
+<h1>Identity Review</h1>
+
+<section class="card">
+    <p>
+        Review faculty identity candidates discovered by V3E. Decisions recorded here are identity-review decisions only;
+        they do not automatically create publication candidates or accepted publications.
+    </p>
+</section>
+
+<section class="card">
+    <form method="get" class="filter-form">
+        <label>
+            Search
+            <input type="text" name="search" value="@Model.Search" placeholder="faculty, author, OpenAlex ID" />
+        </label>
+        <label>
+            Triage
+            <select name="triageStatus">
+                <option value="">All triage statuses</option>
+                <option value="LikelyIdentity" selected="@(Model.TriageStatus == "LikelyIdentity")">Likely identity</option>
+                <option value="PossibleSplitProfile" selected="@(Model.TriageStatus == "PossibleSplitProfile")">Possible split profile</option>
+                <option value="NeedsManualReview" selected="@(Model.TriageStatus == "NeedsManualReview")">Needs manual review</option>
+                <option value="WeakCandidate" selected="@(Model.TriageStatus == "WeakCandidate")">Weak candidate</option>
+                <option value="LikelyFalsePositive" selected="@(Model.TriageStatus == "LikelyFalsePositive")">Likely false positive</option>
+            </select>
+        </label>
+        <label>
+            Decision
+            <select name="decisionStatus">
+                <option value="">All decisions</option>
+                <option value="Undecided" selected="@(Model.DecisionStatus == "Undecided")">Undecided</option>
+                <option value="AcceptedIdentity" selected="@(Model.DecisionStatus == "AcceptedIdentity")">Accepted identity</option>
+                <option value="RejectedIdentity" selected="@(Model.DecisionStatus == "RejectedIdentity")">Rejected identity</option>
+                <option value="NeedsMoreEvidence" selected="@(Model.DecisionStatus == "NeedsMoreEvidence")">Needs more evidence</option>
+            </select>
+        </label>
+        <button type="submit">Filter</button>
+        <a class="button secondary" href="/Review/Identities">Reset</a>
+    </form>
+</section>
+
+@if (Model.Items.Count == 0)
+{
+    <section class="card">
+        <h2>No identity summaries found</h2>
+        <p>Run V3E PATCH004 summary generation first, then return to this page.</p>
+    </section>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Faculty</th>
+                <th>Candidate Author</th>
+                <th>Triage</th>
+                <th>Evidence</th>
+                <th>Decision</th>
+                <th>Review</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>
+                    <strong>@item.FacultyDisplayName</strong><br />
+                    <span class="small">FacultyId @item.FacultyId</span>
+                </td>
+                <td>
+                    <strong>@item.CandidateDisplayName</strong><br />
+                    <span class="small">
+                        @item.CandidateAuthorOpenAlexShortId<br />
+                        @if (!string.IsNullOrWhiteSpace(item.CandidateAuthorOpenAlexShortId))
+                        {
+                            <a href="https://openalex.org/@item.CandidateAuthorOpenAlexShortId" target="_blank" rel="noopener">OpenAlex Author</a>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(item.CandidateOrcid))
+                        {
+                            <br /><a href="@item.CandidateOrcid" target="_blank" rel="noopener">ORCID</a>
+                        }
+                    </span>
+                </td>
+                <td>
+                    <span class="badge @item.IdentityReviewTriageStatus">@item.IdentityReviewTriageStatus</span><br />
+                    <span class="small">Priority @item.ReviewPriority<br />@item.BestCandidateType</span>
+                </td>
+                <td>
+                    <strong>Identity:</strong> @item.BestIdentityEvidenceScore<br />
+                    <strong>Best work:</strong> @(item.BestWorkEvidenceScore?.ToString("0.####") ?? "-")<br />
+                    <span class="small">
+                        Works @item.DistinctExpandedWorks,
+                        Strong @item.StrongWorkEvidenceRows,
+                        Moderate @item.ModerateWorkEvidenceRows,
+                        Conflicting @item.ConflictingWorkEvidenceRows<br />
+                        @item.DiscoveryMethods
+                    </span>
+                </td>
+                <td>
+                    @if (string.IsNullOrWhiteSpace(item.CurrentDecisionStatus))
+                    {
+                        <span class="badge Warning">Undecided</span>
+                    }
+                    else
+                    {
+                        <span class="badge @item.CurrentDecisionStatus">@item.CurrentDecisionStatus</span><br />
+                        <span class="small">@item.CurrentReviewerName<br />@(item.CurrentDecisionCreatedAtUtc?.ToString("u") ?? "")</span>
+                    }
+                </td>
+                <td>
+                    <a class="button" asp-page="/Review/IdentityDetails" asp-route-id="@item.FacultyIdentityCandidateSummaryId">Open</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
