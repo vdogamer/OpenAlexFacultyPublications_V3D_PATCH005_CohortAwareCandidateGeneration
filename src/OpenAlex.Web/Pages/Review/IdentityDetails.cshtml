@@ -1,0 +1,143 @@
+@page
+@model OpenAlex.Web.Pages.Review.IdentityDetailsModel
+
+@{
+    var detail = Model.Detail!;
+    var item = detail.Summary;
+}
+
+<p><a href="/Review/Identities">← Back to Identity Review</a></p>
+
+<h1>Identity Candidate Detail</h1>
+
+<section class="card">
+    <div class="detail-grid">
+        <div>
+            <h2>Faculty</h2>
+            <p><strong>@item.FacultyDisplayName</strong></p>
+            <p class="small">FacultyId @item.FacultyId</p>
+        </div>
+        <div>
+            <h2>Candidate OpenAlex Author</h2>
+            <p><strong>@item.CandidateDisplayName</strong></p>
+            <p class="small">
+                @item.CandidateAuthorOpenAlexShortId<br />
+                @if (!string.IsNullOrWhiteSpace(item.CandidateAuthorOpenAlexShortId))
+                {
+                    <a href="https://openalex.org/@item.CandidateAuthorOpenAlexShortId" target="_blank" rel="noopener">OpenAlex Author</a>
+                }
+                @if (!string.IsNullOrWhiteSpace(item.CandidateOrcid))
+                {
+                    <br /><a href="@item.CandidateOrcid" target="_blank" rel="noopener">ORCID</a>
+                }
+            </p>
+        </div>
+        <div>
+            <h2>Triage</h2>
+            <p><span class="badge @item.IdentityReviewTriageStatus">@item.IdentityReviewTriageStatus</span></p>
+            <p class="small">Priority @item.ReviewPriority<br />@item.BestCandidateType</p>
+        </div>
+        <div>
+            <h2>Current Decision</h2>
+            @if (string.IsNullOrWhiteSpace(detail.CurrentDecisionStatus))
+            {
+                <p><span class="badge Warning">Undecided</span></p>
+            }
+            else
+            {
+                <p><span class="badge @detail.CurrentDecisionStatus">@detail.CurrentDecisionStatus</span></p>
+                <p class="small">@detail.CurrentReviewerName<br />@(detail.CurrentDecisionCreatedAtUtc?.ToString("u") ?? "")</p>
+                @if (!string.IsNullOrWhiteSpace(detail.CurrentReviewNotes))
+                {
+                    <p>@detail.CurrentReviewNotes</p>
+                }
+            }
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Evidence Summary</h2>
+    <div class="metric-grid">
+        <div class="metric-card Neutral"><h3>Identity Score</h3><div class="metric-value">@item.BestIdentityEvidenceScore</div></div>
+        <div class="metric-card Neutral"><h3>Best Work Score</h3><div class="metric-value">@(item.BestWorkEvidenceScore?.ToString("0.####") ?? "-")</div></div>
+        <div class="metric-card Neutral"><h3>Distinct Works</h3><div class="metric-value">@item.DistinctExpandedWorks</div></div>
+        <div class="metric-card Neutral"><h3>Strong / Moderate</h3><div class="metric-value">@item.StrongWorkEvidenceRows / @item.ModerateWorkEvidenceRows</div></div>
+    </div>
+    <p><strong>Discovery methods:</strong> @item.DiscoveryMethods</p>
+    <p><strong>Publication years:</strong> @(detail.EarliestPublicationYear?.ToString() ?? "-") - @(detail.LatestPublicationYear?.ToString() ?? "-")</p>
+    <p>@detail.SummaryText</p>
+</section>
+
+<section class="card">
+    <h2>Record Review Decision</h2>
+    <p class="notice">
+        These buttons record identity-review decisions only. They do not generate accepted publications.
+    </p>
+    <form method="post" asp-page-handler="Accept" class="review-actions">
+        <input type="hidden" name="id" value="@item.FacultyIdentityCandidateSummaryId" />
+        <input type="text" name="notes" placeholder="review notes" />
+        <button type="submit">Accept Identity</button>
+    </form>
+    <form method="post" asp-page-handler="NeedsMoreEvidence" class="review-actions">
+        <input type="hidden" name="id" value="@item.FacultyIdentityCandidateSummaryId" />
+        <input type="text" name="notes" placeholder="what evidence is missing?" />
+        <button type="submit">Needs More Evidence</button>
+    </form>
+    <form method="post" asp-page-handler="Reject" class="review-actions">
+        <input type="hidden" name="id" value="@item.FacultyIdentityCandidateSummaryId" />
+        <input type="text" name="notes" placeholder="why reject?" />
+        <button type="submit">Reject Identity</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Work Evidence</h2>
+    @if (detail.WorkEvidence.Count == 0)
+    {
+        <p>No scored work evidence is available for this candidate.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Work</th>
+                    <th>Matched Author</th>
+                    <th>Status</th>
+                    <th>Scores</th>
+                    <th>Evidence</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var work in detail.WorkEvidence)
+            {
+                <tr>
+                    <td>
+                        <strong>@work.WorkDisplayName</strong><br />
+                        <span class="small">
+                            @work.PublicationYear<br />
+                            @if (!string.IsNullOrWhiteSpace(work.WorkOpenAlexShortId))
+                            {
+                                <a href="https://openalex.org/@work.WorkOpenAlexShortId" target="_blank" rel="noopener">OpenAlex Work</a>
+                            }
+                        </span>
+                    </td>
+                    <td>@work.MatchedAuthorDisplayName</td>
+                    <td><span class="badge @work.WorkEvidenceStatus">@work.WorkEvidenceStatus</span></td>
+                    <td>
+                        <strong>Overall:</strong> @work.OverallWorkEvidenceScore<br />
+                        <span class="small">
+                            Name @work.NameEvidenceScore<br />
+                            Institution @work.InstitutionEvidenceScore<br />
+                            DOI @work.DoiEvidenceScore<br />
+                            Year @work.PublicationYearEvidenceScore
+                        </span>
+                    </td>
+                    <td>@work.EvidenceSummary</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>
