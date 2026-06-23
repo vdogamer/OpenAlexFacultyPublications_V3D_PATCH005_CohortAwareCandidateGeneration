@@ -130,11 +130,14 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
     {
         var triageStatus = GetTriageStatus(source);
         var reviewPriority = GetReviewPriority(triageStatus, source);
+        var hasVerifiedIdentitySeed = HasVerifiedIdentitySeed(source);
+        var hasLikelyIdentityWorkVolume = HasLikelyIdentityWorkVolume(source);
 
         var summaryText =
             $"TriageStatus={triageStatus}; ReviewPriority={reviewPriority}; Faculty='{source.FacultyDisplayName}'; " +
             $"CandidateAuthor={source.CandidateAuthorOpenAlexShortId}; CandidateDisplayName='{source.CandidateDisplayName}'; " +
             $"CandidateType={source.BestCandidateType}; IdentityScore={source.BestIdentityEvidenceScore}; " +
+            $"HasVerifiedIdentitySeed={hasVerifiedIdentitySeed}; HasLikelyIdentityWorkVolume={hasLikelyIdentityWorkVolume}; " +
             $"DiscoveryMethods={source.DiscoveryMethods}; DistinctExpandedWorks={source.DistinctExpandedWorks}; ScoredWorkRows={source.ScoredWorkRows}; " +
             $"StrongWorkEvidenceRows={source.StrongWorkEvidenceRows}; ModerateWorkEvidenceRows={source.ModerateWorkEvidenceRows}; WeakWorkEvidenceRows={source.WeakWorkEvidenceRows}; ConflictingWorkEvidenceRows={source.ConflictingWorkEvidenceRows}; " +
             $"AverageWorkEvidenceScore={source.AverageWorkEvidenceScore}; BestWorkEvidenceScore={source.BestWorkEvidenceScore}; PublicationYears={source.EarliestPublicationYear}-{source.LatestPublicationYear}.";
@@ -165,6 +168,8 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
             source.BestWorkEvidenceScore,
             source.EarliestPublicationYear,
             source.LatestPublicationYear,
+            HasVerifiedIdentitySeed = hasVerifiedIdentitySeed,
+            HasLikelyIdentityWorkVolume = hasLikelyIdentityWorkVolume,
             IdentityReviewTriageStatus = triageStatus,
             ReviewPriority = reviewPriority
         };
@@ -207,6 +212,9 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
     {
         var bestWorkScore = source.BestWorkEvidenceScore ?? 0m;
         var averageWorkScore = source.AverageWorkEvidenceScore ?? 0m;
+        var hasVerifiedIdentitySeed = HasVerifiedIdentitySeed(source);
+        var hasLikelyIdentityWorkVolume = HasLikelyIdentityWorkVolume(source);
+        var hasStrongLikelyWorkEvidence = bestWorkScore >= 75m && averageWorkScore >= 65m;
 
         if (source.ConflictingWorkEvidenceRows > 0 &&
             source.StrongWorkEvidenceRows == 0 &&
@@ -217,13 +225,14 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
 
         if (source.BestCandidateType == "PrimaryIdentityCandidate" &&
             source.BestIdentityEvidenceScore >= 90m &&
-            source.StrongWorkEvidenceRows > 0)
+            source.StrongWorkEvidenceRows > 0 &&
+            (hasVerifiedIdentitySeed || (hasLikelyIdentityWorkVolume && hasStrongLikelyWorkEvidence)))
         {
             return "LikelyIdentity";
         }
 
         if (source.BestCandidateType == "PossibleProfileFragment" &&
-            (source.StrongWorkEvidenceRows > 0 || source.ModerateWorkEvidenceRows >= 2 || bestWorkScore >= 70m))
+            (hasVerifiedIdentitySeed || HasPossibleSplitProfileEvidence(source, bestWorkScore, averageWorkScore)))
         {
             return "PossibleSplitProfile";
         }
@@ -240,6 +249,37 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
         }
 
         return "NeedsManualReview";
+    }
+
+    private static bool HasVerifiedIdentitySeed(FacultyIdentityCandidateSummarySource source)
+    {
+        var discoveryMethods = source.DiscoveryMethods ?? string.Empty;
+
+        return discoveryMethods.Contains("ClaimedOpenAlexAuthorId", StringComparison.OrdinalIgnoreCase)
+            || discoveryMethods.Contains("OrcidLookup", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(source.BestIdentityEvidenceStatus, "StrongIdentifierCandidate", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasLikelyIdentityWorkVolume(FacultyIdentityCandidateSummarySource source)
+    {
+        return source.DistinctExpandedWorks >= 5
+            && source.ScoredWorkRows >= 5
+            && source.StrongWorkEvidenceRows >= 3;
+    }
+
+    private static bool HasPossibleSplitProfileEvidence(
+        FacultyIdentityCandidateSummarySource source,
+        decimal bestWorkScore,
+        decimal averageWorkScore)
+    {
+        if (source.DistinctExpandedWorks < 5 || source.ScoredWorkRows < 5)
+        {
+            return false;
+        }
+
+        return source.StrongWorkEvidenceRows >= 2
+            || source.ModerateWorkEvidenceRows >= 5
+            || (bestWorkScore >= 75m && averageWorkScore >= 65m);
     }
 
     private static int GetReviewPriority(string triageStatus, FacultyIdentityCandidateSummarySource source)
