@@ -9,17 +9,20 @@ public sealed class FacultyPublicationCandidateGenerationJob
 {
     private readonly CandidateGenerationRepository _repository;
     private readonly AcceptedIdentityPublicationBridgeRepository _acceptedIdentityBridgeRepository;
+    private readonly PublicationEvidenceEnhancementRepository _publicationEvidenceEnhancementRepository;
     private readonly IOperationalLogger _logger;
     private readonly CandidateGenerationOptions _options;
 
     public FacultyPublicationCandidateGenerationJob(
         CandidateGenerationRepository repository,
         AcceptedIdentityPublicationBridgeRepository acceptedIdentityBridgeRepository,
+        PublicationEvidenceEnhancementRepository publicationEvidenceEnhancementRepository,
         IOperationalLogger logger,
         IOptions<CandidateGenerationOptions> options)
     {
         _repository = repository;
         _acceptedIdentityBridgeRepository = acceptedIdentityBridgeRepository;
+        _publicationEvidenceEnhancementRepository = publicationEvidenceEnhancementRepository;
         _logger = logger;
         _options = options.Value;
     }
@@ -111,6 +114,20 @@ public sealed class FacultyPublicationCandidateGenerationJob
                 if (wasInserted) inserted++; else updated++;
             }
 
+            var evidenceEnhancementResult = await _publicationEvidenceEnhancementRepository.EnhancePublicationCandidatesAsync(
+                run.IngestionRunId,
+                selectedCohortName,
+                cancellationToken);
+
+            await _logger.LogInfoAsync(
+                "FacultyPublicationCandidateGeneration",
+                "Patch007EvidenceEnhancement",
+                evidenceEnhancementResult.Skipped
+                    ? $"PATCH007 evidence enhancement skipped. Reason={evidenceEnhancementResult.SkipReason}"
+                    : $"CandidateRowsEvaluated={evidenceEnhancementResult.CandidateRowsEvaluated}; CandidateRowsEnhanced={evidenceEnhancementResult.CandidateRowsEnhanced}; RowsWithAffiliatedInstitutionEvidence={evidenceEnhancementResult.RowsWithAffiliatedInstitutionEvidence}; RowsWithKnownCoauthorEvidence={evidenceEnhancementResult.RowsWithKnownCoauthorEvidence}.",
+                run.RunCorrelationId,
+                cancellationToken);
+
             var facultyProcessedCount = selectedCohortName is null
                 ? rows.Select(row => row.FacultyId).Distinct().Count()
                 : cohortFaculties.Count;
@@ -120,6 +137,7 @@ public sealed class FacultyPublicationCandidateGenerationJob
                 $"EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : cohortFaculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; " +
                 $"AcceptedIdentityBridgeSkipped={bridgeResult.Skipped}; AcceptedIdentityRows={bridgeResult.AcceptedIdentityRows}; " +
                 $"BridgeAuthorCandidatesInserted={bridgeResult.AuthorCandidateRowsInserted}; BridgeAuthorCandidatesUpdated={bridgeResult.AuthorCandidateRowsUpdated}; BridgeAuthorDecisionsInserted={bridgeResult.AuthorDecisionRowsInserted}; ExistingAcceptedAuthorDecisionsSkipped={bridgeResult.ExistingAcceptedAuthorDecisionsSkipped}; " +
+                $"Patch007EvidenceSkipped={evidenceEnhancementResult.Skipped}; Patch007CandidateRowsEvaluated={evidenceEnhancementResult.CandidateRowsEvaluated}; Patch007CandidateRowsEnhanced={evidenceEnhancementResult.CandidateRowsEnhanced}; Patch007RowsWithAffiliatedInstitutionEvidence={evidenceEnhancementResult.RowsWithAffiliatedInstitutionEvidence}; Patch007RowsWithKnownCoauthorEvidence={evidenceEnhancementResult.RowsWithKnownCoauthorEvidence}; " +
                 $"FacultyProcessed={facultyProcessedCount}; SourceRowsProcessed={rows.Count}; " +
                 $"FacultyWithZeroPublicationCandidates={FormatIdList(facultyWithZeroPublicationCandidates)}; " +
                 $"CandidateCountsByFaculty={FormatCandidateCounts(candidateCountsByFaculty)}; " +
