@@ -10,17 +10,20 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
 {
     private readonly CandidateGenerationRepository _candidateGenerationRepository;
     private readonly FacultyIdentityCandidateSummaryRepository _summaryRepository;
+    private readonly FacultyManualReviewRuleRepository _manualReviewRuleRepository;
     private readonly IOperationalLogger _logger;
     private readonly CandidateGenerationOptions _options;
 
     public FacultyIdentityCandidateSummaryGenerationJob(
         CandidateGenerationRepository candidateGenerationRepository,
         FacultyIdentityCandidateSummaryRepository summaryRepository,
+        FacultyManualReviewRuleRepository manualReviewRuleRepository,
         IOperationalLogger logger,
         IOptions<CandidateGenerationOptions> options)
     {
         _candidateGenerationRepository = candidateGenerationRepository;
         _summaryRepository = summaryRepository;
+        _manualReviewRuleRepository = manualReviewRuleRepository;
         _logger = logger;
         _options = options.Value;
     }
@@ -57,11 +60,12 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
             var selectedFacultyIds = faculties.Select(f => f.FacultyId).ToList();
             var deletedStaleRows = await _summaryRepository.DeleteForFacultyIdsAsync(selectedFacultyIds, cancellationToken);
             var sources = await _summaryRepository.LoadSummarySourcesAsync(selectedFacultyIds, cancellationToken);
+            var manualReviewRules = await _manualReviewRuleRepository.LoadActiveRulesAsync(selectedFacultyIds, cancellationToken);
 
             await _logger.LogInfoAsync(
                 "FacultyIdentityCandidateSummaryGeneration",
                 "SummarySourceDiagnostics",
-                $"SelectedCohortName={selectedCohortName ?? "(none)"}; EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : faculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; SummarySourcesSelected={sources.Count}; DeletedStaleSummaryRows={deletedStaleRows}.",
+                $"SelectedCohortName={selectedCohortName ?? "(none)"}; EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : faculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; SummarySourcesSelected={sources.Count}; DeletedStaleSummaryRows={deletedStaleRows}; ManualReviewRuleCount={manualReviewRules.Count}.",
                 run.RunCorrelationId,
                 cancellationToken);
 
@@ -69,10 +73,17 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
             var updated = 0;
             var statusCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var summaryCountsByFaculty = selectedFacultyIds.ToDictionary(facultyId => facultyId, _ => 0);
+            var ruleAppliedCount = 0;
 
             foreach (var source in sources)
             {
-                var summary = BuildSummary(source, run.IngestionRunId);
+                manualReviewRules.TryGetValue(source.FacultyId, out var manualReviewRule);
+                if (manualReviewRule is not null)
+                {
+                    ruleAppliedCount++;
+                }
+
+                var summary = BuildSummary(source, run.IngestionRunId, manualReviewRule);
                 var result = await _summaryRepository.UpsertAsync(summary, cancellationToken);
 
                 if (result.Inserted) inserted++;
@@ -92,6 +103,7 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
                 $"Faculty identity candidate summary generation completed. SelectedCohortName={selectedCohortName ?? "(none)"}; " +
                 $"EnabledCohortFacultyCount={(selectedCohortName is null ? 0 : faculties.Count)}; FacultyIdsSelected={FormatIdList(selectedFacultyIds)}; " +
                 $"SummarySourcesSelected={sources.Count}; DeletedStaleSummaryRows={deletedStaleRows}; SummaryRowsInserted={inserted}; SummaryRowsUpdated={updated}; " +
+                $"ManualReviewRuleCount={manualReviewRules.Count}; SummaryRowsWithManualReviewRule={ruleAppliedCount}; " +
                 $"StatusCounts={FormatCounts(statusCounts)}; SummaryCountsByFaculty={FormatCounts(summaryCountsByFaculty)}; FacultyWithZeroSummaries={FormatIdList(facultyWithZeroSummaries)}.";
 
             await _candidateGenerationRepository.CompleteRunAsync(
@@ -126,18 +138,24 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
 
     private static FacultyIdentityCandidateSummaryWriteModel BuildSummary(
         FacultyIdentityCandidateSummarySource source,
-        long ingestionRunId)
+        long ingestionRunId,
+        FacultyManualReviewRule? manualReviewRule)
     {
-        var triageStatus = GetTriageStatus(source);
-        var reviewPriority = GetReviewPriority(triageStatus, source);
+        var triageStatus = GetTriageStatus(source, manualReviewRule);
+        var reviewPriority = GetReviewPriority(triageStatus, source, manualReviewRule);
         var hasVerifiedIdentitySeed = HasVerifiedIdentitySeed(source);
         var hasLikelyIdentityWorkVolume = HasLikelyIdentityWorkVolume(source);
+        var hasManualReviewRule = manualReviewRule is not null;
+        var isAbbreviatedSearchCandidate = IsAbbreviatedSearchCandidate(source);
 
         var summaryText =
             $"TriageStatus={triageStatus}; ReviewPriority={reviewPriority}; Faculty='{source.FacultyDisplayName}'; " +
             $"CandidateAuthor={source.CandidateAuthorOpenAlexShortId}; CandidateDisplayName='{source.CandidateDisplayName}'; " +
             $"CandidateType={source.BestCandidateType}; IdentityScore={source.BestIdentityEvidenceScore}; " +
             $"HasVerifiedIdentitySeed={hasVerifiedIdentitySeed}; HasLikelyIdentityWorkVolume={hasLikelyIdentityWorkVolume}; " +
+            $"HasManualReviewRule={hasManualReviewRule}; IsAbbreviatedSearchCandidate={isAbbreviatedSearchCandidate}; " +
+            $"RequireVerifiedSeedForLikelyStatus={manualReviewRule?.RequireVerifiedSeedForLikelyStatus ?? false}; UseManualReviewForAbbreviatedSearch={manualReviewRule?.UseManualReviewForAbbreviatedSearch ?? false}; " +
+            $"RequireAuthorAffiliationSupport={manualReviewRule?.RequireAuthorAffiliationSupport ?? false}; RequireCollaborationOrTopicSupport={manualReviewRule?.RequireCollaborationOrTopicSupport ?? false}; ManualReviewRuleReason='{manualReviewRule?.Reason}'; " +
             $"DiscoveryMethods={source.DiscoveryMethods}; DistinctExpandedWorks={source.DistinctExpandedWorks}; ScoredWorkRows={source.ScoredWorkRows}; " +
             $"StrongWorkEvidenceRows={source.StrongWorkEvidenceRows}; ModerateWorkEvidenceRows={source.ModerateWorkEvidenceRows}; WeakWorkEvidenceRows={source.WeakWorkEvidenceRows}; ConflictingWorkEvidenceRows={source.ConflictingWorkEvidenceRows}; " +
             $"AverageWorkEvidenceScore={source.AverageWorkEvidenceScore}; BestWorkEvidenceScore={source.BestWorkEvidenceScore}; PublicationYears={source.EarliestPublicationYear}-{source.LatestPublicationYear}.";
@@ -170,6 +188,9 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
             source.LatestPublicationYear,
             HasVerifiedIdentitySeed = hasVerifiedIdentitySeed,
             HasLikelyIdentityWorkVolume = hasLikelyIdentityWorkVolume,
+            HasManualReviewRule = hasManualReviewRule,
+            IsAbbreviatedSearchCandidate = isAbbreviatedSearchCandidate,
+            ManualReviewRule = manualReviewRule,
             IdentityReviewTriageStatus = triageStatus,
             ReviewPriority = reviewPriority
         };
@@ -208,13 +229,14 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
         };
     }
 
-    private static string GetTriageStatus(FacultyIdentityCandidateSummarySource source)
+    private static string GetTriageStatus(FacultyIdentityCandidateSummarySource source, FacultyManualReviewRule? manualReviewRule)
     {
         var bestWorkScore = source.BestWorkEvidenceScore ?? 0m;
         var averageWorkScore = source.AverageWorkEvidenceScore ?? 0m;
         var hasVerifiedIdentitySeed = HasVerifiedIdentitySeed(source);
         var hasLikelyIdentityWorkVolume = HasLikelyIdentityWorkVolume(source);
         var hasStrongLikelyWorkEvidence = bestWorkScore >= 75m && averageWorkScore >= 65m;
+        var isAbbreviatedSearchCandidate = IsAbbreviatedSearchCandidate(source);
 
         if (source.ConflictingWorkEvidenceRows > 0 &&
             source.StrongWorkEvidenceRows == 0 &&
@@ -223,11 +245,23 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
             return "LikelyFalsePositive";
         }
 
+        if (manualReviewRule?.UseManualReviewForAbbreviatedSearch == true &&
+            isAbbreviatedSearchCandidate &&
+            !hasVerifiedIdentitySeed)
+        {
+            return "NeedsManualReview";
+        }
+
         if (source.BestCandidateType == "PrimaryIdentityCandidate" &&
             source.BestIdentityEvidenceScore >= 90m &&
             source.StrongWorkEvidenceRows > 0 &&
             (hasVerifiedIdentitySeed || (hasLikelyIdentityWorkVolume && hasStrongLikelyWorkEvidence)))
         {
+            if (manualReviewRule?.RequireVerifiedSeedForLikelyStatus == true && !hasVerifiedIdentitySeed)
+            {
+                return "NeedsManualReview";
+            }
+
             return "LikelyIdentity";
         }
 
@@ -260,6 +294,13 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
             || string.Equals(source.BestIdentityEvidenceStatus, "StrongIdentifierCandidate", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsAbbreviatedSearchCandidate(FacultyIdentityCandidateSummarySource source)
+    {
+        var discoveryMethods = source.DiscoveryMethods ?? string.Empty;
+        return discoveryMethods.Contains("FirstInitialLastName", StringComparison.OrdinalIgnoreCase)
+            || discoveryMethods.Contains("Initial", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool HasLikelyIdentityWorkVolume(FacultyIdentityCandidateSummarySource source)
     {
         return source.DistinctExpandedWorks >= 5
@@ -282,8 +323,13 @@ public sealed class FacultyIdentityCandidateSummaryGenerationJob
             || (bestWorkScore >= 75m && averageWorkScore >= 65m);
     }
 
-    private static int GetReviewPriority(string triageStatus, FacultyIdentityCandidateSummarySource source)
+    private static int GetReviewPriority(string triageStatus, FacultyIdentityCandidateSummarySource source, FacultyManualReviewRule? manualReviewRule)
     {
+        if (manualReviewRule is not null && string.Equals(triageStatus, "NeedsManualReview", StringComparison.OrdinalIgnoreCase))
+        {
+            return 25;
+        }
+
         return triageStatus switch
         {
             "LikelyIdentity" => 10,
