@@ -246,11 +246,11 @@ SET
         + '; KnownCoauthorNames=' + ISNULL(e.KnownCoauthorNames, '(none)')
         + '; EvidenceBoost=' + CONVERT(NVARCHAR(20), e.EvidenceBoost),
     EvidenceJson = '{'
-        + '"Patch007AffiliatedInstitutionMatchCount":' + CONVERT(NVARCHAR(20), e.AffiliatedInstitutionMatchCount) + ','
-        + '"Patch007AffiliatedInstitutionEvidenceWeight":' + CONVERT(NVARCHAR(20), e.AffiliatedInstitutionEvidenceWeight) + ','
-        + '"Patch007KnownCoauthorOverlapCount":' + CONVERT(NVARCHAR(20), e.KnownCoauthorOverlapCount) + ','
-        + '"Patch007KnownCoauthorHistoricalPublicationCount":' + CONVERT(NVARCHAR(20), e.KnownCoauthorHistoricalPublicationCount) + ','
-        + '"Patch007EvidenceBoost":' + CONVERT(NVARCHAR(20), e.EvidenceBoost)
+        + '""Patch007AffiliatedInstitutionMatchCount"":' + CONVERT(NVARCHAR(20), e.AffiliatedInstitutionMatchCount) + ','
+        + '""Patch007AffiliatedInstitutionEvidenceWeight"":' + CONVERT(NVARCHAR(20), e.AffiliatedInstitutionEvidenceWeight) + ','
+        + '""Patch007KnownCoauthorOverlapCount"":' + CONVERT(NVARCHAR(20), e.KnownCoauthorOverlapCount) + ','
+        + '""Patch007KnownCoauthorHistoricalPublicationCount"":' + CONVERT(NVARCHAR(20), e.KnownCoauthorHistoricalPublicationCount) + ','
+        + '""Patch007EvidenceBoost"":' + CONVERT(NVARCHAR(20), e.EvidenceBoost)
         + '}',
     UpdatedAtUtc = SYSUTCDATETIME()
 FROM openalex.FacultyPublicationCandidate pc
