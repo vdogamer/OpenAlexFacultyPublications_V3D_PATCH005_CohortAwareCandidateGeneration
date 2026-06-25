@@ -112,7 +112,16 @@ ORDER BY c.CreatedAtUtc DESC;";
         q.EvidenceSummary,
         q.CreatedAtUtc,
         pc.FacultyId,
+        pc.WorkId,
         CandidateGroupKey = COALESCE(CONVERT(NVARCHAR(64), pc.WorkId), q.WorkOpenAlexId, q.WorkTitle),
+        NearDuplicateTitleKey = LEFT(
+            LOWER(
+                REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                    LTRIM(RTRIM(ISNULL(q.WorkTitle, ''))),
+                    ':', ''), '.', ''), ',', ''), '-', ''), '(', ''), ')', ''), '/', ''), CHAR(39), ''), '  ', ' ')
+            ),
+            90
+        ),
         DuplicateCandidateCount = COUNT(*) OVER
         (
             PARTITION BY
@@ -145,6 +154,26 @@ ORDER BY c.CreatedAtUtc DESC;";
               AND d.IsCurrent = 1
               AND d.DecisionStatus IN ('Accepted', 'Rejected')
         )
+),
+VisibleCandidates AS
+(
+    SELECT *
+    FROM PendingCandidates
+    WHERE ReviewGroupRank = 1
+),
+VisibleCandidatesWithNearDuplicates AS
+(
+    SELECT
+        vc.*,
+        NearDuplicateCandidateCount = COUNT(*) OVER
+        (
+            PARTITION BY
+                vc.FacultyId,
+                ISNULL(vc.PublicationYear, -1),
+                ISNULL(vc.AuthorDisplayName, ''),
+                vc.NearDuplicateTitleKey
+        )
+    FROM VisibleCandidates vc
 )
 SELECT TOP ({Math.Clamp(top, 1, 500)})
     FacultyPublicationCandidateId,
@@ -165,10 +194,15 @@ SELECT TOP ({Math.Clamp(top, 1, 500)})
             WHEN DuplicateCandidateCount > 1
             THEN '; PATCH010ReviewGrouping=Best-scoring candidate shown for this faculty/work pair; hidden duplicate candidate rows=' + CONVERT(NVARCHAR(20), DuplicateCandidateCount - 1)
             ELSE '; PATCH010ReviewGrouping=Single candidate for this faculty/work pair'
+          END
+        + '; PATCH011NearDuplicateCandidateCount=' + CONVERT(NVARCHAR(20), NearDuplicateCandidateCount)
+        + CASE
+            WHEN NearDuplicateCandidateCount > 1
+            THEN '; PATCH011NearDuplicateWarning=Possible near-duplicate publication group: similar title, publication year, faculty, and matched author appear across ' + CONVERT(NVARCHAR(20), NearDuplicateCandidateCount) + ' OpenAlex work records'
+            ELSE '; PATCH011NearDuplicateWarning='
           END,
     CreatedAtUtc
-FROM PendingCandidates
-WHERE ReviewGroupRank = 1
+FROM VisibleCandidatesWithNearDuplicates
 ORDER BY CreatedAtUtc DESC;";
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
