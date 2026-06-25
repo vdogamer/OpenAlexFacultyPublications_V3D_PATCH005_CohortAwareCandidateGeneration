@@ -94,6 +94,58 @@ ORDER BY c.CreatedAtUtc DESC;";
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
+;WITH PendingCandidates AS
+(
+    SELECT
+        q.FacultyPublicationCandidateId,
+        q.FacultyDisplayName,
+        q.PrimaryEmail,
+        q.DepartmentName,
+        q.WorkTitle,
+        q.PublicationYear,
+        q.WorkDoi,
+        q.DoiUrl,
+        q.WorkOpenAlexId,
+        q.AuthorDisplayName,
+        q.CandidateStatus,
+        q.MatchScore,
+        q.EvidenceSummary,
+        q.CreatedAtUtc,
+        pc.FacultyId,
+        CandidateGroupKey = COALESCE(CONVERT(NVARCHAR(64), pc.WorkId), q.WorkOpenAlexId, q.WorkTitle),
+        DuplicateCandidateCount = COUNT(*) OVER
+        (
+            PARTITION BY
+                pc.FacultyId,
+                COALESCE(CONVERT(NVARCHAR(64), pc.WorkId), q.WorkOpenAlexId, q.WorkTitle)
+        ),
+        ReviewGroupRank = ROW_NUMBER() OVER
+        (
+            PARTITION BY
+                pc.FacultyId,
+                COALESCE(CONVERT(NVARCHAR(64), pc.WorkId), q.WorkOpenAlexId, q.WorkTitle)
+            ORDER BY
+                ISNULL(q.MatchScore, 0) DESC,
+                q.CreatedAtUtc DESC,
+                q.FacultyPublicationCandidateId DESC
+        )
+    FROM openalex.vw_FacultyPublicationReviewQueue q
+    JOIN openalex.FacultyPublicationCandidate pc
+        ON q.FacultyPublicationCandidateId = pc.FacultyPublicationCandidateId
+    WHERE
+        (
+            q.CandidateStatus IS NULL
+            OR q.CandidateStatus IN ('PendingReview', 'NeedsMoreEvidence')
+        )
+        AND NOT EXISTS
+        (
+            SELECT 1
+            FROM openalex.FacultyPublicationDecision d
+            WHERE d.FacultyPublicationCandidateId = q.FacultyPublicationCandidateId
+              AND d.IsCurrent = 1
+              AND d.DecisionStatus IN ('Accepted', 'Rejected')
+        )
+)
 SELECT TOP ({Math.Clamp(top, 1, 500)})
     FacultyPublicationCandidateId,
     FacultyDisplayName,
@@ -107,22 +159,16 @@ SELECT TOP ({Math.Clamp(top, 1, 500)})
     AuthorDisplayName,
     CandidateStatus,
     MatchScore,
-    EvidenceSummary,
+    EvidenceSummary = ISNULL(EvidenceSummary, '')
+        + '; PATCH010DuplicateCandidateCount=' + CONVERT(NVARCHAR(20), DuplicateCandidateCount)
+        + CASE
+            WHEN DuplicateCandidateCount > 1
+            THEN '; PATCH010ReviewGrouping=Best-scoring candidate shown for this faculty/work pair; hidden duplicate candidate rows=' + CONVERT(NVARCHAR(20), DuplicateCandidateCount - 1)
+            ELSE '; PATCH010ReviewGrouping=Single candidate for this faculty/work pair'
+          END,
     CreatedAtUtc
-FROM openalex.vw_FacultyPublicationReviewQueue q
-WHERE
-    (
-        q.CandidateStatus IS NULL
-        OR q.CandidateStatus IN ('PendingReview', 'NeedsMoreEvidence')
-    )
-    AND NOT EXISTS
-    (
-        SELECT 1
-        FROM openalex.FacultyPublicationDecision d
-        WHERE d.FacultyPublicationCandidateId = q.FacultyPublicationCandidateId
-          AND d.IsCurrent = 1
-          AND d.DecisionStatus IN ('Accepted', 'Rejected')
-    )
+FROM PendingCandidates
+WHERE ReviewGroupRank = 1
 ORDER BY CreatedAtUtc DESC;";
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
