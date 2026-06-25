@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OpenAlex.OperationalLogging")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4d510c271c69a09741b4490fa2203111f5eee9d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+43320474a099458fb65e34113ad851529935297a")]
 [assembly: System.Reflection.AssemblyProductAttribute("OpenAlex.OperationalLogging")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OpenAlex.OperationalLogging")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
