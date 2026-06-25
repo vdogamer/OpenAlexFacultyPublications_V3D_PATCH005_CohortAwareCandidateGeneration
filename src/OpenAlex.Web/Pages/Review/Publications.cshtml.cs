@@ -39,6 +39,24 @@ public sealed class PublicationsModel : PageModel
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostKeepSeparateAsync(long id, string? notes, CancellationToken cancellationToken)
+    {
+        await _decisionRepository.KeepNearDuplicatePublicationCandidateSeparateAsync(id, GetReviewerName(), notes, cancellationToken);
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostSuppressNearDuplicateWarningAsync(long id, string? notes, CancellationToken cancellationToken)
+    {
+        await _decisionRepository.SuppressNearDuplicatePublicationCandidateWarningAsync(id, GetReviewerName(), notes, cancellationToken);
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostMarkDuplicateOfCandidateAsync(long id, long relatedCandidateId, string? notes, CancellationToken cancellationToken)
+    {
+        await _decisionRepository.MarkPublicationCandidateAsNearDuplicateAsync(id, relatedCandidateId, GetReviewerName(), notes, cancellationToken);
+        return RedirectToPage();
+    }
+
     private string GetReviewerName()
     {
         return User?.Identity?.IsAuthenticated == true && !string.IsNullOrWhiteSpace(User.Identity.Name)
