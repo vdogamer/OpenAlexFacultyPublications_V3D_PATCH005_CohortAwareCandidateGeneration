@@ -31,6 +31,21 @@ public sealed class ReviewDecisionRepository
         await SavePublicationDecisionAsync(candidateId, "Rejected", "WrongFacultyAuthor", reviewedBy, notes, cancellationToken);
     }
 
+    public async Task MarkPublicationCandidateAsNearDuplicateAsync(long candidateId, long relatedCandidateId, string reviewedBy, string? notes, CancellationToken cancellationToken = default)
+    {
+        await SaveNearDuplicateResolutionAsync(candidateId, relatedCandidateId, "DuplicateOfCandidate", reviewedBy, notes, cancellationToken);
+    }
+
+    public async Task KeepNearDuplicatePublicationCandidateSeparateAsync(long candidateId, string reviewedBy, string? notes, CancellationToken cancellationToken = default)
+    {
+        await SaveNearDuplicateResolutionAsync(candidateId, null, "KeepSeparate", reviewedBy, notes, cancellationToken);
+    }
+
+    public async Task SuppressNearDuplicatePublicationCandidateWarningAsync(long candidateId, string reviewedBy, string? notes, CancellationToken cancellationToken = default)
+    {
+        await SaveNearDuplicateResolutionAsync(candidateId, null, "SuppressWarning", reviewedBy, notes, cancellationToken);
+    }
+
     private async Task SaveAuthorDecisionAsync(
         long candidateId,
         string decisionStatus,
@@ -236,6 +251,106 @@ WHERE FacultyPublicationCandidateId = @CandidateId;";
             command.Parameters.AddWithValue("@DecisionReason", decisionReason);
             command.Parameters.AddWithValue("@ReviewedBy", reviewedBy);
             command.Parameters.AddWithValue("@ReviewerNotes", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : notes);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    private async Task SaveNearDuplicateResolutionAsync(
+        long candidateId,
+        long? relatedCandidateId,
+        string resolutionStatus,
+        string reviewedBy,
+        string? notes,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = @"
+IF OBJECT_ID(N'openalex.FacultyPublicationNearDuplicateResolution', N'U') IS NULL
+BEGIN
+    RAISERROR('Near-duplicate resolution table does not exist. Run sql/310_V3E_PATCH012_NearDuplicateResolution_SQL2016.sql first.', 16, 1);
+    RETURN;
+END;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM openalex.FacultyPublicationCandidate
+    WHERE FacultyPublicationCandidateId = @CandidateId
+)
+BEGIN
+    RAISERROR('Faculty publication candidate was not found.', 16, 1);
+    RETURN;
+END;
+
+IF @RelatedCandidateId IS NOT NULL
+BEGIN
+    IF @RelatedCandidateId = @CandidateId
+    BEGIN
+        RAISERROR('Related candidate cannot be the same as the current candidate.', 16, 1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM openalex.FacultyPublicationCandidate
+        WHERE FacultyPublicationCandidateId = @RelatedCandidateId
+    )
+    BEGIN
+        RAISERROR('Related faculty publication candidate was not found.', 16, 1);
+        RETURN;
+    END;
+END;
+
+UPDATE openalex.FacultyPublicationNearDuplicateResolution
+SET
+    IsCurrent = 0,
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE FacultyPublicationCandidateId = @CandidateId
+  AND IsCurrent = 1;
+
+INSERT INTO openalex.FacultyPublicationNearDuplicateResolution
+(
+    FacultyPublicationCandidateId,
+    RelatedFacultyPublicationCandidateId,
+    ResolutionStatus,
+    ResolutionReason,
+    ReviewerName,
+    IsCurrent,
+    CreatedAtUtc,
+    UpdatedAtUtc
+)
+VALUES
+(
+    @CandidateId,
+    @RelatedCandidateId,
+    @ResolutionStatus,
+    @ResolutionReason,
+    @ReviewerName,
+    1,
+    SYSUTCDATETIME(),
+    SYSUTCDATETIME()
+);";
+
+            command.Parameters.AddWithValue("@CandidateId", candidateId);
+            command.Parameters.AddWithValue("@RelatedCandidateId", relatedCandidateId.HasValue ? relatedCandidateId.Value : DBNull.Value);
+            command.Parameters.AddWithValue("@ResolutionStatus", resolutionStatus);
+            command.Parameters.AddWithValue("@ResolutionReason", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : notes);
+            command.Parameters.AddWithValue("@ReviewerName", reviewedBy);
 
             await command.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
