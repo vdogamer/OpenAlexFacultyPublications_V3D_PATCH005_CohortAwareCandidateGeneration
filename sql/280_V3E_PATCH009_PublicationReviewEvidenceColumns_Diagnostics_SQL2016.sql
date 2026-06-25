@@ -50,7 +50,7 @@ SELECT
     InstitutionEvidencePresent = CASE WHEN q.EvidenceSummary LIKE '%AffiliatedInstitutionMatchCount=%' THEN 1 ELSE 0 END,
     CoauthorEvidencePresent = CASE WHEN q.EvidenceSummary LIKE '%KnownCoauthorOverlapCount=%' THEN 1 ELSE 0 END,
     EvidenceBoostPresent = CASE WHEN q.EvidenceSummary LIKE '%EvidenceBoost=%' THEN 1 ELSE 0 END,
-    RowCount = COUNT(*)
+    COUNT(*) AS PendingCandidateCount
 FROM openalex.vw_FacultyPublicationReviewQueue q
 WHERE
     (
@@ -69,7 +69,7 @@ GROUP BY
     CASE WHEN q.EvidenceSummary LIKE '%AffiliatedInstitutionMatchCount=%' THEN 1 ELSE 0 END,
     CASE WHEN q.EvidenceSummary LIKE '%KnownCoauthorOverlapCount=%' THEN 1 ELSE 0 END,
     CASE WHEN q.EvidenceSummary LIKE '%EvidenceBoost=%' THEN 1 ELSE 0 END
-ORDER BY RowCount DESC;
+ORDER BY PendingCandidateCount DESC;
 
 PRINT '3) Latest publication candidate generation runs';
 IF OBJECT_ID(N'openalex.IngestionRun', N'U') IS NOT NULL
