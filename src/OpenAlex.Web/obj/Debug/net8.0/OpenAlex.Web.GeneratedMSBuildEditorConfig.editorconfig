@@ -147,6 +147,14 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2aWV3XEF1dGhvcnMuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Cameron/Desktop/Smoke Test/OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration/src/OpenAlex.Web/Pages/Review/Identities.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2aWV3XElkZW50aXRpZXMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Cameron/Desktop/Smoke Test/OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration/src/OpenAlex.Web/Pages/Review/IdentityDetails.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2aWV3XElkZW50aXR5RGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Cameron/Desktop/Smoke Test/OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration/src/OpenAlex.Web/Pages/Review/Publications.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2aWV3XFB1YmxpY2F0aW9ucy5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
