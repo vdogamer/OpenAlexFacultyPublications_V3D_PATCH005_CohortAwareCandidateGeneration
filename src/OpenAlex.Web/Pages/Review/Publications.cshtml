@@ -8,7 +8,7 @@
         Review pending faculty-publication candidates. Accepting or rejecting a candidate records a current decision and removes it from this pending queue.
     </p>
     <p class="small">
-        PATCH011 flags possible near-duplicate OpenAlex work records when similar titles, years, faculty, and matched authors appear in the pending queue.
+        PATCH012 lets reviewers resolve near-duplicate warnings without deleting, merging, accepting, or rejecting candidate rows.
     </p>
 </section>
 
@@ -37,6 +37,11 @@ else
             var reviewGrouping = ExtractEvidenceValue(item.EvidenceSummary, "PATCH010ReviewGrouping");
             var nearDuplicateCandidateCount = ExtractEvidenceValue(item.EvidenceSummary, "PATCH011NearDuplicateCandidateCount");
             var nearDuplicateWarning = ExtractEvidenceValue(item.EvidenceSummary, "PATCH011NearDuplicateWarning");
+            var resolutionStatus = ExtractEvidenceValue(item.EvidenceSummary, "PATCH012ResolutionStatus");
+            var relatedCandidateId = ExtractEvidenceValue(item.EvidenceSummary, "PATCH012RelatedCandidateId");
+            var resolutionReason = ExtractEvidenceValue(item.EvidenceSummary, "PATCH012ResolutionReason");
+            var isNearDuplicateGroup = HasDuplicateCount(nearDuplicateCandidateCount);
+            var hasResolution = !string.IsNullOrWhiteSpace(resolutionStatus);
 
             <article class="publication-review-card">
                 <div class="publication-card-main">
@@ -52,15 +57,20 @@ else
                             {
                                 <span class="badge Warning">Grouped: @duplicateCandidateCount candidates</span>
                             }
-                            @if (HasDuplicateCount(nearDuplicateCandidateCount))
+                            @if (isNearDuplicateGroup && !hasResolution)
                             {
                                 <span class="badge Warning">Near-duplicate group: @nearDuplicateCandidateCount works</span>
+                            }
+                            @if (hasResolution)
+                            {
+                                <span class="badge Accepted">Near-duplicate resolved: @resolutionStatus</span>
                             }
                         </div>
 
                         <h2 class="publication-card-title">@item.WorkTitle</h2>
 
                         <div class="publication-card-meta">
+                            <span><strong>CandidateId:</strong> @item.FacultyPublicationCandidateId</span>
                             <span><strong>Faculty:</strong> @item.FacultyDisplayName</span>
                             <span><strong>Matched author:</strong> @ValueOrDash(item.AuthorDisplayName)</span>
                             <span><strong>Year:</strong> @item.PublicationYear</span>
@@ -75,9 +85,14 @@ else
                             <p class="small">@reviewGrouping</p>
                         }
 
-                        @if (!string.IsNullOrWhiteSpace(nearDuplicateWarning))
+                        @if (!string.IsNullOrWhiteSpace(nearDuplicateWarning) && !hasResolution)
                         {
                             <p class="notice"><strong>Possible near-duplicate:</strong> @nearDuplicateWarning</p>
+                        }
+
+                        @if (hasResolution)
+                        {
+                            <p class="notice"><strong>Near-duplicate resolution:</strong> @resolutionStatus @(!string.IsNullOrWhiteSpace(relatedCandidateId) ? $"candidate {relatedCandidateId}" : string.Empty) @(!string.IsNullOrWhiteSpace(resolutionReason) ? $"— {resolutionReason}" : string.Empty)</p>
                         }
 
                         <div class="publication-links">
@@ -107,6 +122,31 @@ else
                         </form>
                     </div>
                 </div>
+
+                @if (isNearDuplicateGroup)
+                {
+                    <section class="evidence-panel evidence-panel-wide">
+                        <h3>Near-Duplicate Resolution</h3>
+                        <div class="review-actions">
+                            <form method="post" asp-page-handler="KeepSeparate">
+                                <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
+                                <input type="text" name="notes" placeholder="why keep separate?" />
+                                <button type="submit">Keep separate</button>
+                            </form>
+                            <form method="post" asp-page-handler="SuppressNearDuplicateWarning">
+                                <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
+                                <input type="text" name="notes" placeholder="why suppress warning?" />
+                                <button type="submit">Suppress warning</button>
+                            </form>
+                            <form method="post" asp-page-handler="MarkDuplicateOfCandidate">
+                                <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
+                                <input type="text" name="relatedCandidateId" placeholder="duplicate of CandidateId" />
+                                <input type="text" name="notes" placeholder="optional notes" />
+                                <button type="submit">Mark duplicate of</button>
+                            </form>
+                        </div>
+                    </section>
+                }
 
                 <div class="publication-evidence-grid">
                     <section class="evidence-panel">
