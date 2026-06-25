@@ -7,6 +7,9 @@
     <p>
         Review pending faculty-publication candidates. Accepting or rejecting a candidate records a current decision and removes it from this pending queue.
     </p>
+    <p class="small">
+        PATCH009 surfaces key matching evidence from the candidate evidence summary so reviewers can quickly see institution and coauthor support.
+    </p>
 </section>
 
 @if (Model.Items.Count == 0)
@@ -26,6 +29,8 @@ else
                 <th>Faculty</th>
                 <th>Publication</th>
                 <th>Author Evidence</th>
+                <th>Institution Evidence</th>
+                <th>Coauthor Evidence</th>
                 <th>Score</th>
                 <th>Status</th>
                 <th>Review</th>
@@ -34,6 +39,14 @@ else
         <tbody>
         @foreach (var item in Model.Items)
         {
+            var affiliatedInstitutionMatchCount = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionMatchCount");
+            var affiliatedInstitutionEvidenceWeight = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionEvidenceWeight");
+            var affiliatedInstitutionNames = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionNames");
+            var knownCoauthorOverlapCount = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorOverlapCount");
+            var knownCoauthorHistoricalPublicationCount = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorHistoricalPublicationCount");
+            var knownCoauthorNames = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorNames");
+            var evidenceBoost = ExtractEvidenceValue(item.EvidenceSummary, "EvidenceBoost");
+
             <tr>
                 <td>
                     <strong>@item.FacultyDisplayName</strong><br />
@@ -53,8 +66,41 @@ else
                         }
                     </span>
                 </td>
-                <td>@item.AuthorDisplayName<br /><span class="small">@item.EvidenceSummary</span></td>
-                <td>@item.MatchScore</td>
+                <td>
+                    @item.AuthorDisplayName<br />
+                    <span class="small evidence-compact">@ShortEvidence(item.EvidenceSummary)</span>
+                </td>
+                <td>
+                    @if (HasEvidenceValue(affiliatedInstitutionMatchCount))
+                    {
+                        <strong>@affiliatedInstitutionMatchCount match(es)</strong><br />
+                        <span class="small">Weight: @ValueOrDash(affiliatedInstitutionEvidenceWeight)</span><br />
+                        <span class="small evidence-compact">@ValueOrDash(affiliatedInstitutionNames)</span>
+                    }
+                    else
+                    {
+                        <span class="small">No PATCH009 institution evidence</span>
+                    }
+                </td>
+                <td>
+                    @if (HasEvidenceValue(knownCoauthorOverlapCount))
+                    {
+                        <strong>@knownCoauthorOverlapCount overlap(s)</strong><br />
+                        <span class="small">Prior accepted works: @ValueOrDash(knownCoauthorHistoricalPublicationCount)</span><br />
+                        <span class="small evidence-compact">@ValueOrDash(knownCoauthorNames)</span>
+                    }
+                    else
+                    {
+                        <span class="small">No PATCH009 coauthor evidence</span>
+                    }
+                </td>
+                <td>
+                    @item.MatchScore<br />
+                    @if (HasEvidenceValue(evidenceBoost))
+                    {
+                        <span class="small">Boost: @evidenceBoost</span>
+                    }
+                </td>
                 <td>@item.CandidateStatus</td>
                 <td>
                     <form method="post" asp-page-handler="Accept" style="margin-bottom:.5rem">
@@ -72,4 +118,54 @@ else
         }
         </tbody>
     </table>
+}
+
+@functions {
+    private static string? ExtractEvidenceValue(string? evidenceSummary, string key)
+    {
+        if (string.IsNullOrWhiteSpace(evidenceSummary) || string.IsNullOrWhiteSpace(key))
+        {
+            return null;
+        }
+
+        var pattern = key + "=";
+        var start = evidenceSummary.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+        if (start < 0)
+        {
+            return null;
+        }
+
+        start += pattern.Length;
+        var end = evidenceSummary.IndexOf(';', start);
+        var value = end < 0
+            ? evidenceSummary.Substring(start)
+            : evidenceSummary.Substring(start, end - start);
+
+        value = value.Trim();
+        return string.IsNullOrWhiteSpace(value) || value == "(none)" ? null : value;
+    }
+
+    private static bool HasEvidenceValue(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) && value != "0" && value != "0.0000";
+    }
+
+    private static string ValueOrDash(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value;
+    }
+
+    private static string ShortEvidence(string? evidenceSummary)
+    {
+        if (string.IsNullOrWhiteSpace(evidenceSummary))
+        {
+            return "No evidence summary";
+        }
+
+        var patchMarker = evidenceSummary.IndexOf("PATCH007Evidence", StringComparison.OrdinalIgnoreCase);
+        var compact = patchMarker >= 0 ? evidenceSummary.Substring(0, patchMarker).Trim().TrimEnd(';') : evidenceSummary.Trim();
+
+        const int maxLength = 240;
+        return compact.Length <= maxLength ? compact : compact.Substring(0, maxLength) + "...";
+    }
 }
