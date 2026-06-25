@@ -250,3 +250,132 @@ button, .button {
     margin-bottom: .75rem;
     flex-wrap: wrap;
 }
+
+.publication-review-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.publication-review-card {
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.publication-card-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.publication-card-kicker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+    margin-bottom: .5rem;
+}
+
+.publication-score {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.publication-card-title {
+    margin: .25rem 0 .75rem;
+    font-size: 1.25rem;
+    line-height: 1.25;
+}
+
+.publication-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.25rem;
+    color: #444;
+    font-size: .95rem;
+}
+
+.publication-links {
+    margin-top: .75rem;
+}
+
+.publication-review-actions {
+    display: grid;
+    gap: .75rem;
+}
+
+.publication-review-actions form {
+    display: grid;
+    gap: .35rem;
+}
+
+.publication-review-actions input[type=text] {
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.publication-review-actions button {
+    width: fit-content;
+}
+
+.publication-evidence-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .85rem;
+    margin-top: 1rem;
+}
+
+.evidence-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fafafa;
+    padding: .85rem;
+}
+
+.evidence-panel h3 {
+    margin: 0 0 .5rem;
+    font-size: .95rem;
+}
+
+.evidence-panel p {
+    margin: .4rem 0 0;
+}
+
+.evidence-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.evidence-badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: .25rem .55rem;
+    font-size: .85rem;
+    font-weight: 700;
+}
+
+.evidence-badge.positive {
+    background: #e8f5e9;
+    color: #1b5e20;
+}
+
+.evidence-badge.neutral {
+    background: #eef2ff;
+    color: #3730a3;
+}
+
+.evidence-panel-wide {
+    background: #fff;
+}
+
+@media (max-width: 900px) {
+    .publication-card-main,
+    .publication-evidence-grid {
+        grid-template-columns: 1fr;
+    }
+}
