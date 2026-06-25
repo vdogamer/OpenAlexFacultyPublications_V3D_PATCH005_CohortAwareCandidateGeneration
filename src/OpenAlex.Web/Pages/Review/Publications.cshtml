@@ -8,7 +8,7 @@
         Review pending faculty-publication candidates. Accepting or rejecting a candidate records a current decision and removes it from this pending queue.
     </p>
     <p class="small">
-        PATCH010 groups duplicate candidate rows so reviewers see one best review card per faculty/work pair.
+        PATCH011 flags possible near-duplicate OpenAlex work records when similar titles, years, faculty, and matched authors appear in the pending queue.
     </p>
 </section>
 
@@ -35,6 +35,8 @@ else
             var evidenceBoost = ExtractEvidenceValue(item.EvidenceSummary, "EvidenceBoost");
             var duplicateCandidateCount = ExtractEvidenceValue(item.EvidenceSummary, "PATCH010DuplicateCandidateCount");
             var reviewGrouping = ExtractEvidenceValue(item.EvidenceSummary, "PATCH010ReviewGrouping");
+            var nearDuplicateCandidateCount = ExtractEvidenceValue(item.EvidenceSummary, "PATCH011NearDuplicateCandidateCount");
+            var nearDuplicateWarning = ExtractEvidenceValue(item.EvidenceSummary, "PATCH011NearDuplicateWarning");
 
             <article class="publication-review-card">
                 <div class="publication-card-main">
@@ -49,6 +51,10 @@ else
                             @if (HasDuplicateCount(duplicateCandidateCount))
                             {
                                 <span class="badge Warning">Grouped: @duplicateCandidateCount candidates</span>
+                            }
+                            @if (HasDuplicateCount(nearDuplicateCandidateCount))
+                            {
+                                <span class="badge Warning">Near-duplicate group: @nearDuplicateCandidateCount works</span>
                             }
                         </div>
 
@@ -67,6 +73,11 @@ else
                         @if (!string.IsNullOrWhiteSpace(reviewGrouping))
                         {
                             <p class="small">@reviewGrouping</p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(nearDuplicateWarning))
+                        {
+                            <p class="notice"><strong>Possible near-duplicate:</strong> @nearDuplicateWarning</p>
                         }
 
                         <div class="publication-links">
