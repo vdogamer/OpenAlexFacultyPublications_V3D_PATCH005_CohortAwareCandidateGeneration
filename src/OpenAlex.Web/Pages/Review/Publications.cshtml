@@ -8,7 +8,7 @@
         Review pending faculty-publication candidates. Accepting or rejecting a candidate records a current decision and removes it from this pending queue.
     </p>
     <p class="small">
-        PATCH009 surfaces key matching evidence from the candidate evidence summary so reviewers can quickly see institution and coauthor support.
+        PATCH009A displays each candidate as a review card with scannable evidence badges for institution, coauthor, and score support.
     </p>
 </section>
 
@@ -23,20 +23,7 @@
 }
 else
 {
-    <table>
-        <thead>
-            <tr>
-                <th>Faculty</th>
-                <th>Publication</th>
-                <th>Author Evidence</th>
-                <th>Institution Evidence</th>
-                <th>Coauthor Evidence</th>
-                <th>Score</th>
-                <th>Status</th>
-                <th>Review</th>
-            </tr>
-        </thead>
-        <tbody>
+    <section class="publication-review-list" aria-label="Pending publication candidates">
         @foreach (var item in Model.Items)
         {
             var affiliatedInstitutionMatchCount = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionMatchCount");
@@ -47,77 +34,102 @@ else
             var knownCoauthorNames = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorNames");
             var evidenceBoost = ExtractEvidenceValue(item.EvidenceSummary, "EvidenceBoost");
 
-            <tr>
-                <td>
-                    <strong>@item.FacultyDisplayName</strong><br />
-                    <span class="small">@item.PrimaryEmail<br />@item.DepartmentName</span>
-                </td>
-                <td>
-                    <strong>@item.WorkTitle</strong><br />
-                    <span class="small">
-                        @item.PublicationYear<br />
-                        @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
+            <article class="publication-review-card">
+                <div class="publication-card-main">
+                    <div>
+                        <div class="publication-card-kicker">
+                            <span class="badge @item.CandidateStatus">@ValueOrDash(item.CandidateStatus)</span>
+                            <span class="publication-score">Score: @item.MatchScore</span>
+                            @if (HasEvidenceValue(evidenceBoost))
+                            {
+                                <span class="badge Information">Boost: +@evidenceBoost</span>
+                            }
+                        </div>
+
+                        <h2 class="publication-card-title">@item.WorkTitle</h2>
+
+                        <div class="publication-card-meta">
+                            <span><strong>Faculty:</strong> @item.FacultyDisplayName</span>
+                            <span><strong>Matched author:</strong> @ValueOrDash(item.AuthorDisplayName)</span>
+                            <span><strong>Year:</strong> @item.PublicationYear</span>
+                            @if (!string.IsNullOrWhiteSpace(item.DepartmentName))
+                            {
+                                <span><strong>Department:</strong> @item.DepartmentName</span>
+                            }
+                        </div>
+
+                        <div class="publication-links">
+                            @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
+                            {
+                                <a href="@item.DoiUrl" target="_blank" rel="noopener">DOI</a>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(item.WorkOpenAlexId))
+                            {
+                                <a href="https://openalex.org/@item.WorkOpenAlexId" target="_blank" rel="noopener">OpenAlex</a>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="publication-review-actions">
+                        <form method="post" asp-page-handler="Accept">
+                            <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
+                            <label class="small" for="accept-notes-@item.FacultyPublicationCandidateId">Accept notes</label>
+                            <input id="accept-notes-@item.FacultyPublicationCandidateId" type="text" name="notes" placeholder="optional notes" />
+                            <button type="submit">Accept</button>
+                        </form>
+                        <form method="post" asp-page-handler="Reject">
+                            <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
+                            <label class="small" for="reject-notes-@item.FacultyPublicationCandidateId">Reject notes</label>
+                            <input id="reject-notes-@item.FacultyPublicationCandidateId" type="text" name="notes" placeholder="optional notes" />
+                            <button type="submit">Reject</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="publication-evidence-grid">
+                    <section class="evidence-panel">
+                        <h3>Institution Evidence</h3>
+                        @if (HasEvidenceValue(affiliatedInstitutionMatchCount))
                         {
-                            <a href="@item.DoiUrl" target="_blank" rel="noopener">DOI</a>
+                            <div class="evidence-badge-row">
+                                <span class="evidence-badge positive">@affiliatedInstitutionMatchCount match(es)</span>
+                                <span class="evidence-badge neutral">Weight @ValueOrDash(affiliatedInstitutionEvidenceWeight)</span>
+                            </div>
+                            <p>@ValueOrDash(affiliatedInstitutionNames)</p>
                         }
-                        else if (!string.IsNullOrWhiteSpace(item.WorkOpenAlexId))
+                        else
                         {
-                            <a href="https://openalex.org/@item.WorkOpenAlexId" target="_blank" rel="noopener">OpenAlex</a>
+                            <p class="small">No PATCH009 institution evidence</p>
                         }
-                    </span>
-                </td>
-                <td>
-                    @item.AuthorDisplayName<br />
-                    <span class="small evidence-compact">@ShortEvidence(item.EvidenceSummary)</span>
-                </td>
-                <td>
-                    @if (HasEvidenceValue(affiliatedInstitutionMatchCount))
-                    {
-                        <strong>@affiliatedInstitutionMatchCount match(es)</strong><br />
-                        <span class="small">Weight: @ValueOrDash(affiliatedInstitutionEvidenceWeight)</span><br />
-                        <span class="small evidence-compact">@ValueOrDash(affiliatedInstitutionNames)</span>
-                    }
-                    else
-                    {
-                        <span class="small">No PATCH009 institution evidence</span>
-                    }
-                </td>
-                <td>
-                    @if (HasEvidenceValue(knownCoauthorOverlapCount))
-                    {
-                        <strong>@knownCoauthorOverlapCount overlap(s)</strong><br />
-                        <span class="small">Prior accepted works: @ValueOrDash(knownCoauthorHistoricalPublicationCount)</span><br />
-                        <span class="small evidence-compact">@ValueOrDash(knownCoauthorNames)</span>
-                    }
-                    else
-                    {
-                        <span class="small">No PATCH009 coauthor evidence</span>
-                    }
-                </td>
-                <td>
-                    @item.MatchScore<br />
-                    @if (HasEvidenceValue(evidenceBoost))
-                    {
-                        <span class="small">Boost: @evidenceBoost</span>
-                    }
-                </td>
-                <td>@item.CandidateStatus</td>
-                <td>
-                    <form method="post" asp-page-handler="Accept" style="margin-bottom:.5rem">
-                        <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
-                        <input type="text" name="notes" placeholder="optional notes" />
-                        <button type="submit">Accept</button>
-                    </form>
-                    <form method="post" asp-page-handler="Reject">
-                        <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
-                        <input type="text" name="notes" placeholder="optional notes" />
-                        <button type="submit">Reject</button>
-                    </form>
-                </td>
-            </tr>
+                    </section>
+
+                    <section class="evidence-panel">
+                        <h3>Coauthor Evidence</h3>
+                        @if (HasEvidenceValue(knownCoauthorOverlapCount))
+                        {
+                            <div class="evidence-badge-row">
+                                <span class="evidence-badge positive">@knownCoauthorOverlapCount overlap(s)</span>
+                                <span class="evidence-badge neutral">@ValueOrDash(knownCoauthorHistoricalPublicationCount) prior accepted work(s)</span>
+                            </div>
+                            <p>@ValueOrDash(knownCoauthorNames)</p>
+                        }
+                        else
+                        {
+                            <p class="small">No PATCH009 coauthor evidence</p>
+                        }
+                    </section>
+
+                    <section class="evidence-panel evidence-panel-wide">
+                        <h3>Author Match Evidence</h3>
+                        <p>
+                            <strong>@ValueOrDash(item.AuthorDisplayName)</strong><br />
+                            <span class="small">@ShortEvidence(item.EvidenceSummary)</span>
+                        </p>
+                    </section>
+                </div>
+            </article>
         }
-        </tbody>
-    </table>
+    </section>
 }
 
 @functions {
@@ -165,7 +177,7 @@ else
         var patchMarker = evidenceSummary.IndexOf("PATCH007Evidence", StringComparison.OrdinalIgnoreCase);
         var compact = patchMarker >= 0 ? evidenceSummary.Substring(0, patchMarker).Trim().TrimEnd(';') : evidenceSummary.Trim();
 
-        const int maxLength = 240;
+        const int maxLength = 320;
         return compact.Length <= maxLength ? compact : compact.Substring(0, maxLength) + "...";
     }
 }
