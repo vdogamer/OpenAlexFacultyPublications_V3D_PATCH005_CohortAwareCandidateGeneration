@@ -347,7 +347,7 @@ VALUES
 );";
 
             command.Parameters.AddWithValue("@CandidateId", candidateId);
-            command.Parameters.AddWithValue("@RelatedCandidateId", relatedCandidateId.HasValue ? relatedCandidateId.Value : DBNull.Value);
+            command.Parameters.AddWithValue("@RelatedCandidateId", relatedCandidateId.HasValue ? (object)relatedCandidateId.Value : DBNull.Value);
             command.Parameters.AddWithValue("@ResolutionStatus", resolutionStatus);
             command.Parameters.AddWithValue("@ResolutionReason", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : notes);
             command.Parameters.AddWithValue("@ReviewerName", reviewedBy);
