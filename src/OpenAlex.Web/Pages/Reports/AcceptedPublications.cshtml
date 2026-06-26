@@ -1,42 +1,211 @@
 @page
 @model OpenAlex.Web.Pages.Reports.AcceptedPublicationsModel
 
-<h1>Accepted Publications</h1>
+<h1>Accepted Publications Evidence Report</h1>
 
 <section class="card">
+    <p>
+        This report shows accepted faculty-publication matches with the evidence trail that supported each decision.
+    </p>
+    <p class="small">
+        PATCH014 surfaces match score, institution evidence, coauthor evidence, near-duplicate resolution, reviewer notes, and review metadata.
+    </p>
     <a class="button" href="/Reports/AcceptedPublications?handler=Csv">Download CSV</a>
 </section>
 
-<table>
-    <thead>
-        <tr>
-            <th>Faculty</th>
-            <th>Publication</th>
-            <th>Author</th>
-            <th>Decision</th>
-            <th>Citations</th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var item in Model.Rows)
+@if (Model.Rows.Count == 0)
+{
+    <section class="card">
+        <h2>No accepted publications</h2>
+        <p>No accepted publication decisions were found.</p>
+    </section>
+}
+else
+{
+    <section class="publication-review-list" aria-label="Accepted publication evidence report">
+        @foreach (var item in Model.Rows)
+        {
+            var affiliatedInstitutionMatchCount = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionMatchCount");
+            var affiliatedInstitutionEvidenceWeight = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionEvidenceWeight");
+            var affiliatedInstitutionNames = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionNames");
+            var knownCoauthorOverlapCount = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorOverlapCount");
+            var knownCoauthorHistoricalPublicationCount = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorHistoricalPublicationCount");
+            var knownCoauthorNames = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorNames");
+            var evidenceBoost = ExtractEvidenceValue(item.EvidenceSummary, "EvidenceBoost");
+
+            <article class="publication-review-card">
+                <div class="publication-card-main">
+                    <div>
+                        <div class="publication-card-kicker">
+                            <span class="badge Accepted">@ValueOrDash(item.DecisionStatus)</span>
+                            @if (item.MatchScore.HasValue)
+                            {
+                                <span class="publication-score">Score: @item.MatchScore</span>
+                            }
+                            @if (HasEvidenceValue(evidenceBoost))
+                            {
+                                <span class="badge Information">Boost: +@evidenceBoost</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.NearDuplicateResolutionStatus))
+                            {
+                                <span class="badge Accepted">Near-duplicate: @item.NearDuplicateResolutionStatus</span>
+                            }
+                        </div>
+
+                        <h2 class="publication-card-title">@item.WorkTitle</h2>
+
+                        <div class="publication-card-meta">
+                            @if (item.FacultyPublicationCandidateId.HasValue)
+                            {
+                                <span><strong>CandidateId:</strong> @item.FacultyPublicationCandidateId</span>
+                            }
+                            <span><strong>Faculty:</strong> @item.FacultyDisplayName</span>
+                            <span><strong>Matched author:</strong> @ValueOrDash(item.AuthorDisplayName)</span>
+                            <span><strong>Year:</strong> @item.PublicationYear</span>
+                            @if (!string.IsNullOrWhiteSpace(item.DepartmentName))
+                            {
+                                <span><strong>Department:</strong> @item.DepartmentName</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.WorkType))
+                            {
+                                <span><strong>Type:</strong> @item.WorkType</span>
+                            }
+                            @if (item.CitedByCount.HasValue)
+                            {
+                                <span><strong>Citations:</strong> @item.CitedByCount</span>
+                            }
+                        </div>
+
+                        <p class="small">
+                            Accepted by @ValueOrDash(item.ReviewedBy) @item.ReviewedAtUtc?.ToString("u")
+                        </p>
+
+                        @if (!string.IsNullOrWhiteSpace(item.ReviewerNotes))
+                        {
+                            <p class="notice"><strong>Reviewer notes:</strong> @item.ReviewerNotes</p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(item.NearDuplicateResolutionStatus))
+                        {
+                            <p class="notice">
+                                <strong>Near-duplicate resolution:</strong>
+                                @item.NearDuplicateResolutionStatus
+                                @if (item.RelatedFacultyPublicationCandidateId.HasValue)
+                                {
+                                    <span>candidate @item.RelatedFacultyPublicationCandidateId</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.NearDuplicateResolutionReason))
+                                {
+                                    <span> — @item.NearDuplicateResolutionReason</span>
+                                }
+                            </p>
+                        }
+
+                        <div class="publication-links">
+                            @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
+                            {
+                                <a href="@item.DoiUrl" target="_blank" rel="noopener">DOI</a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.WorkOpenAlexId))
+                            {
+                                <a href="@item.WorkOpenAlexId" target="_blank" rel="noopener">OpenAlex</a>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="publication-evidence-grid">
+                    <section class="evidence-panel">
+                        <h3>Institution Evidence</h3>
+                        @if (HasEvidenceValue(affiliatedInstitutionMatchCount))
+                        {
+                            <div class="evidence-badge-row">
+                                <span class="evidence-badge positive">@affiliatedInstitutionMatchCount match(es)</span>
+                                <span class="evidence-badge neutral">Weight @ValueOrDash(affiliatedInstitutionEvidenceWeight)</span>
+                            </div>
+                            <p>@ValueOrDash(affiliatedInstitutionNames)</p>
+                        }
+                        else
+                        {
+                            <p class="small">No institution evidence recorded in candidate summary.</p>
+                        }
+                    </section>
+
+                    <section class="evidence-panel">
+                        <h3>Coauthor Evidence</h3>
+                        @if (HasEvidenceValue(knownCoauthorOverlapCount))
+                        {
+                            <div class="evidence-badge-row">
+                                <span class="evidence-badge positive">@knownCoauthorOverlapCount overlap(s)</span>
+                                <span class="evidence-badge neutral">@ValueOrDash(knownCoauthorHistoricalPublicationCount) prior accepted work(s)</span>
+                            </div>
+                            <p>@ValueOrDash(knownCoauthorNames)</p>
+                        }
+                        else
+                        {
+                            <p class="small">No coauthor evidence recorded in candidate summary.</p>
+                        }
+                    </section>
+
+                    <section class="evidence-panel evidence-panel-wide">
+                        <h3>Author Match Evidence</h3>
+                        <p>
+                            <strong>@ValueOrDash(item.AuthorDisplayName)</strong><br />
+                            <span class="small">@ShortEvidence(item.EvidenceSummary)</span>
+                        </p>
+                    </section>
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@functions {
+    private static string? ExtractEvidenceValue(string? evidenceSummary, string key)
     {
-        <tr>
-            <td>
-                <strong>@item.FacultyDisplayName</strong><br />
-                <span class="small">@item.PrimaryEmail<br />@item.DepartmentName</span>
-            </td>
-            <td>
-                <strong>@item.WorkTitle</strong><br />
-                <span class="small">@item.PublicationYear | @item.WorkType</span><br />
-                @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
-                {
-                    <a href="@item.DoiUrl" target="_blank">DOI</a>
-                }
-            </td>
-            <td>@item.AuthorDisplayName<br /><span class="small">@item.AuthorOpenAlexId</span></td>
-            <td><span class="badge Accepted">@item.DecisionStatus</span><br /><span class="small">@item.ReviewedBy @item.ReviewedAtUtc?.ToString("u")</span></td>
-            <td>@item.CitedByCount</td>
-        </tr>
+        if (string.IsNullOrWhiteSpace(evidenceSummary) || string.IsNullOrWhiteSpace(key))
+        {
+            return null;
+        }
+
+        var pattern = key + "=";
+        var start = evidenceSummary.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+        if (start < 0)
+        {
+            return null;
+        }
+
+        start += pattern.Length;
+        var end = evidenceSummary.IndexOf(';', start);
+        var value = end < 0
+            ? evidenceSummary.Substring(start)
+            : evidenceSummary.Substring(start, end - start);
+
+        value = value.Trim();
+        return string.IsNullOrWhiteSpace(value) || value == "(none)" ? null : value;
     }
-    </tbody>
-</table>
+
+    private static bool HasEvidenceValue(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) && value != "0" && value != "0.0000";
+    }
+
+    private static string ValueOrDash(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value;
+    }
+
+    private static string ShortEvidence(string? evidenceSummary)
+    {
+        if (string.IsNullOrWhiteSpace(evidenceSummary))
+        {
+            return "No evidence summary";
+        }
+
+        var patchMarker = evidenceSummary.IndexOf("PATCH007Evidence", StringComparison.OrdinalIgnoreCase);
+        var compact = patchMarker >= 0 ? evidenceSummary.Substring(0, patchMarker).Trim().TrimEnd(';') : evidenceSummary.Trim();
+
+        const int maxLength = 420;
+        return compact.Length <= maxLength ? compact : compact.Substring(0, maxLength) + "...";
+    }
+}
