@@ -8,7 +8,64 @@
         Review pending faculty-publication candidates. Accepting or rejecting a candidate records a current decision and removes it from this pending queue.
     </p>
     <p class="small">
-        PATCH012 lets reviewers resolve near-duplicate warnings without deleting, merging, accepting, or rejecting candidate rows.
+        PATCH013 adds search and evidence filters so reviewers can focus the publication queue as the pilot grows.
+    </p>
+</section>
+
+<section class="card">
+    <h2>Filters</h2>
+    <form method="get" class="filter-form">
+        <label>
+            Search
+            <input type="text" name="SearchText" value="@Model.SearchText" placeholder="faculty, title, department, author" />
+        </label>
+        <label>
+            Minimum score
+            <input type="text" name="MinimumScore" value="@Model.MinimumScore" placeholder="e.g. 90" />
+        </label>
+        <label>
+            Institution evidence
+            <select name="InstitutionEvidenceFilter">
+                <option value="Any" selected="@IsSelected(Model.InstitutionEvidenceFilter, "Any")">Any</option>
+                <option value="Present" selected="@IsSelected(Model.InstitutionEvidenceFilter, "Present")">Present</option>
+                <option value="Missing" selected="@IsSelected(Model.InstitutionEvidenceFilter, "Missing")">Missing</option>
+            </select>
+        </label>
+        <label>
+            Coauthor evidence
+            <select name="CoauthorEvidenceFilter">
+                <option value="Any" selected="@IsSelected(Model.CoauthorEvidenceFilter, "Any")">Any</option>
+                <option value="Present" selected="@IsSelected(Model.CoauthorEvidenceFilter, "Present")">Present</option>
+                <option value="Missing" selected="@IsSelected(Model.CoauthorEvidenceFilter, "Missing")">Missing</option>
+            </select>
+        </label>
+        <label>
+            Near-duplicate
+            <select name="NearDuplicateFilter">
+                <option value="Any" selected="@IsSelected(Model.NearDuplicateFilter, "Any")">Any</option>
+                <option value="Warning" selected="@IsSelected(Model.NearDuplicateFilter, "Warning")">Warning</option>
+                <option value="Resolved" selected="@IsSelected(Model.NearDuplicateFilter, "Resolved")">Resolved</option>
+                <option value="None" selected="@IsSelected(Model.NearDuplicateFilter, "None")">None</option>
+            </select>
+        </label>
+        <label>
+            Resolution
+            <select name="ResolutionStatusFilter">
+                <option value="Any" selected="@IsSelected(Model.ResolutionStatusFilter, "Any")">Any</option>
+                <option value="Unresolved" selected="@IsSelected(Model.ResolutionStatusFilter, "Unresolved")">Unresolved warning</option>
+                <option value="Resolved" selected="@IsSelected(Model.ResolutionStatusFilter, "Resolved")">Any resolved</option>
+                <option value="KeepSeparate" selected="@IsSelected(Model.ResolutionStatusFilter, "KeepSeparate")">Keep separate</option>
+                <option value="DuplicateOfCandidate" selected="@IsSelected(Model.ResolutionStatusFilter, "DuplicateOfCandidate")">Duplicate of candidate</option>
+                <option value="SuppressWarning" selected="@IsSelected(Model.ResolutionStatusFilter, "SuppressWarning")">Suppress warning</option>
+            </select>
+        </label>
+        <div class="review-actions">
+            <button type="submit">Apply filters</button>
+            <a class="button secondary" href="/Review/Publications">Reset</a>
+        </div>
+    </form>
+    <p class="small">
+        Showing @Model.Items.Count pending review card(s)@((Model.HasActiveFilters) ? " with active filters." : ".")
     </p>
 </section>
 
@@ -17,7 +74,7 @@
     <section class="card">
         <h2>No pending publication candidates</h2>
         <p>
-            There are no pending publication candidates to review. Check the Accepted Publications report or the after-action SQL report.
+            There are no pending publication candidates matching the current filters. Reset the filters or check the Accepted Publications report.
         </p>
     </section>
 }
@@ -227,6 +284,12 @@ else
     private static bool HasDuplicateCount(string? value)
     {
         return int.TryParse(value, out var count) && count > 1;
+    }
+
+    private static bool IsSelected(string? current, string expected)
+    {
+        return string.Equals(current, expected, StringComparison.OrdinalIgnoreCase)
+            || (string.IsNullOrWhiteSpace(current) && string.Equals(expected, "Any", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ValueOrDash(string? value)
