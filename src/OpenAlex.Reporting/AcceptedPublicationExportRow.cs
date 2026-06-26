@@ -2,6 +2,7 @@ namespace OpenAlex.Reporting;
 
 public sealed class AcceptedPublicationExportRow
 {
+    public long? FacultyPublicationCandidateId { get; set; }
     public string FacultyDisplayName { get; set; } = string.Empty;
     public string? PrimaryEmail { get; set; }
     public string? DepartmentName { get; set; }
@@ -21,4 +22,17 @@ public sealed class AcceptedPublicationExportRow
     public string? DecisionStatus { get; set; }
     public string? ReviewedBy { get; set; }
     public DateTime? ReviewedAtUtc { get; set; }
+    public string? ReviewerNotes { get; set; }
+    public decimal? MatchScore { get; set; }
+    public string? EvidenceBoost { get; set; }
+    public string? AffiliatedInstitutionMatchCount { get; set; }
+    public string? AffiliatedInstitutionEvidenceWeight { get; set; }
+    public string? AffiliatedInstitutionNames { get; set; }
+    public string? KnownCoauthorOverlapCount { get; set; }
+    public string? KnownCoauthorHistoricalPublicationCount { get; set; }
+    public string? KnownCoauthorNames { get; set; }
+    public string? NearDuplicateResolutionStatus { get; set; }
+    public long? RelatedFacultyPublicationCandidateId { get; set; }
+    public string? NearDuplicateResolutionReason { get; set; }
+    public string? EvidenceSummary { get; set; }
 }
