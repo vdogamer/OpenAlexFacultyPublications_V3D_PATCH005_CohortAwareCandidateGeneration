@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using OpenAlex.Data.Models;
 
 namespace OpenAlex.Data;
@@ -80,7 +81,15 @@ ORDER BY c.CreatedAtUtc DESC;";
         return rows;
     }
 
-    public async Task<IReadOnlyList<PublicationReviewQueueItem>> GetPublicationQueueAsync(int top = 100, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PublicationReviewQueueItem>> GetPublicationQueueAsync(
+        int top = 100,
+        string? searchText = null,
+        decimal? minimumScore = null,
+        string institutionEvidenceFilter = "Any",
+        string coauthorEvidenceFilter = "Any",
+        string nearDuplicateFilter = "Any",
+        string resolutionStatusFilter = "Any",
+        CancellationToken cancellationToken = default)
     {
         var rows = new List<PublicationReviewQueueItem>();
 
@@ -209,7 +218,50 @@ FROM VisibleCandidatesWithNearDuplicates vc
 LEFT JOIN openalex.FacultyPublicationNearDuplicateResolution res
     ON res.FacultyPublicationCandidateId = vc.FacultyPublicationCandidateId
    AND res.IsCurrent = 1
+WHERE
+    (
+        @SearchTextLike IS NULL
+        OR vc.FacultyDisplayName LIKE @SearchTextLike
+        OR vc.DepartmentName LIKE @SearchTextLike
+        OR vc.WorkTitle LIKE @SearchTextLike
+        OR vc.AuthorDisplayName LIKE @SearchTextLike
+        OR vc.WorkOpenAlexId LIKE @SearchTextLike
+    )
+    AND (@MinimumScore IS NULL OR vc.MatchScore >= @MinimumScore)
+    AND
+    (
+        @InstitutionEvidenceFilter = 'Any'
+        OR (@InstitutionEvidenceFilter = 'Present' AND ISNULL(vc.EvidenceSummary, '') LIKE '%AffiliatedInstitutionMatchCount=%' AND ISNULL(vc.EvidenceSummary, '') NOT LIKE '%AffiliatedInstitutionMatchCount=0%')
+        OR (@InstitutionEvidenceFilter = 'Missing' AND (ISNULL(vc.EvidenceSummary, '') NOT LIKE '%AffiliatedInstitutionMatchCount=%' OR ISNULL(vc.EvidenceSummary, '') LIKE '%AffiliatedInstitutionMatchCount=0%'))
+    )
+    AND
+    (
+        @CoauthorEvidenceFilter = 'Any'
+        OR (@CoauthorEvidenceFilter = 'Present' AND ISNULL(vc.EvidenceSummary, '') LIKE '%KnownCoauthorOverlapCount=%' AND ISNULL(vc.EvidenceSummary, '') NOT LIKE '%KnownCoauthorOverlapCount=0%')
+        OR (@CoauthorEvidenceFilter = 'Missing' AND (ISNULL(vc.EvidenceSummary, '') NOT LIKE '%KnownCoauthorOverlapCount=%' OR ISNULL(vc.EvidenceSummary, '') LIKE '%KnownCoauthorOverlapCount=0%'))
+    )
+    AND
+    (
+        @NearDuplicateFilter = 'Any'
+        OR (@NearDuplicateFilter = 'Warning' AND vc.NearDuplicateCandidateCount > 1 AND res.ResolutionStatus IS NULL)
+        OR (@NearDuplicateFilter = 'Resolved' AND res.ResolutionStatus IS NOT NULL)
+        OR (@NearDuplicateFilter = 'None' AND vc.NearDuplicateCandidateCount <= 1)
+    )
+    AND
+    (
+        @ResolutionStatusFilter = 'Any'
+        OR (@ResolutionStatusFilter = 'Unresolved' AND vc.NearDuplicateCandidateCount > 1 AND res.ResolutionStatus IS NULL)
+        OR (@ResolutionStatusFilter = 'Resolved' AND res.ResolutionStatus IS NOT NULL)
+        OR res.ResolutionStatus = @ResolutionStatusFilter
+    )
 ORDER BY vc.CreatedAtUtc DESC;";
+
+        command.Parameters.AddWithValue("@SearchTextLike", BuildSearchLikeValue(searchText));
+        command.Parameters.AddWithValue("@MinimumScore", minimumScore.HasValue ? minimumScore.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@InstitutionEvidenceFilter", NormalizeFilter(institutionEvidenceFilter, new[] { "Any", "Present", "Missing" }));
+        command.Parameters.AddWithValue("@CoauthorEvidenceFilter", NormalizeFilter(coauthorEvidenceFilter, new[] { "Any", "Present", "Missing" }));
+        command.Parameters.AddWithValue("@NearDuplicateFilter", NormalizeFilter(nearDuplicateFilter, new[] { "Any", "Warning", "Resolved", "None" }));
+        command.Parameters.AddWithValue("@ResolutionStatusFilter", NormalizeFilter(resolutionStatusFilter, new[] { "Any", "Resolved", "Unresolved", "DuplicateOfCandidate", "KeepSeparate", "SuppressWarning" }));
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
@@ -237,7 +289,24 @@ ORDER BY vc.CreatedAtUtc DESC;";
         return rows;
     }
 
-    private static async Task<bool> ObjectExistsAsync(Microsoft.Data.SqlClient.SqlConnection connection, string objectName, string objectType, CancellationToken cancellationToken)
+    private static object BuildSearchLikeValue(string? searchText)
+    {
+        return string.IsNullOrWhiteSpace(searchText)
+            ? DBNull.Value
+            : $"%{searchText.Trim()}%";
+    }
+
+    private static string NormalizeFilter(string? value, IReadOnlyCollection<string> allowedValues)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Any";
+        }
+
+        return allowedValues.FirstOrDefault(allowed => string.Equals(allowed, value.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "Any";
+    }
+
+    private static async Task<bool> ObjectExistsAsync(SqlConnection connection, string objectName, string objectType, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT CASE WHEN OBJECT_ID(@ObjectName, @ObjectType) IS NULL THEN 0 ELSE 1 END;";
