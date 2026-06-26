@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OpenAlex.Reporting")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f2aa516ba3f6f91ebe1f792be8d50fc458e08c36")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+83cb683ff36abf026d9a59f4211b136b439db96f")]
 [assembly: System.Reflection.AssemblyProductAttribute("OpenAlex.Reporting")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OpenAlex.Reporting")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
