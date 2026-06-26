@@ -2,6 +2,7 @@ namespace OpenAlex.Data.Models;
 
 public sealed class AcceptedPublicationDataRow
 {
+    public long? FacultyPublicationCandidateId { get; set; }
     public string FacultyDisplayName { get; set; } = string.Empty;
     public string? PrimaryEmail { get; set; }
     public string? DepartmentName { get; set; }
@@ -21,4 +22,10 @@ public sealed class AcceptedPublicationDataRow
     public string? DecisionStatus { get; set; }
     public string? ReviewedBy { get; set; }
     public DateTime? ReviewedAtUtc { get; set; }
+    public string? ReviewerNotes { get; set; }
+    public decimal? MatchScore { get; set; }
+    public string? EvidenceSummary { get; set; }
+    public string? NearDuplicateResolutionStatus { get; set; }
+    public long? RelatedFacultyPublicationCandidateId { get; set; }
+    public string? NearDuplicateResolutionReason { get; set; }
 }
