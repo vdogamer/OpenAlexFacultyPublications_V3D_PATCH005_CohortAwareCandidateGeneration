@@ -1,0 +1,182 @@
+@page
+@model OpenAlex.Web.Pages.Reports.DataProvenanceModel
+
+<h1>Publication Data Provenance and Responsibility Audit</h1>
+
+<section class="card">
+    <p>
+        This report separates the roles involved in each faculty-publication record: metadata supply,
+        faculty-author identity linking, publication matching, Academic Online observation, and final review.
+    </p>
+    <p class="small">
+        PATCH017 does not assign contractual ownership. It shows the source evidence currently recorded by the application so UVA can make those decisions later.
+    </p>
+</section>
+
+<section class="metric-grid" aria-label="Provenance summary">
+    <article class="metric-card Neutral">
+        <h2>Rows shown</h2>
+        <div class="metric-value">@Model.TotalRows</div>
+    </article>
+    <article class="metric-card Ready">
+        <h2>Academic Online observed</h2>
+        <div class="metric-value">@Model.AcademicOnlineObservedRows</div>
+    </article>
+    <article class="metric-card Ready">
+        <h2>Accepted by UVA review</h2>
+        <div class="metric-value">@Model.AcceptedRows</div>
+    </article>
+    <article class="metric-card Warning">
+        <h2>Pending publication review</h2>
+        <div class="metric-value">@Model.PendingReviewRows</div>
+    </article>
+    <article class="metric-card Danger">
+        <h2>Unknown identity source</h2>
+        <div class="metric-value">@Model.UnknownIdentitySourceRows</div>
+    </article>
+</section>
+
+<section class="card">
+    <form method="get" class="filter-form">
+        <label>
+            Search
+            <input type="text" name="SearchText" value="@Model.SearchText" placeholder="Faculty, publication, DOI, OpenAlex ID" />
+        </label>
+        <label>
+            Publication decision
+            <select name="DecisionStatus">
+                <option value="">Any</option>
+                <option value="accepted" selected="@(Model.DecisionStatus == "accepted")">Accepted</option>
+                <option value="rejected" selected="@(Model.DecisionStatus == "rejected")">Rejected</option>
+                <option value="pending" selected="@(Model.DecisionStatus == "pending")">Pending</option>
+            </select>
+        </label>
+        <label>
+            Academic Online
+            <select name="AcademicOnlineStatus">
+                <option value="">Any</option>
+                <option value="observed" selected="@(Model.AcademicOnlineStatus == "observed")">Observed</option>
+                <option value="verified" selected="@(Model.AcademicOnlineStatus == "verified")">Observed and verified</option>
+                <option value="not-observed" selected="@(Model.AcademicOnlineStatus == "not-observed")">Not observed</option>
+            </select>
+        </label>
+        <button type="submit">Apply filters</button>
+        <a class="button secondary" href="/Reports/DataProvenance">Clear</a>
+    </form>
+</section>
+
+@if (Model.Rows.Count == 0)
+{
+    <section class="card">
+        <h2>No provenance rows found</h2>
+        <p>No publication candidates matched the current filters.</p>
+    </section>
+}
+else
+{
+    <section class="publication-review-list" aria-label="Publication provenance rows">
+        @foreach (var item in Model.Rows)
+        {
+            <article class="publication-review-card">
+                <div class="publication-card-kicker">
+                    <span class="badge Information">Metadata: @item.MetadataSource</span>
+                    <span class="badge @(item.AcademicOnlineObserved ? "Accepted" : "Warning")">
+                        Academic Online: @(item.AcademicOnlineObserved ? "Observed" : "Not observed")
+                    </span>
+                    @if (item.AcademicOnlineVerified == true)
+                    {
+                        <span class="badge Accepted">Academic Online verified</span>
+                    }
+                    <span class="badge @(string.Equals(item.PublicationDecisionStatus, "Accepted", StringComparison.OrdinalIgnoreCase) ? "Accepted" : "Warning")">
+                        UVA decision: @(string.IsNullOrWhiteSpace(item.PublicationDecisionStatus) ? "Pending" : item.PublicationDecisionStatus)
+                    </span>
+                    @if (item.MatchScore.HasValue)
+                    {
+                        <span class="publication-score">Score: @item.MatchScore</span>
+                    }
+                </div>
+
+                <h2 class="publication-card-title">@item.WorkTitle</h2>
+
+                <div class="publication-card-meta">
+                    <span><strong>Candidate:</strong> @item.FacultyPublicationCandidateId</span>
+                    <span><strong>Faculty:</strong> @item.FacultyDisplayName</span>
+                    <span><strong>Author:</strong> @ValueOrDash(item.AuthorDisplayName)</span>
+                    <span><strong>Year:</strong> @item.PublicationYear</span>
+                    @if (!string.IsNullOrWhiteSpace(item.DepartmentName))
+                    {
+                        <span><strong>Department:</strong> @item.DepartmentName</span>
+                    }
+                </div>
+
+                <div class="detail-grid" style="margin-top: 1rem;">
+                    <section class="evidence-panel">
+                        <h3>1. Metadata supply</h3>
+                        <p><strong>Local metadata source:</strong> OpenAlex</p>
+                        <p><strong>Academic Online observed:</strong> @(item.AcademicOnlineObserved ? "Yes" : "No")</p>
+                        @if (item.AcademicOnlineObserved)
+                        {
+                            <p><strong>Academic Online match:</strong> @ValueOrDash(item.AcademicOnlineMatchMethod)</p>
+                            <p><strong>Academic Online scholar:</strong> @ValueOrDash(item.AcademicOnlineScholarName)</p>
+                            <p><strong>Academic Online verified flag:</strong> @BoolOrUnknown(item.AcademicOnlineVerified)</p>
+                        }
+                    </section>
+
+                    <section class="evidence-panel">
+                        <h3>2. Faculty-author identity link</h3>
+                        <p><strong>Candidate source:</strong> @ValueOrDash(item.IdentityCandidateSource)</p>
+                        <p><strong>Decision source:</strong> @ValueOrDash(item.IdentityDecisionSource)</p>
+                        <p><strong>Status:</strong> @ValueOrDash(item.IdentityDecisionStatus)</p>
+                        <p><strong>Reviewed by:</strong> @ValueOrDash(item.IdentityReviewedBy)</p>
+                    </section>
+
+                    <section class="evidence-panel">
+                        <h3>3. Faculty-publication match</h3>
+                        <p><strong>Candidate source:</strong> @ValueOrDash(item.PublicationCandidateSource)</p>
+                        <p><strong>Candidate status:</strong> @ValueOrDash(item.PublicationCandidateStatus)</p>
+                        <p><strong>Matched OpenAlex author:</strong> @ValueOrDash(item.AuthorOpenAlexId)</p>
+                    </section>
+
+                    <section class="evidence-panel">
+                        <h3>4. Final verification</h3>
+                        <p><strong>Decision source:</strong> @ValueOrDash(item.PublicationDecisionSource)</p>
+                        <p><strong>Decision:</strong> @ValueOrDash(item.PublicationDecisionStatus)</p>
+                        <p><strong>Reviewed by:</strong> @ValueOrDash(item.PublicationReviewedBy)</p>
+                        <p><strong>Reviewed at:</strong> @(item.PublicationReviewedAtUtc?.ToString("u") ?? "-")</p>
+                    </section>
+                </div>
+
+                <p class="notice"><strong>Responsibility summary:</strong> @item.ResponsibilitySummary</p>
+
+                <div class="publication-links">
+                    @if (!string.IsNullOrWhiteSpace(item.WorkDoi))
+                    {
+                        var doiUrl = item.WorkDoi.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                            ? item.WorkDoi
+                            : "https://doi.org/" + item.WorkDoi.Replace("https://doi.org/", "", StringComparison.OrdinalIgnoreCase).Replace("http://doi.org/", "", StringComparison.OrdinalIgnoreCase);
+                        <a href="@doiUrl" target="_blank" rel="noopener">DOI</a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(item.WorkOpenAlexId))
+                    {
+                        var openAlexUrl = item.WorkOpenAlexId.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                            ? item.WorkOpenAlexId
+                            : "https://openalex.org/" + item.WorkOpenAlexId;
+                        <a href="@openAlexUrl" target="_blank" rel="noopener">OpenAlex</a>
+                    }
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@functions {
+    private static string ValueOrDash(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value;
+    }
+
+    private static string BoolOrUnknown(bool? value)
+    {
+        return value.HasValue ? (value.Value ? "Yes" : "No") : "Unknown";
+    }
+}
