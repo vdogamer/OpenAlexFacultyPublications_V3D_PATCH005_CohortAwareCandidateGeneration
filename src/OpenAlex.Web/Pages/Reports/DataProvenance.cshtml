@@ -46,18 +46,18 @@
             Publication decision
             <select name="DecisionStatus">
                 <option value="">Any</option>
-                <option value="accepted" selected="@(Model.DecisionStatus == "accepted")">Accepted</option>
-                <option value="rejected" selected="@(Model.DecisionStatus == "rejected")">Rejected</option>
-                <option value="pending" selected="@(Model.DecisionStatus == "pending")">Pending</option>
+                <option value="accepted" selected="@(Model.DecisionStatus == "accepted" ? "selected" : null)">Accepted</option>
+                <option value="rejected" selected="@(Model.DecisionStatus == "rejected" ? "selected" : null)">Rejected</option>
+                <option value="pending" selected="@(Model.DecisionStatus == "pending" ? "selected" : null)">Pending</option>
             </select>
         </label>
         <label>
             Academic Online
             <select name="AcademicOnlineStatus">
                 <option value="">Any</option>
-                <option value="observed" selected="@(Model.AcademicOnlineStatus == "observed")">Observed</option>
-                <option value="verified" selected="@(Model.AcademicOnlineStatus == "verified")">Observed and verified</option>
-                <option value="not-observed" selected="@(Model.AcademicOnlineStatus == "not-observed")">Not observed</option>
+                <option value="observed" selected="@(Model.AcademicOnlineStatus == "observed" ? "selected" : null)">Observed</option>
+                <option value="verified" selected="@(Model.AcademicOnlineStatus == "verified" ? "selected" : null)">Observed and verified</option>
+                <option value="not-observed" selected="@(Model.AcademicOnlineStatus == "not-observed" ? "selected" : null)">Not observed</option>
             </select>
         </label>
         <button type="submit">Apply filters</button>
