@@ -151,6 +151,13 @@ public sealed class OpenAlexWorkerService : BackgroundService
             return;
         }
 
+        if (string.Equals(_options.Value.JobName, "AcademicOnlineWorkBackfillPreview", StringComparison.OrdinalIgnoreCase))
+        {
+            var job = scope.ServiceProvider.GetRequiredService<AcademicOnlineWorkBackfillPreviewJob>();
+            await job.ExecuteAsync(stoppingToken);
+            return;
+        }
+
         if (string.Equals(_options.Value.JobName, "ProcessQueuedJobRequests", StringComparison.OrdinalIgnoreCase))
         {
             var job = scope.ServiceProvider.GetRequiredService<QueuedJobRequestProcessorJob>();
