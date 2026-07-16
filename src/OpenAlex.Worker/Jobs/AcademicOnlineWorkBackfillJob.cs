@@ -33,6 +33,11 @@ public sealed class AcademicOnlineWorkBackfillJob
         var previewRunId = _options.PreviewRunId
             ?? throw new InvalidOperationException("AcademicOnlineWorkBackfill:PreviewRunId is required. Use an explicit completed PATCH017B preview run ID.");
 
+        if (!_options.ConfirmInsert)
+        {
+            throw new InvalidOperationException("AcademicOnlineWorkBackfill:ConfirmInsert must be true. No openalex.Work rows were changed.");
+        }
+
         var maxWorks = Math.Clamp(_options.MaxWorks, 1, 5);
         var sourceRows = await _repository.LoadReadyItemsAsync(previewRunId, maxWorks, cancellationToken);
 
