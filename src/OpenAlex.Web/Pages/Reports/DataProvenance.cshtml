@@ -9,18 +9,35 @@
         faculty-author identity linking, publication matching, Academic Online observation, and final review.
     </p>
     <p class="small">
-        PATCH017 does not assign contractual ownership. It shows the source evidence currently recorded by the application so UVA can make those decisions later.
+        PATCH017A adds Academic Online coverage-gap reporting and candidate-status versus final-decision consistency checks.
+        It remains read-only and does not assign contractual ownership or change any match or review decision.
     </p>
 </section>
 
 <section class="metric-grid" aria-label="Provenance summary">
     <article class="metric-card Neutral">
-        <h2>Rows shown</h2>
+        <h2>Local candidate rows</h2>
         <div class="metric-value">@Model.TotalRows</div>
     </article>
     <article class="metric-card Ready">
-        <h2>Academic Online observed</h2>
-        <div class="metric-value">@Model.AcademicOnlineObservedRows</div>
+        <h2>Academic Online coverage rows</h2>
+        <div class="metric-value">@Model.CoverageRows.Count</div>
+    </article>
+    <article class="metric-card Warning">
+        <h2>Academic Online coverage gaps</h2>
+        <div class="metric-value">@Model.AcademicOnlineCoverageGapRows</div>
+    </article>
+    <article class="metric-card Danger">
+        <h2>Academic Online only—no local work</h2>
+        <div class="metric-value">@Model.AcademicOnlineOnlyNoLocalWorkRows</div>
+    </article>
+    <article class="metric-card Ready">
+        <h2>Accepted by both</h2>
+        <div class="metric-value">@Model.AcademicOnlineAcceptedByBothRows</div>
+    </article>
+    <article class="metric-card Danger">
+        <h2>Candidate/decision mismatches</h2>
+        <div class="metric-value">@Model.CandidateDecisionMismatchRows</div>
     </article>
     <article class="metric-card Ready">
         <h2>Accepted by UVA review</h2>
@@ -60,16 +77,138 @@
                 <option value="not-observed" selected="@(Model.AcademicOnlineStatus == "not-observed" ? "selected" : null)">Not observed</option>
             </select>
         </label>
+        <label>
+            Coverage status
+            <select name="CoverageStatus">
+                <option value="">Any</option>
+                <option value="AcademicOnlineOnly_NoLocalWork" selected="@(Model.CoverageStatus == "AcademicOnlineOnly_NoLocalWork" ? "selected" : null)">Academic Online only—no local work</option>
+                <option value="AcademicOnlineWorkExists_NoCandidate" selected="@(Model.CoverageStatus == "AcademicOnlineWorkExists_NoCandidate" ? "selected" : null)">Local work—no faculty candidate</option>
+                <option value="AcademicOnlineCandidateExists_NotAccepted" selected="@(Model.CoverageStatus == "AcademicOnlineCandidateExists_NotAccepted" ? "selected" : null)">Candidate—not accepted</option>
+                <option value="AcademicOnlineAcceptedByUs" selected="@(Model.CoverageStatus == "AcademicOnlineAcceptedByUs" ? "selected" : null)">Accepted by both</option>
+            </select>
+        </label>
+        <label>
+            Status consistency
+            <select name="ConsistencyStatus">
+                <option value="">Any</option>
+                <option value="mismatch" selected="@(Model.ConsistencyStatus == "mismatch" ? "selected" : null)">Mismatch only</option>
+                <option value="consistent" selected="@(Model.ConsistencyStatus == "consistent" ? "selected" : null)">Consistent only</option>
+            </select>
+        </label>
         <button type="submit">Apply filters</button>
         <a class="button secondary" href="/Reports/DataProvenance">Clear</a>
     </form>
 </section>
 
+<section class="card">
+    <h2>Academic Online coverage comparison</h2>
+    <p class="small">
+        Each Academic Online publication is compared with local OpenAlex works, local faculty-publication candidates,
+        and current UVA publication decisions. The latest available Academic Online run for each faculty member is used.
+    </p>
+
+    @if (Model.CoverageRows.Count == 0)
+    {
+        <p>No Academic Online coverage rows matched the current filters.</p>
+    }
+    else
+    {
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Faculty and publication</th>
+                        <th>Academic Online</th>
+                        <th>Local OpenAlex work</th>
+                        <th>Local candidate</th>
+                        <th>Current UVA decision</th>
+                        <th>Coverage result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.CoverageRows)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.PublicationTitle</strong><br />
+                                <span class="small">
+                                    @item.FacultyDisplayName
+                                    @if (item.PublicationYear.HasValue)
+                                    {
+                                        <span> · @item.PublicationYear</span>
+                                    }
+                                </span>
+                                <div class="publication-links">
+                                    @if (!string.IsNullOrWhiteSpace(item.Doi))
+                                    {
+                                        var doiUrl = item.Doi.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                                            ? item.Doi
+                                            : "https://doi.org/" + item.Doi.Replace("https://doi.org/", "", StringComparison.OrdinalIgnoreCase).Replace("http://doi.org/", "", StringComparison.OrdinalIgnoreCase);
+                                        <a href="@doiUrl" target="_blank" rel="noopener">DOI</a>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.OpenAlexId))
+                                    {
+                                        var openAlexUrl = item.OpenAlexId.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                                            ? item.OpenAlexId
+                                            : "https://openalex.org/" + item.OpenAlexId;
+                                        <a href="@openAlexUrl" target="_blank" rel="noopener">OpenAlex</a>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <strong>Scholar:</strong> @ValueOrDash(item.AcademicOnlineScholarName)<br />
+                                <strong>Verified:</strong> @BoolOrUnknown(item.AcademicOnlineVerified)<br />
+                                <strong>Verified query:</strong> @(item.AcademicOnlineVerifiedQuery ? "Yes" : "No")<br />
+                                <strong>Run:</strong> @item.AcademicOnlineComparisonRunId
+                            </td>
+                            <td>
+                                @if (item.LocalWorkId.HasValue)
+                                {
+                                    <span class="badge Accepted">Found</span><br />
+                                    <span>WorkId @item.LocalWorkId</span><br />
+                                    <span class="small">@item.MatchMethod</span>
+                                }
+                                else
+                                {
+                                    <span class="badge Danger">Not found</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.LocalCandidateId.HasValue)
+                                {
+                                    <span class="badge Information">Candidate @item.LocalCandidateId</span><br />
+                                    <strong>Status:</strong> @ValueOrDash(item.LocalCandidateStatus)<br />
+                                    <strong>Score:</strong> @(item.LocalMatchScore?.ToString("0.0000") ?? "-")
+                                }
+                                else
+                                {
+                                    <span class="badge Warning">No faculty candidate</span>
+                                }
+                            </td>
+                            <td>
+                                <strong>Decision:</strong> @ValueOrDash(item.LocalDecisionStatus)<br />
+                                <strong>Source:</strong> @ValueOrDash(item.LocalDecisionSource)<br />
+                                <strong>Reviewer:</strong> @ValueOrDash(item.LocalReviewedBy)
+                            </td>
+                            <td>
+                                <span class="badge @CoverageBadgeClass(item.CoverageStatus)">@CoverageDisplayName(item.CoverageStatus)</span>
+                                <p class="small">@item.CoverageExplanation</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<h2>Local faculty-publication provenance</h2>
+
 @if (Model.Rows.Count == 0)
 {
     <section class="card">
-        <h2>No provenance rows found</h2>
-        <p>No publication candidates matched the current filters.</p>
+        <h3>No local provenance rows found</h3>
+        <p>No local faculty-publication candidates matched the current filters.</p>
     </section>
 }
 else
@@ -77,6 +216,8 @@ else
     <section class="publication-review-list" aria-label="Publication provenance rows">
         @foreach (var item in Model.Rows)
         {
+            var hasStatusMismatch = OpenAlex.Web.Pages.Reports.DataProvenanceModel.HasCandidateDecisionMismatch(item);
+
             <article class="publication-review-card">
                 <div class="publication-card-kicker">
                     <span class="badge Information">Metadata: @item.MetadataSource</span>
@@ -90,13 +231,17 @@ else
                     <span class="badge @(string.Equals(item.PublicationDecisionStatus, "Accepted", StringComparison.OrdinalIgnoreCase) ? "Accepted" : "Warning")">
                         UVA decision: @(string.IsNullOrWhiteSpace(item.PublicationDecisionStatus) ? "Pending" : item.PublicationDecisionStatus)
                     </span>
+                    @if (hasStatusMismatch)
+                    {
+                        <span class="badge Danger">Candidate/decision mismatch</span>
+                    }
                     @if (item.MatchScore.HasValue)
                     {
                         <span class="publication-score">Score: @item.MatchScore</span>
                     }
                 </div>
 
-                <h2 class="publication-card-title">@item.WorkTitle</h2>
+                <h3 class="publication-card-title">@item.WorkTitle</h3>
 
                 <div class="publication-card-meta">
                     <span><strong>Candidate:</strong> @item.FacultyPublicationCandidateId</span>
@@ -111,7 +256,7 @@ else
 
                 <div class="detail-grid" style="margin-top: 1rem;">
                     <section class="evidence-panel">
-                        <h3>1. Metadata supply</h3>
+                        <h4>1. Metadata supply</h4>
                         <p><strong>Local metadata source:</strong> OpenAlex</p>
                         <p><strong>Academic Online observed:</strong> @(item.AcademicOnlineObserved ? "Yes" : "No")</p>
                         @if (item.AcademicOnlineObserved)
@@ -123,7 +268,7 @@ else
                     </section>
 
                     <section class="evidence-panel">
-                        <h3>2. Faculty-author identity link</h3>
+                        <h4>2. Faculty-author identity link</h4>
                         <p><strong>Candidate source:</strong> @ValueOrDash(item.IdentityCandidateSource)</p>
                         <p><strong>Decision source:</strong> @ValueOrDash(item.IdentityDecisionSource)</p>
                         <p><strong>Status:</strong> @ValueOrDash(item.IdentityDecisionStatus)</p>
@@ -131,20 +276,28 @@ else
                     </section>
 
                     <section class="evidence-panel">
-                        <h3>3. Faculty-publication match</h3>
+                        <h4>3. Faculty-publication match</h4>
                         <p><strong>Candidate source:</strong> @ValueOrDash(item.PublicationCandidateSource)</p>
                         <p><strong>Candidate status:</strong> @ValueOrDash(item.PublicationCandidateStatus)</p>
                         <p><strong>Matched OpenAlex author:</strong> @ValueOrDash(item.AuthorOpenAlexId)</p>
                     </section>
 
                     <section class="evidence-panel">
-                        <h3>4. Final verification</h3>
+                        <h4>4. Final verification</h4>
                         <p><strong>Decision source:</strong> @ValueOrDash(item.PublicationDecisionSource)</p>
                         <p><strong>Decision:</strong> @ValueOrDash(item.PublicationDecisionStatus)</p>
                         <p><strong>Reviewed by:</strong> @ValueOrDash(item.PublicationReviewedBy)</p>
                         <p><strong>Reviewed at:</strong> @(item.PublicationReviewedAtUtc?.ToString("u") ?? "-")</p>
                     </section>
                 </div>
+
+                @if (hasStatusMismatch)
+                {
+                    <p class="notice">
+                        <strong>Status consistency warning:</strong>
+                        @OpenAlex.Web.Pages.Reports.DataProvenanceModel.GetStatusConsistencyExplanation(item)
+                    </p>
+                }
 
                 <p class="notice"><strong>Responsibility summary:</strong> @item.ResponsibilitySummary</p>
 
@@ -178,5 +331,27 @@ else
     private static string BoolOrUnknown(bool? value)
     {
         return value.HasValue ? (value.Value ? "Yes" : "No") : "Unknown";
+    }
+
+    private static string CoverageBadgeClass(string coverageStatus)
+    {
+        return coverageStatus switch
+        {
+            "AcademicOnlineAcceptedByUs" => "Accepted",
+            "AcademicOnlineOnly_NoLocalWork" => "Danger",
+            _ => "Warning"
+        };
+    }
+
+    private static string CoverageDisplayName(string coverageStatus)
+    {
+        return coverageStatus switch
+        {
+            "AcademicOnlineAcceptedByUs" => "Accepted by both",
+            "AcademicOnlineCandidateExists_NotAccepted" => "Candidate exists—not accepted",
+            "AcademicOnlineWorkExists_NoCandidate" => "Local work—no faculty candidate",
+            "AcademicOnlineOnly_NoLocalWork" => "Academic Online only—no local work",
+            _ => coverageStatus
+        };
     }
 }
