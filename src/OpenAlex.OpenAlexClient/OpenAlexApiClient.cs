@@ -59,6 +59,46 @@ public sealed class OpenAlexApiClient
         return GetCursorPageAsync("works", filter, cursor, cancellationToken);
     }
 
+    public async Task<OpenAlexEntityResponse> GetWorkByIdAsync(string openAlexId, CancellationToken cancellationToken = default)
+    {
+        var shortId = NormalizeOpenAlexEntityId(openAlexId, "W");
+        var uri = BuildRequestUri("works/" + Uri.EscapeDataString(shortId), new Dictionary<string, string?>());
+
+        using var response = await _httpClient.GetAsync(uri, cancellationToken);
+        var responseContentLength = response.Content.Headers.ContentLength;
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        JsonDocument? document = null;
+        string? errorContent = null;
+
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            try
+            {
+                document = JsonDocument.Parse(content);
+            }
+            catch (JsonException)
+            {
+                errorContent = content;
+            }
+        }
+
+        if (!response.IsSuccessStatusCode && errorContent is null)
+        {
+            errorContent = content;
+        }
+
+        return new OpenAlexEntityResponse
+        {
+            RequestUri = uri,
+            HttpStatusCode = (int)response.StatusCode,
+            IsSuccessStatusCode = response.IsSuccessStatusCode,
+            ResponseContentLength = responseContentLength,
+            RawDocument = document,
+            ErrorContent = errorContent
+        };
+    }
+
     public string BuildInstitutionIdFilter(string fieldName = "id")
     {
         if (_options.InstitutionIds.Count == 0)
@@ -96,9 +136,11 @@ public sealed class OpenAlexApiClient
             items["mailto"] = _options.MailTo;
         }
 
-        return endpoint + "?" + string.Join("&", items
+        var queryString = string.Join("&", items
             .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
             .Select(kvp => Uri.EscapeDataString(kvp.Key) + "=" + Uri.EscapeDataString(kvp.Value!)));
+
+        return string.IsNullOrWhiteSpace(queryString) ? endpoint : endpoint + "?" + queryString;
     }
 
     private async Task<OpenAlexCursorPage> GetCursorPageAsync(string endpoint, string filter, string cursor, CancellationToken cancellationToken)
@@ -150,6 +192,26 @@ public sealed class OpenAlexApiClient
     private int NormalizePerPage(int? perPage)
     {
         return Math.Clamp(perPage ?? _options.PerPage, 1, 200);
+    }
+
+    private static string NormalizeOpenAlexEntityId(string openAlexId, string expectedPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(openAlexId))
+        {
+            throw new ArgumentException("An OpenAlex entity ID is required.", nameof(openAlexId));
+        }
+
+        var normalized = openAlexId.Trim()
+            .Replace("https://openalex.org/", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("http://openalex.org/", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Trim('/');
+
+        if (!normalized.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"OpenAlex ID '{openAlexId}' is not a valid {expectedPrefix}-prefixed entity ID.", nameof(openAlexId));
+        }
+
+        return normalized.ToUpperInvariant();
     }
 
     private static string? GetString(JsonElement element, string propertyName)
