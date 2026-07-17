@@ -1,4 +1,5 @@
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\bin\Debug\net8.0\appsettings.example.json
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\bin\Debug\net8.0\appsettings.json
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\bin\Debug\net8.0\OpenAlex.Worker.exe
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\bin\Debug\net8.0\OpenAlex.Worker.deps.json
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\bin\Debug\net8.0\OpenAlex.Worker.runtimeconfig.json
@@ -90,11 +91,10 @@ C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_Coh
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.AssemblyInfoInputs.cache
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.AssemblyInfo.cs
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.csproj.CoreCompileInputs.cache
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.sourcelink.json
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.D40039CA.Up2Date
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.dll
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\refint\OpenAlex.Worker.dll
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.pdb
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.genruntimeconfig.cache
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\ref\OpenAlex.Worker.dll
-C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\bin\Debug\net8.0\appsettings.json
-C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Worker\obj\Debug\net8.0\OpenAlex.Worker.sourcelink.json

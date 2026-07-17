@@ -5,8 +5,8 @@ C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_Coh
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\OpenAlex.Reporting.AssemblyInfoInputs.cache
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\OpenAlex.Reporting.AssemblyInfo.cs
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\OpenAlex.Reporting.csproj.CoreCompileInputs.cache
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\OpenAlex.Reporting.sourcelink.json
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\OpenAlex.Reporting.dll
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\refint\OpenAlex.Reporting.dll
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\OpenAlex.Reporting.pdb
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\ref\OpenAlex.Reporting.dll
-C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Reporting\obj\Debug\net8.0\OpenAlex.Reporting.sourcelink.json

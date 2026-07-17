@@ -75,6 +75,7 @@ C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_Coh
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\OpenAlex.Web.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\OpenAlex.Web.RazorAssemblyInfo.cache
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\OpenAlex.Web.RazorAssemblyInfo.cs
+C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\OpenAlex.Web.sourcelink.json
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\rjimswa.dswa.cache.json
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
@@ -90,4 +91,3 @@ C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_Coh
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\OpenAlex.Web.pdb
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\OpenAlex.Web.genruntimeconfig.cache
 C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\ref\OpenAlex.Web.dll
-C:\Users\Cameron\Desktop\Smoke Test\OpenAlexFacultyPublications_V3D_PATCH005_CohortAwareCandidateGeneration\src\OpenAlex.Web\obj\Debug\net8.0\OpenAlex.Web.sourcelink.json
