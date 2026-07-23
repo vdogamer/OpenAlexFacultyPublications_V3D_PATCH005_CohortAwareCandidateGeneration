@@ -32,7 +32,6 @@ public sealed class OpenAlexWorkerService : BackgroundService
                 "WorkerDisabled",
                 "OpenAlex integrated worker started, but Worker:Enabled is false.",
                 cancellationToken: stoppingToken);
-
             return;
         }
 
@@ -76,106 +75,82 @@ public sealed class OpenAlexWorkerService : BackgroundService
 
         if (string.Equals(_options.Value.JobName, "InstitutionIngestionPreview", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<InstitutionIngestionPreviewJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<InstitutionIngestionPreviewJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "InstitutionIngestion", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<InstitutionIngestionJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<InstitutionIngestionJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "AuthorIngestion", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<AuthorIngestionJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<AuthorIngestionJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "WorkIngestion", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<WorkIngestionJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<WorkIngestionJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "FacultyIdentityCandidateGeneration", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<FacultyIdentityCandidateGenerationJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<FacultyIdentityCandidateGenerationJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "FacultyIdentityCandidateWorkExpansion", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<FacultyIdentityCandidateWorkExpansionJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<FacultyIdentityCandidateWorkExpansionJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "FacultyIdentityWorkEvidenceScoring", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<FacultyIdentityWorkEvidenceScoringJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<FacultyIdentityWorkEvidenceScoringJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "FacultyIdentityCandidateSummaryGeneration", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<FacultyIdentityCandidateSummaryGenerationJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<FacultyIdentityCandidateSummaryGenerationJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "FacultyAuthorCandidateGeneration", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<FacultyAuthorCandidateGenerationJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<FacultyAuthorCandidateGenerationJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "FacultyPublicationCandidateGeneration", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<FacultyPublicationCandidateGenerationJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<FacultyPublicationCandidateGenerationJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "AcademicOnlineComparison", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<AcademicOnlineComparisonJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<AcademicOnlineComparisonJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "AcademicOnlineWorkBackfillPreview", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<AcademicOnlineWorkBackfillPreviewJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<AcademicOnlineWorkBackfillPreviewJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "AcademicOnlineWorkBackfill", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<AcademicOnlineWorkBackfillJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<AcademicOnlineWorkBackfillJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
+        if (string.Equals(_options.Value.JobName, "FacultyPublicationCandidatePreview", StringComparison.OrdinalIgnoreCase))
+        {
+            await scope.ServiceProvider.GetRequiredService<FacultyPublicationCandidatePreviewJob>().ExecuteAsync(stoppingToken);
+            return;
+        }
         if (string.Equals(_options.Value.JobName, "ProcessQueuedJobRequests", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<QueuedJobRequestProcessorJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<QueuedJobRequestProcessorJob>().ExecuteAsync(stoppingToken);
             return;
         }
-
         if (string.Equals(_options.Value.JobName, "RunPipelineOnce", StringComparison.OrdinalIgnoreCase))
         {
-            var job = scope.ServiceProvider.GetRequiredService<PipelineOrchestrationJob>();
-            await job.ExecuteAsync(stoppingToken);
+            await scope.ServiceProvider.GetRequiredService<PipelineOrchestrationJob>().ExecuteAsync(stoppingToken);
             return;
         }
 
