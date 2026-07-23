@@ -59,8 +59,12 @@ public sealed class AcademicOnlineWorkBackfillJob
 
         try
         {
+            // openalex.IngestionRun has a CHECK constraint limiting RunMode to the
+            // established ingestion values. PATCH017B1 uses TestLoad here while the
+            // dedicated backfill audit tables, InstitutionFilter, and ApplicationVersion
+            // preserve the more specific controlled-backfill provenance.
             var ingestionRun = await _workIngestionRepository.StartRunAsync(
-                "ControlledBackfill",
+                "TestLoad",
                 $"AcademicOnlinePreviewRunId:{previewRunId}",
                 0,
                 maxWorks,
