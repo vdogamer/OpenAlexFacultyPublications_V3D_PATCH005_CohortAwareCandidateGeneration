@@ -19,6 +19,7 @@ public static class OpenAlexDataServiceCollectionExtensions
         services.AddScoped<PublicationProvenanceCoverageRepository>();
         services.AddScoped<AcademicOnlineWorkBackfillPreviewRepository>();
         services.AddScoped<AcademicOnlineWorkBackfillRepository>();
+        services.AddScoped<FacultyPublicationCandidatePreviewRepository>();
         services.AddScoped<OperationsRepository>();
         services.AddScoped<InstitutionIngestionRepository>();
         services.AddScoped<AuthorIngestionRepository>();
