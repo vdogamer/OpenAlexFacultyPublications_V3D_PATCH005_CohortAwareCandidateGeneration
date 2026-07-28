@@ -9,15 +9,18 @@ namespace OpenAlex.Worker.Jobs;
 public sealed class FacultyAuthorIdentityResolutionPreviewJob
 {
     private readonly FacultyAuthorIdentityResolutionPreviewRepository _repository;
+    private readonly FacultyAuthorIdentityResolutionSourceRepository _sourceRepository;
     private readonly IOperationalLogger _logger;
     private readonly FacultyAuthorIdentityResolutionPreviewOptions _options;
 
     public FacultyAuthorIdentityResolutionPreviewJob(
         FacultyAuthorIdentityResolutionPreviewRepository repository,
+        FacultyAuthorIdentityResolutionSourceRepository sourceRepository,
         IOperationalLogger logger,
         IOptions<FacultyAuthorIdentityResolutionPreviewOptions> options)
     {
         _repository = repository;
+        _sourceRepository = sourceRepository;
         _logger = logger;
         _options = options.Value;
     }
@@ -46,7 +49,7 @@ public sealed class FacultyAuthorIdentityResolutionPreviewJob
 
         try
         {
-            var sourceRows = await _repository.LoadSourceRowsAsync(sourceRunId, _options.FacultyId, maxWorks, cancellationToken);
+            var sourceRows = await _sourceRepository.LoadSourceRowsAsync(sourceRunId, _options.FacultyId, maxWorks, cancellationToken);
             if (sourceRows.Count == 0)
             {
                 throw new InvalidOperationException($"No authorships were found for FacultyId={_options.FacultyId} in completed backfill run {sourceRunId}.");
@@ -141,10 +144,11 @@ public sealed class FacultyAuthorIdentityResolutionPreviewJob
                 safetyBefore.IdentityDecisionRows == safetyAfter.IdentityDecisionRows &&
                 safetyBefore.AuthorDecisionRows == safetyAfter.AuthorDecisionRows;
 
+            var selectedWorkCount = sourceRows.Max(row => row.SourceWorkCount);
             var exactOrcidCandidates = candidates.Count(row => row.ExactFacultyOrcidMatch || row.ExactAcademicOnlineOrcidMatch);
             var summary =
                 $"PATCH017B3 identity resolution preview completed. SourceWorkBackfillRunId={sourceRunId}; FacultyId={_options.FacultyId}; " +
-                $"SelectedWorks={sourceRows.Max(row => row.SourceWorkCount)}; EvaluatedCandidates={candidates.Count}; StrongCandidates={strongCandidates}; " +
+                $"SelectedWorks={selectedWorkCount}; EvaluatedCandidates={candidates.Count}; StrongCandidates={strongCandidates}; " +
                 $"ExactOrcidCandidates={exactOrcidCandidates}; AmbiguousStrongCandidates={(ambiguous ? strongCandidates : 0)}; " +
                 $"IdentityCandidateRowsBefore={safetyBefore.IdentityCandidateRows}; IdentityCandidateRowsAfter={safetyAfter.IdentityCandidateRows}; " +
                 $"IdentityDecisionRowsBefore={safetyBefore.IdentityDecisionRows}; IdentityDecisionRowsAfter={safetyAfter.IdentityDecisionRows}; " +
@@ -153,7 +157,7 @@ public sealed class FacultyAuthorIdentityResolutionPreviewJob
 
             await _repository.CompleteRunAsync(
                 previewRunId,
-                sourceRows.Max(row => row.SourceWorkCount),
+                selectedWorkCount,
                 candidates.Count,
                 strongCandidates,
                 exactOrcidCandidates,
