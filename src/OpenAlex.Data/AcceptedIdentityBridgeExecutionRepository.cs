@@ -149,6 +149,7 @@ IF NOT EXISTS
 )
 BEGIN
     RAISERROR('The selected PATCH017B4 preview run is not completed for the requested faculty.', 16, 1);
+    RETURN;
 END;
 
 DECLARE @SelectedPreview TABLE
@@ -191,6 +192,7 @@ ORDER BY i.AcceptedIdentityBridgePreviewItemId;
 IF NOT EXISTS (SELECT 1 FROM @SelectedPreview)
 BEGIN
     RAISERROR('The selected PATCH017B4 preview run contains no identities for execution.', 16, 1);
+    RETURN;
 END;
 
 IF EXISTS
@@ -208,6 +210,7 @@ IF EXISTS
 )
 BEGIN
     RAISERROR('One or more selected preview identities are blocked. Run a new PATCH017B4 preview after resolving the warnings.', 16, 1);
+    RETURN;
 END;
 
 DECLARE @Source TABLE
@@ -315,6 +318,7 @@ OUTER APPLY
 IF (SELECT COUNT(*) FROM @Source) <> (SELECT COUNT(*) FROM @SelectedPreview)
 BEGIN
     RAISERROR('Accepted identity decisions changed after the PATCH017B4 preview. Run a new preview before execution.', 16, 1);
+    RETURN;
 END;
 
 UPDATE c
