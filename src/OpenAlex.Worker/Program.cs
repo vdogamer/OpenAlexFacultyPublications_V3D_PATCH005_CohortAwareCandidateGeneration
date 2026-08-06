@@ -17,6 +17,7 @@ builder.Services.Configure<AcademicOnlineWorkBackfillOptions>(builder.Configurat
 builder.Services.Configure<FacultyPublicationCandidatePreviewOptions>(builder.Configuration.GetSection("FacultyPublicationCandidatePreview"));
 builder.Services.Configure<FacultyAuthorIdentityResolutionPreviewOptions>(builder.Configuration.GetSection("FacultyAuthorIdentityResolutionPreview"));
 builder.Services.Configure<AcceptedIdentityBridgePreviewOptions>(builder.Configuration.GetSection("AcceptedIdentityBridgePreview"));
+builder.Services.Configure<AcceptedIdentityBridgeExecutionOptions>(builder.Configuration.GetSection("AcceptedIdentityBridgeExecution"));
 builder.Services.Configure<PipelineOrchestrationOptions>(builder.Configuration.GetSection("Pipeline"));
 builder.Services.Configure<QueuedJobProcessorOptions>(builder.Configuration.GetSection("QueuedJobProcessor"));
 
@@ -40,6 +41,7 @@ builder.Services.AddScoped<AcademicOnlineWorkBackfillJob>();
 builder.Services.AddScoped<FacultyPublicationCandidatePreviewJob>();
 builder.Services.AddScoped<FacultyAuthorIdentityResolutionPreviewJob>();
 builder.Services.AddScoped<AcceptedIdentityBridgePreviewJob>();
+builder.Services.AddScoped<AcceptedIdentityBridgeExecutionJob>();
 builder.Services.AddScoped<PipelineOrchestrationJob>();
 builder.Services.AddScoped<QueuedJobRequestProcessorJob>();
 
