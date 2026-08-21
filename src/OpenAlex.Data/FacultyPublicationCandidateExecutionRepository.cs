@@ -163,12 +163,12 @@ WHERE FacultyPublicationCandidateExecutionRunId = @ExecutionRunId
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
         try
         {
             await using var command = connection.CreateCommand();
-            command.Transaction = (SqlTransaction)transaction;
+            command.Transaction = transaction;
             command.CommandText = @"
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -202,6 +202,15 @@ BEGIN
     RETURN;
 END;
 
+DECLARE @CandidateRowsAtTransactionStart INT =
+(
+    SELECT COUNT(*) FROM openalex.FacultyPublicationCandidate WITH (HOLDLOCK)
+);
+DECLARE @DecisionRowsAtTransactionStart INT =
+(
+    SELECT COUNT(*) FROM openalex.FacultyPublicationDecision WITH (HOLDLOCK)
+);
+
 DECLARE @Selected TABLE
 (
     SourcePreviewItemId BIGINT NOT NULL PRIMARY KEY,
@@ -209,6 +218,7 @@ DECLARE @Selected TABLE
     FacultyDisplayName NVARCHAR(512) NOT NULL,
     FacultyAuthorMatchDecisionId BIGINT NOT NULL,
     SelectedAuthorOpenAlexId VARCHAR(64) NOT NULL,
+    SelectedAuthorDisplayName NVARCHAR(512) NULL,
     SelectedAuthorOrcid NVARCHAR(256) NULL,
     WorkAuthorshipId BIGINT NOT NULL,
     WorkId BIGINT NOT NULL,
@@ -221,6 +231,7 @@ DECLARE @Selected TABLE
     WorkType VARCHAR(100) NULL,
     ProposedMatchScore DECIMAL(9,4) NOT NULL,
     EvidenceSummary NVARCHAR(MAX) NULL,
+    EvidenceJson NVARCHAR(MAX) NULL,
     CandidateIdBefore BIGINT NULL,
     CandidateIdAfter BIGINT NULL
 );
@@ -232,6 +243,7 @@ INSERT INTO @Selected
     FacultyDisplayName,
     FacultyAuthorMatchDecisionId,
     SelectedAuthorOpenAlexId,
+    SelectedAuthorDisplayName,
     SelectedAuthorOrcid,
     WorkAuthorshipId,
     WorkId,
@@ -244,6 +256,7 @@ INSERT INTO @Selected
     WorkType,
     ProposedMatchScore,
     EvidenceSummary,
+    EvidenceJson,
     CandidateIdBefore
 )
 SELECT TOP (@MaxCandidates)
@@ -252,6 +265,7 @@ SELECT TOP (@MaxCandidates)
     p.FacultyDisplayName,
     p.FacultyAuthorMatchDecisionId,
     p.AuthorOpenAlexId,
+    p.AuthorDisplayName,
     p.AuthorOrcid,
     p.WorkAuthorshipId,
     p.WorkId,
@@ -264,6 +278,7 @@ SELECT TOP (@MaxCandidates)
     p.WorkType,
     p.ProposedMatchScore,
     p.EvidenceSummary,
+    p.EvidenceJson,
     ExistingCandidateId =
     (
         SELECT TOP (1) pc.FacultyPublicationCandidateId
@@ -339,38 +354,46 @@ END;
 INSERT INTO openalex.FacultyPublicationCandidate
 (
     FacultyId,
-    FacultyAuthorMatchDecisionId,
     WorkId,
     WorkOpenAlexId,
     WorkOpenAlexShortId,
-    Doi,
-    Title,
+    WorkTitle,
+    WorkDoi,
     PublicationYear,
     PublicationDate,
     WorkType,
+    FacultyAuthorMatchDecisionId,
+    AuthorOpenAlexId,
+    AuthorDisplayName,
+    AuthorOrcid,
     CandidateSource,
     CandidateStatus,
     MatchScore,
     EvidenceSummary,
+    EvidenceJson,
     IngestionRunId,
     CreatedAtUtc,
     UpdatedAtUtc
 )
 SELECT
     s.FacultyId,
-    s.FacultyAuthorMatchDecisionId,
     s.WorkId,
     s.WorkOpenAlexId,
     s.WorkOpenAlexShortId,
-    s.WorkDoi,
     s.WorkTitle,
+    s.WorkDoi,
     s.PublicationYear,
     s.PublicationDate,
     s.WorkType,
+    s.FacultyAuthorMatchDecisionId,
+    s.SelectedAuthorOpenAlexId,
+    s.SelectedAuthorDisplayName,
+    s.SelectedAuthorOrcid,
     'AcceptedAuthorMatch',
     'PendingReview',
     s.ProposedMatchScore,
     'PATCH017B7 controlled execution from PATCH017B6 preview run ' + CONVERT(NVARCHAR(30), @PreviewRunId) + '. ' + ISNULL(s.EvidenceSummary, ''),
+    s.EvidenceJson,
     @IngestionRunId,
     SYSUTCDATETIME(),
     SYSUTCDATETIME()
@@ -380,9 +403,7 @@ WHERE s.CandidateIdBefore IS NULL;
 DECLARE @CandidateRowsInserted INT = @@ROWCOUNT;
 
 UPDATE s
-SET CandidateIdAfter = pc.FacultyPublicationCandidateId
-FROM @Selected s
-OUTER APPLY
+SET CandidateIdAfter =
 (
     SELECT TOP (1) c.FacultyPublicationCandidateId
     FROM openalex.FacultyPublicationCandidate c
@@ -390,7 +411,8 @@ OUTER APPLY
       AND c.WorkId = s.WorkId
       AND c.CandidateSource = 'AcceptedAuthorMatch'
     ORDER BY c.FacultyPublicationCandidateId
-) pc;
+)
+FROM @Selected s;
 
 IF EXISTS (SELECT 1 FROM @Selected WHERE CandidateIdAfter IS NULL)
 BEGIN
@@ -439,6 +461,21 @@ SELECT
 FROM @Selected s;
 
 DECLARE @CandidatesAlreadyExist INT = @SelectedCandidateCount - @CandidateRowsInserted;
+DECLARE @CandidateRowsAtTransactionEnd INT =
+(
+    SELECT COUNT(*) FROM openalex.FacultyPublicationCandidate
+);
+DECLARE @DecisionRowsAtTransactionEnd INT =
+(
+    SELECT COUNT(*) FROM openalex.FacultyPublicationDecision
+);
+
+IF @CandidateRowsAtTransactionEnd <> @CandidateRowsAtTransactionStart + @CandidateRowsInserted
+   OR @DecisionRowsAtTransactionEnd <> @DecisionRowsAtTransactionStart
+BEGIN
+    RAISERROR('PATCH017B7 safety verification failed inside the transaction. Candidate or publication-decision counts changed unexpectedly; the transaction will be rolled back.', 16, 1);
+    RETURN;
+END;
 
 SELECT
     @SelectedCandidateCount AS SelectedCandidateCount,
