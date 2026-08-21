@@ -10,6 +10,8 @@ Safety boundary:
   - Requires one explicit completed PATCH017B4 preview run.
   - Does not create faculty-publication candidates.
   - Does not alter faculty-publication decisions.
+  - Preserves legacy author-match constraint values while adding the provenance
+    values required by the existing accepted-identity bridge implementation.
 */
 
 SET NOCOUNT ON;
@@ -18,6 +20,107 @@ IF OBJECT_ID(N'openalex.AcceptedIdentityBridgePreviewRun', N'U') IS NULL
 BEGIN
     RAISERROR('Missing PATCH017B4 preview tables. Run sql/378_V3E_PATCH017B4_AcceptedIdentityBridgePreview_SQL2016.sql first.', 16, 1);
     RETURN;
+END;
+
+IF OBJECT_ID(N'openalex.FacultyAuthorMatchCandidate', N'U') IS NULL
+BEGIN
+    RAISERROR('Missing openalex.FacultyAuthorMatchCandidate. Run the author review schema first.', 16, 1);
+    RETURN;
+END;
+
+IF OBJECT_ID(N'openalex.FacultyAuthorMatchDecision', N'U') IS NULL
+BEGIN
+    RAISERROR('Missing openalex.FacultyAuthorMatchDecision. Run the author review schema first.', 16, 1);
+    RETURN;
+END;
+
+/*
+PATCH017B5 compatibility upgrade.
+
+The bridge code has long used the provenance values below, but older databases may
+still have check constraints created before those values existed. Rather than
+replace the legacy allowed-value list, preserve each existing constraint definition
+and OR in only the new bridge value.
+*/
+DECLARE @ConstraintName SYSNAME;
+DECLARE @ConstraintDefinition NVARCHAR(MAX);
+DECLARE @Sql NVARCHAR(MAX);
+
+SET @ConstraintName = N'CK_FacultyAuthorMatchCandidate_CandidateSource';
+SELECT @ConstraintDefinition = cc.definition
+FROM sys.check_constraints cc
+WHERE cc.parent_object_id = OBJECT_ID(N'openalex.FacultyAuthorMatchCandidate', N'U')
+  AND cc.name = @ConstraintName;
+
+IF @ConstraintDefinition IS NULL
+BEGIN
+    RAISERROR('Missing CK_FacultyAuthorMatchCandidate_CandidateSource. Refusing PATCH017B5 compatibility upgrade because the legacy constraint could not be preserved.', 16, 1);
+    RETURN;
+END;
+
+IF CHARINDEX(N'AcceptedIdentityDecision', @ConstraintDefinition) = 0
+BEGIN
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchCandidate DROP CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @Sql;
+
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchCandidate WITH CHECK ADD CONSTRAINT ' + QUOTENAME(@ConstraintName) +
+        N' CHECK (' + @ConstraintDefinition + N' OR [CandidateSource] = ''AcceptedIdentityDecision'');';
+    EXEC sp_executesql @Sql;
+
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchCandidate CHECK CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @Sql;
+END;
+
+SET @ConstraintName = N'CK_FacultyAuthorMatchDecision_DecisionReason';
+SET @ConstraintDefinition = NULL;
+SELECT @ConstraintDefinition = cc.definition
+FROM sys.check_constraints cc
+WHERE cc.parent_object_id = OBJECT_ID(N'openalex.FacultyAuthorMatchDecision', N'U')
+  AND cc.name = @ConstraintName;
+
+IF @ConstraintDefinition IS NULL
+BEGIN
+    RAISERROR('Missing CK_FacultyAuthorMatchDecision_DecisionReason. Refusing PATCH017B5 compatibility upgrade because the legacy constraint could not be preserved.', 16, 1);
+    RETURN;
+END;
+
+IF CHARINDEX(N'AcceptedIdentityDecision', @ConstraintDefinition) = 0
+BEGIN
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchDecision DROP CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @Sql;
+
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchDecision WITH CHECK ADD CONSTRAINT ' + QUOTENAME(@ConstraintName) +
+        N' CHECK (' + @ConstraintDefinition + N' OR [DecisionReason] = ''AcceptedIdentityDecision'');';
+    EXEC sp_executesql @Sql;
+
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchDecision CHECK CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @Sql;
+END;
+
+SET @ConstraintName = N'CK_FacultyAuthorMatchDecision_DecisionSource';
+SET @ConstraintDefinition = NULL;
+SELECT @ConstraintDefinition = cc.definition
+FROM sys.check_constraints cc
+WHERE cc.parent_object_id = OBJECT_ID(N'openalex.FacultyAuthorMatchDecision', N'U')
+  AND cc.name = @ConstraintName;
+
+IF @ConstraintDefinition IS NULL
+BEGIN
+    RAISERROR('Missing CK_FacultyAuthorMatchDecision_DecisionSource. Refusing PATCH017B5 compatibility upgrade because the legacy constraint could not be preserved.', 16, 1);
+    RETURN;
+END;
+
+IF CHARINDEX(N'IdentityReviewBridge', @ConstraintDefinition) = 0
+BEGIN
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchDecision DROP CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @Sql;
+
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchDecision WITH CHECK ADD CONSTRAINT ' + QUOTENAME(@ConstraintName) +
+        N' CHECK (' + @ConstraintDefinition + N' OR [DecisionSource] = ''IdentityReviewBridge'');';
+    EXEC sp_executesql @Sql;
+
+    SET @Sql = N'ALTER TABLE openalex.FacultyAuthorMatchDecision CHECK CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @Sql;
 END;
 
 IF OBJECT_ID(N'openalex.AcceptedIdentityBridgeExecutionRun', N'U') IS NULL
@@ -131,4 +234,28 @@ END;
 
 SELECT
     ExecutionRunObjectId = OBJECT_ID(N'openalex.AcceptedIdentityBridgeExecutionRun', N'U'),
-    ExecutionItemObjectId = OBJECT_ID(N'openalex.AcceptedIdentityBridgeExecutionItem', N'U');
+    ExecutionItemObjectId = OBJECT_ID(N'openalex.AcceptedIdentityBridgeExecutionItem', N'U'),
+    CandidateSourceAllowsAcceptedIdentityDecision = CASE WHEN EXISTS
+    (
+        SELECT 1
+        FROM sys.check_constraints
+        WHERE parent_object_id = OBJECT_ID(N'openalex.FacultyAuthorMatchCandidate', N'U')
+          AND name = N'CK_FacultyAuthorMatchCandidate_CandidateSource'
+          AND CHARINDEX(N'AcceptedIdentityDecision', definition) > 0
+    ) THEN 1 ELSE 0 END,
+    DecisionReasonAllowsAcceptedIdentityDecision = CASE WHEN EXISTS
+    (
+        SELECT 1
+        FROM sys.check_constraints
+        WHERE parent_object_id = OBJECT_ID(N'openalex.FacultyAuthorMatchDecision', N'U')
+          AND name = N'CK_FacultyAuthorMatchDecision_DecisionReason'
+          AND CHARINDEX(N'AcceptedIdentityDecision', definition) > 0
+    ) THEN 1 ELSE 0 END,
+    DecisionSourceAllowsIdentityReviewBridge = CASE WHEN EXISTS
+    (
+        SELECT 1
+        FROM sys.check_constraints
+        WHERE parent_object_id = OBJECT_ID(N'openalex.FacultyAuthorMatchDecision', N'U')
+          AND name = N'CK_FacultyAuthorMatchDecision_DecisionSource'
+          AND CHARINDEX(N'IdentityReviewBridge', definition) > 0
+    ) THEN 1 ELSE 0 END;
