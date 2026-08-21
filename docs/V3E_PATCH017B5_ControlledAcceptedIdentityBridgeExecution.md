@@ -5,7 +5,7 @@
 Execute the bridge that converts the explicitly selected, currently accepted identity decisions from one completed PATCH017B4 preview run into:
 
 - `openalex.FacultyAuthorMatchCandidate` rows with `CandidateSource = AcceptedIdentityDecision`;
-- current accepted `openalex.FacultyAuthorMatchDecision` rows with `DecisionSource = IdentityReviewBridge`.
+- current accepted `openalex.FacultyAuthorMatchDecision` rows with `DecisionReason = AcceptedIdentityDecision` and `DecisionSource = IdentityReviewBridge`.
 
 PATCH017B5 does not generate faculty-publication candidates and does not alter faculty-publication decisions.
 
@@ -22,6 +22,18 @@ The worker requires all of the following:
 - the exact identity summary selected during PATCH017B4 must still exist.
 
 If identity review changes after the preview, the transaction stops and rolls back. Run PATCH017B4 again before retrying.
+
+## Author-review schema compatibility
+
+Older author-review schemas can predate the accepted-identity bridge provenance values and reject them through check constraints. The PATCH017B5 setup script preserves each legacy constraint definition and adds only the values already used by the bridge implementation:
+
+```text
+FacultyAuthorMatchCandidate.CandidateSource = AcceptedIdentityDecision
+FacultyAuthorMatchDecision.DecisionReason   = AcceptedIdentityDecision
+FacultyAuthorMatchDecision.DecisionSource   = IdentityReviewBridge
+```
+
+The setup script is idempotent. Existing allowed values are retained, current data are revalidated with `WITH CHECK`, and rerunning the script after upgrading an existing PATCH017B5 installation is supported.
 
 ## Audit lineage
 
@@ -41,6 +53,8 @@ Run in order:
 sql/380_V3E_PATCH017B5_AcceptedIdentityBridgeExecution_SQL2016.sql
 sql/381_V3E_PATCH017B5_AcceptedIdentityBridgeExecution_Diagnostics_SQL2016.sql
 ```
+
+If PATCH017B5 was installed before the constraint-compatibility fix, pull the latest branch and rerun `380`; no execution-history cleanup is required.
 
 ## Find the completed PATCH017B4 preview run
 
