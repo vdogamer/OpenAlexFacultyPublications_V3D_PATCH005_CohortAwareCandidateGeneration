@@ -41,7 +41,7 @@ public sealed class FacultyPublicationCandidatePreviewJob
         await _logger.LogInfoAsync(
             "FacultyPublicationCandidatePreview",
             "RunStarted",
-            $"Started PATCH017B2 candidate preview run {previewRunId}. SourceWorkBackfillRunId={sourceRunId}; FacultyId={_options.FacultyId}; MaxWorks={maxWorks}.",
+            $"Started PATCH017B6 split-identity-aware candidate preview run {previewRunId}. SourceWorkBackfillRunId={sourceRunId}; FacultyId={_options.FacultyId}; MaxWorks={maxWorks}.",
             cancellationToken: cancellationToken);
 
         try
@@ -61,6 +61,8 @@ public sealed class FacultyPublicationCandidatePreviewJob
                 row.EvidenceSummary = BuildEvidenceSummary(row);
                 row.EvidenceJson = JsonSerializer.Serialize(new
                 {
+                    Patch = "PATCH017B6",
+                    SplitIdentityAware = true,
                     row.SourceWorkBackfillRunId,
                     row.SourceBackfillItemId,
                     row.FacultyId,
@@ -68,12 +70,12 @@ public sealed class FacultyPublicationCandidatePreviewJob
                     row.WorkId,
                     row.WorkOpenAlexId,
                     row.WorkTitle,
-                    row.AcceptedDecisionCount,
+                    AcceptedFacultyIdentityCount = row.AcceptedDecisionCount,
                     row.FacultyAuthorMatchDecisionId,
-                    row.AuthorOpenAlexId,
-                    row.AuthorDisplayName,
-                    row.AuthorOrcid,
-                    AcceptedAuthorAppearsOnWork = row.WorkAuthorshipId.HasValue,
+                    SelectedAcceptedAuthorOpenAlexId = row.AuthorOpenAlexId,
+                    SelectedAcceptedAuthorDisplayName = row.AuthorDisplayName,
+                    SelectedAcceptedAuthorOrcid = row.AuthorOrcid,
+                    SelectedAcceptedAuthorAppearsOnWork = row.WorkAuthorshipId.HasValue,
                     row.WorkAuthorshipId,
                     row.OrdinalPosition,
                     row.IsCorresponding,
@@ -104,12 +106,12 @@ public sealed class FacultyPublicationCandidatePreviewJob
                 safetyBefore.DecisionRows == safetyAfter.DecisionRows;
 
             var summary =
-                $"PATCH017B2 candidate preview completed. SourceWorkBackfillRunId={sourceRunId}; FacultyId={_options.FacultyId}; " +
+                $"PATCH017B6 split-identity-aware candidate preview completed. SourceWorkBackfillRunId={sourceRunId}; FacultyId={_options.FacultyId}; " +
                 $"Selected={rows.Count}; ReadyToGenerate={ready}; ExistingCandidate={existing}; NoAcceptedAuthorDecision={noDecision}; " +
                 $"MultipleAcceptedAuthorDecisions={multipleDecisions}; AcceptedAuthorNotOnWork={authorNotOnWork}; " +
                 $"CandidateRowsBefore={safetyBefore.CandidateRows}; CandidateRowsAfter={safetyAfter.CandidateRows}; " +
                 $"DecisionRowsBefore={safetyBefore.DecisionRows}; DecisionRowsAfter={safetyAfter.DecisionRows}; " +
-                $"CandidateAndDecisionSafetyUnchanged={safetyUnchanged}. No candidate-generation or decision-write method was invoked.";
+                $"CandidateAndDecisionSafetyUnchanged={safetyUnchanged}. Multiple accepted faculty identities are allowed when the selected accepted identity appears on the specific work. No candidate-generation or decision-write method was invoked.";
 
             await _repository.CompleteRunAsync(
                 previewRunId,
@@ -135,7 +137,7 @@ public sealed class FacultyPublicationCandidatePreviewJob
             await _logger.LogErrorAsync(
                 "FacultyPublicationCandidatePreview",
                 "RunFailed",
-                $"PATCH017B2 candidate preview run {previewRunId} failed.",
+                $"PATCH017B6 split-identity-aware candidate preview run {previewRunId} failed.",
                 ex,
                 cancellationToken: CancellationToken.None);
             throw;
@@ -154,17 +156,17 @@ public sealed class FacultyPublicationCandidatePreviewJob
             return "NoAcceptedAuthorDecision";
         }
 
-        if (row.AcceptedDecisionCount > 1)
+        // PATCH017B6: A faculty member may legitimately have multiple accepted OpenAlex
+        // identities. The repository preferentially selects an accepted identity that
+        // appears on the specific work. Once that authorship is verified, the publication
+        // is eligible for generation regardless of how many accepted identities the
+        // faculty member has overall.
+        if (row.WorkAuthorshipId.HasValue)
         {
-            return "MultipleAcceptedAuthorDecisions";
+            return "ReadyToGenerate";
         }
 
-        if (!row.WorkAuthorshipId.HasValue)
-        {
-            return "AcceptedAuthorNotOnWork";
-        }
-
-        return "ReadyToGenerate";
+        return "AcceptedAuthorNotOnWork";
     }
 
     private static decimal ComputePublicationScore(FacultyPublicationCandidatePreviewSourceRow row)
@@ -184,12 +186,14 @@ public sealed class FacultyPublicationCandidatePreviewJob
     private static string BuildEvidenceSummary(FacultyPublicationCandidatePreviewSourceRow row)
     {
         return
-            $"PATCH017B2 preview only: Faculty '{row.FacultyDisplayName}' ({row.FacultyId}); " +
-            $"accepted author '{row.AuthorDisplayName ?? "(none)"}' ({row.AuthorOpenAlexId ?? "(none)"}); " +
-            $"work '{row.WorkTitle ?? row.WorkOpenAlexId}'; AcceptedDecisionCount={row.AcceptedDecisionCount}; " +
-            $"AcceptedAuthorAppearsOnWork={row.WorkAuthorshipId.HasValue}; IsCorresponding={row.IsCorresponding}; " +
-            $"AuthorshipInstitutionCount={row.AuthorshipInstitutionCount}; MatchingInstitutionCount={row.MatchingInstitutionCount}; " +
-            $"ExistingCandidateId={(row.ExistingCandidateId?.ToString() ?? "(none)")}; ProposedMatchScore={row.ProposedMatchScore}; " +
-            $"PreviewStatus={row.PreviewStatus}. No FacultyPublicationCandidate row was inserted or updated.";
+            $"PATCH017B6 split-identity-aware preview only: Faculty '{row.FacultyDisplayName}' ({row.FacultyId}); " +
+            $"AcceptedFacultyIdentityCount={row.AcceptedDecisionCount}; selected accepted author " +
+            $"'{row.AuthorDisplayName ?? "(none)"}' ({row.AuthorOpenAlexId ?? "(none)"}); " +
+            $"work '{row.WorkTitle ?? row.WorkOpenAlexId}'; SelectedAcceptedAuthorAppearsOnWork={row.WorkAuthorshipId.HasValue}; " +
+            $"IsCorresponding={row.IsCorresponding}; AuthorshipInstitutionCount={row.AuthorshipInstitutionCount}; " +
+            $"MatchingInstitutionCount={row.MatchingInstitutionCount}; ExistingCandidateId={(row.ExistingCandidateId?.ToString() ?? "(none)")}; " +
+            $"ProposedMatchScore={row.ProposedMatchScore}; PreviewStatus={row.PreviewStatus}. " +
+            $"Multiple accepted faculty identities are not treated as a conflict when one accepted identity is verified on this work. " +
+            $"No FacultyPublicationCandidate row was inserted or updated.";
     }
 }
