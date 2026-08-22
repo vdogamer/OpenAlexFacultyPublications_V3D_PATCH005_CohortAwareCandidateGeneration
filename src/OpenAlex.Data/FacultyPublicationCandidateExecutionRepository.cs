@@ -489,19 +489,22 @@ SELECT
             command.Parameters.AddWithValue("@MaxCandidates", Math.Clamp(maxCandidates, 1, 5));
             command.Parameters.AddWithValue("@IngestionRunId", ingestionRunId);
 
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            if (!await reader.ReadAsync(cancellationToken))
+            FacultyPublicationCandidateExecutionResult result;
+            await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             {
-                throw new InvalidOperationException("PATCH017B7 execution did not return a result row.");
-            }
+                if (!await reader.ReadAsync(cancellationToken))
+                {
+                    throw new InvalidOperationException("PATCH017B7 execution did not return a result row.");
+                }
 
-            var result = new FacultyPublicationCandidateExecutionResult
-            {
-                SelectedCandidateCount = reader.GetInt32(reader.GetOrdinal("SelectedCandidateCount")),
-                CandidateRowsInserted = reader.GetInt32(reader.GetOrdinal("CandidateRowsInserted")),
-                CandidatesAlreadyExist = reader.GetInt32(reader.GetOrdinal("CandidatesAlreadyExist")),
-                ValidationFailureCount = reader.GetInt32(reader.GetOrdinal("ValidationFailureCount"))
-            };
+                result = new FacultyPublicationCandidateExecutionResult
+                {
+                    SelectedCandidateCount = reader.GetInt32(reader.GetOrdinal("SelectedCandidateCount")),
+                    CandidateRowsInserted = reader.GetInt32(reader.GetOrdinal("CandidateRowsInserted")),
+                    CandidatesAlreadyExist = reader.GetInt32(reader.GetOrdinal("CandidatesAlreadyExist")),
+                    ValidationFailureCount = reader.GetInt32(reader.GetOrdinal("ValidationFailureCount"))
+                };
+            }
 
             await transaction.CommitAsync(cancellationToken);
             return result;
