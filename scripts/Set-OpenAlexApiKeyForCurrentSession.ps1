@@ -1,0 +1,21 @@
+$secureApiKey = Read-Host "Paste the rotated OpenAlex API key" -AsSecureString
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey)
+
+try {
+    $plainApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+
+    if ([string]::IsNullOrWhiteSpace($plainApiKey)) {
+        throw "OpenAlex API key was empty. Environment variable was not changed."
+    }
+
+    $env:OpenAlex__ApiKey = $plainApiKey
+    Write-Host "OpenAlex__ApiKey is set for this PowerShell session. The key was not printed or written to the repository."
+}
+finally {
+    if ($bstr -ne [IntPtr]::Zero) {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
+
+    $plainApiKey = $null
+    $secureApiKey = $null
+}
