@@ -9,6 +9,11 @@ using OpenAlex.Web.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// PATCH017B8A security hardening: suppress informational HttpClient request URI
+// logging for the OpenAlex client because the API credential is query-string based.
+builder.Logging.AddFilter("System.Net.Http.HttpClient.OpenAlexApiClient.LogicalHandler", LogLevel.Warning);
+builder.Logging.AddFilter("System.Net.Http.HttpClient.OpenAlexApiClient.ClientHandler", LogLevel.Warning);
+
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Review", "ReviewerPolicy");
