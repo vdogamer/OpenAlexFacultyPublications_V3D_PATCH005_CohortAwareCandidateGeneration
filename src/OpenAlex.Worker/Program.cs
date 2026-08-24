@@ -6,6 +6,12 @@ using OpenAlex.Worker.Jobs;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+// PATCH017B8A security hardening: the default HttpClient logging pipeline includes
+// the full request URI. OpenAlex API keys are query-string credentials, so suppress
+// informational request/response URI logging for this named client.
+builder.Logging.AddFilter("System.Net.Http.HttpClient.OpenAlexApiClient.LogicalHandler", LogLevel.Warning);
+builder.Logging.AddFilter("System.Net.Http.HttpClient.OpenAlexApiClient.ClientHandler", LogLevel.Warning);
+
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 builder.Services.Configure<InstitutionIngestionOptions>(builder.Configuration.GetSection("InstitutionIngestion"));
 builder.Services.Configure<AuthorIngestionOptions>(builder.Configuration.GetSection("AuthorIngestion"));
