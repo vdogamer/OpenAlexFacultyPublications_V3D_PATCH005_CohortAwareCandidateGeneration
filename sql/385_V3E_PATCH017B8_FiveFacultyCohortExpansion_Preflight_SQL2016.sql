@@ -11,14 +11,15 @@ faculty, cohort, identity, publication-candidate, or publication-decision rows.
 Selection policy
 ----------------
 1. Exclude the proven anchor FacultyId 16.
-2. Prefer active faculty in the same department as FacultyId 16.
-3. Prefer faculty who are not already enabled in an existing PilotFacultyCohort.
-4. Prefer a fresh identity pipeline (no current accepted author decision yet).
-5. Prefer stronger deterministic identity seeds (ORCID + claimed OpenAlex ID,
+2. Exclude known smoke-test/demo faculty rows from production cohort selection.
+3. Prefer active faculty in the same department as FacultyId 16.
+4. Prefer faculty who are not already enabled in an existing PilotFacultyCohort.
+5. Prefer a fresh identity pipeline (no current accepted author decision yet).
+6. Prefer stronger deterministic identity seeds (ORCID + claimed OpenAlex ID,
    then ORCID, then claimed OpenAlex ID, then name-only).
-6. Prefer faculty without an already-accepted publication decision so that the
+7. Prefer faculty without an already-accepted publication decision so that the
    next cohort exercises the full review path.
-7. Return a deterministic suggested five-person cohort and a wider candidate
+8. Return a deterministic suggested five-person cohort and a wider candidate
    pool for inspection before any cohort registration is performed.
 */
 
@@ -196,9 +197,13 @@ OUTER APPLY
       AND d.IsCurrent = 1
 ) pd
 WHERE f.IsActive = 1
-  AND f.FacultyId <> @AnchorFacultyId;
+  AND f.FacultyId <> @AnchorFacultyId
+  -- Known local smoke-test/demo fixtures must never be proposed for a real pilot cohort.
+  AND LOWER(LTRIM(RTRIM(f.DisplayName))) NOT IN (N'test faculty member', N'replace me faculty')
+  AND ISNULL(LOWER(LTRIM(RTRIM(f.DepartmentName))), N'') NOT IN (N'test department', N'smoke test department')
+  AND ISNULL(LOWER(LTRIM(RTRIM(f.AppointmentTitle))), N'') <> N'test faculty';
 
-PRINT '3) Wider PATCH017B8 candidate pool (top 20)';
+PRINT '3) Wider PATCH017B8 candidate pool (top 20, test fixtures excluded)';
 ;WITH Ranked AS
 (
     SELECT
@@ -302,7 +307,7 @@ SELECT
                 THEN 'Same department; fresh identity path'
             WHEN IsSameDepartment = 1
                 THEN 'Same department; existing identity history may be reused/revalidated'
-            ELSE 'Fallback outside anchor department because fewer higher-priority candidates were available'
+            ELSE 'Strongest eligible real-faculty fallback outside anchor department; no same-department candidates available'
         END
 FROM Suggested
 ORDER BY PilotOrder;
@@ -311,7 +316,20 @@ PRINT '5) Preflight summary';
 SELECT
     AnchorFacultyId = @AnchorFacultyId,
     AnchorDepartmentName = @AnchorDepartmentName,
-    ActiveFacultyOutsideAnchor = (SELECT COUNT(*) FROM #FacultyReadiness),
+    ActiveEligibleFacultyOutsideAnchor = (SELECT COUNT(*) FROM #FacultyReadiness),
+    KnownFixtureRowsExcluded =
+    (
+        SELECT COUNT(*)
+        FROM openalex.Faculty f
+        WHERE f.IsActive = 1
+          AND f.FacultyId <> @AnchorFacultyId
+          AND
+          (
+              LOWER(LTRIM(RTRIM(f.DisplayName))) IN (N'test faculty member', N'replace me faculty')
+              OR ISNULL(LOWER(LTRIM(RTRIM(f.DepartmentName))), N'') IN (N'test department', N'smoke test department')
+              OR ISNULL(LOWER(LTRIM(RTRIM(f.AppointmentTitle))), N'') = N'test faculty'
+          )
+    ),
     SameDepartmentCandidates = (SELECT COUNT(*) FROM #FacultyReadiness WHERE IsSameDepartment = 1),
     SameDepartmentFreshIdentityCandidates = (SELECT COUNT(*) FROM #FacultyReadiness WHERE IsSameDepartment = 1 AND FreshIdentityPipeline = 1),
     StrongSeedCandidates = (SELECT COUNT(*) FROM #FacultyReadiness WHERE IdentitySeedTier >= 3),
