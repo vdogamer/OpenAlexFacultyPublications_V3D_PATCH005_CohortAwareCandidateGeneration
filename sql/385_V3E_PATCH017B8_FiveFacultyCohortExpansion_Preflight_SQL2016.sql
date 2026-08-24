@@ -25,6 +25,10 @@ Selection policy
 
 SET NOCOUNT ON;
 
+-- Rerun safety for the current SSMS session.
+IF OBJECT_ID('tempdb..#EnabledPilotFaculty') IS NOT NULL DROP TABLE #EnabledPilotFaculty;
+IF OBJECT_ID('tempdb..#FacultyReadiness') IS NOT NULL DROP TABLE #FacultyReadiness;
+
 DECLARE @AnchorFacultyId BIGINT = 16;
 DECLARE @TargetCohortSize INT = 5;
 DECLARE @AnchorDepartmentName NVARCHAR(512);
@@ -198,7 +202,6 @@ OUTER APPLY
 ) pd
 WHERE f.IsActive = 1
   AND f.FacultyId <> @AnchorFacultyId
-  -- Known local smoke-test/demo fixtures must never be proposed for a real pilot cohort.
   AND LOWER(LTRIM(RTRIM(f.DisplayName))) NOT IN (N'test faculty member', N'replace me faculty')
   AND ISNULL(LOWER(LTRIM(RTRIM(f.DepartmentName))), N'') NOT IN (N'test department', N'smoke test department')
   AND ISNULL(LOWER(LTRIM(RTRIM(f.AppointmentTitle))), N'') <> N'test faculty';
@@ -336,3 +339,7 @@ SELECT
     TargetCohortSize = @TargetCohortSize,
     SafetyStatus = 'PreviewOnly_NoCohortOrMatchingDataChanged',
     NextAction = 'ReviewSuggestedFiveThenRegisterControlledPilotCohort';
+
+-- Clean up temp objects so the script can be rerun in the same SSMS session.
+DROP TABLE #FacultyReadiness;
+DROP TABLE #EnabledPilotFaculty;
