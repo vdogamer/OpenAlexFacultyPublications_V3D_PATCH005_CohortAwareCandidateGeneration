@@ -90,7 +90,7 @@ public sealed class OpenAlexApiClient
 
         return new OpenAlexEntityResponse
         {
-            RequestUri = uri,
+            RequestUri = OpenAlexRequestUriRedactor.Redact(uri),
             HttpStatusCode = (int)response.StatusCode,
             IsSuccessStatusCode = response.IsSuccessStatusCode,
             ResponseContentLength = responseContentLength,
@@ -176,7 +176,7 @@ public sealed class OpenAlexApiClient
 
         return new OpenAlexCursorPage
         {
-            RequestUri = uri,
+            RequestUri = OpenAlexRequestUriRedactor.Redact(uri),
             HttpStatusCode = (int)response.StatusCode,
             ResponseContentLength = responseContentLength,
             NextCursor = GetString(meta, "next_cursor"),
