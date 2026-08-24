@@ -67,10 +67,11 @@ public sealed class WorkIngestionJob
                 pageNumber++;
 
                 var requestUri = _client.BuildCursorRequestUri("works", filter, cursor);
+                var safeRequestUri = OpenAlexRequestUriRedactor.Redact(requestUri);
                 var requestLogId = await _repository.StartRequestLogAsync(
                     run.IngestionRunId,
-                    requestUri,
-                    MaskMailTo(requestUri),
+                    safeRequestUri,
+                    safeRequestUri,
                     filter,
                     cursor,
                     pageNumber,
@@ -203,28 +204,4 @@ public sealed class WorkIngestionJob
             throw;
         }
     }
-
-
-    private static string MaskMailTo(string requestUri)
-    {
-        return MaskQueryParameter(MaskQueryParameter(requestUri, "api_key"), "mailto");
-    }
-
-    private static string MaskQueryParameter(string requestUri, string parameterName)
-    {
-        var token = parameterName + "=";
-        var index = requestUri.IndexOf(token, StringComparison.OrdinalIgnoreCase);
-
-        if (index < 0)
-        {
-            return requestUri;
-        }
-
-        var nextAmpersand = requestUri.IndexOf('&', index);
-
-        return nextAmpersand < 0
-            ? requestUri[..index] + parameterName + "=masked"
-            : requestUri[..index] + parameterName + "=masked" + requestUri[nextAmpersand..];
-    }
-
 }
