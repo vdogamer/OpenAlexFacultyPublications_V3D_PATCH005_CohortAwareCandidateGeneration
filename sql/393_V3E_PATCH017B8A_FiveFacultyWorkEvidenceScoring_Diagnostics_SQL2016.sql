@@ -8,6 +8,11 @@ Verify the most recent FacultyIdentityWorkEvidenceScoring run for the
 V3E_PATCH017B8_FIVE_FACULTY cohort, inspect work-evidence distributions, and
 confirm that scoring did not create author decisions, publication candidates,
 or publication decisions.
+
+Schema note
+-----------
+AuthorsProcessed, WorksProcessed, and SummaryText are stored in
+openalex.IngestionRunSummary, not openalex.IngestionRun.
 */
 
 SET NOCOUNT ON;
@@ -18,6 +23,12 @@ DECLARE @LatestRunId BIGINT;
 IF OBJECT_ID(N'openalex.FacultyIdentityWorkEvidenceScore', N'U') IS NULL
 BEGIN
     RAISERROR('openalex.FacultyIdentityWorkEvidenceScore does not exist. Run sql/220_V3E_PATCH003_FacultyIdentityWorkEvidenceScore.sql first.', 16, 1);
+    RETURN;
+END;
+
+IF OBJECT_ID(N'openalex.IngestionRunSummary', N'U') IS NULL
+BEGIN
+    RAISERROR('openalex.IngestionRunSummary does not exist.', 16, 1);
     RETURN;
 END;
 
@@ -40,14 +51,20 @@ SELECT
     ir.RunMode,
     ir.Status,
     ir.InstitutionFilter,
-    ir.AuthorsProcessed,
-    ir.WorksProcessed,
-    ir.SummaryText,
+    ir.StartedBy,
+    ir.ApplicationVersion,
     ir.StartedAtUtc,
     ir.FinishedAtUtc,
-    ir.ErrorCount
+    ir.ErrorCount,
+    irs.AuthorsProcessed,
+    irs.WorksProcessed,
+    irs.SummaryText,
+    irs.CreatedAtUtc AS SummaryCreatedAtUtc
 FROM openalex.IngestionRun ir
-WHERE ir.IngestionRunId = @LatestRunId;
+LEFT JOIN openalex.IngestionRunSummary irs
+    ON irs.IngestionRunId = ir.IngestionRunId
+WHERE ir.IngestionRunId = @LatestRunId
+ORDER BY irs.CreatedAtUtc DESC;
 
 PRINT '2) Score counts and evidence distribution by faculty';
 SELECT
