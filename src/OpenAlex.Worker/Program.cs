@@ -27,6 +27,7 @@ builder.Services.Configure<AcceptedIdentityBridgePreviewOptions>(builder.Configu
 builder.Services.Configure<AcceptedIdentityBridgeExecutionOptions>(builder.Configuration.GetSection("AcceptedIdentityBridgeExecution"));
 builder.Services.Configure<AcceptedIdentityCohortBridgeExecutionOptions>(builder.Configuration.GetSection("AcceptedIdentityCohortBridgeExecution"));
 builder.Services.Configure<AcceptedIdentityWorkPromotionOptions>(builder.Configuration.GetSection("AcceptedIdentityWorkPromotion"));
+builder.Services.Configure<FacultyPublicationCohortExecutionOptions>(builder.Configuration.GetSection("FacultyPublicationCohortExecution"));
 builder.Services.Configure<PipelineOrchestrationOptions>(builder.Configuration.GetSection("Pipeline"));
 builder.Services.Configure<QueuedJobProcessorOptions>(builder.Configuration.GetSection("QueuedJobProcessor"));
 
@@ -37,6 +38,7 @@ builder.Services.AddOpenAlexOperationalLogging(builder.Configuration);
 builder.Services.AddScoped<FacultyPublicationCandidateExecutionRepository>();
 builder.Services.AddScoped<AcceptedIdentityCohortBridgeExecutionRepository>();
 builder.Services.AddScoped<AcceptedIdentityWorkPromotionRepository>();
+builder.Services.AddScoped<FacultyPublicationCohortExecutionRepository>();
 
 builder.Services.AddScoped<InstitutionIngestionPreviewJob>();
 builder.Services.AddScoped<InstitutionIngestionJob>();
@@ -58,6 +60,7 @@ builder.Services.AddScoped<AcceptedIdentityBridgePreviewJob>();
 builder.Services.AddScoped<AcceptedIdentityBridgeExecutionJob>();
 builder.Services.AddScoped<AcceptedIdentityCohortBridgeExecutionJob>();
 builder.Services.AddScoped<AcceptedIdentityWorkPromotionJob>();
+builder.Services.AddScoped<FacultyPublicationCohortExecutionJob>();
 builder.Services.AddScoped<PipelineOrchestrationJob>();
 builder.Services.AddScoped<QueuedJobRequestProcessorJob>();
 
