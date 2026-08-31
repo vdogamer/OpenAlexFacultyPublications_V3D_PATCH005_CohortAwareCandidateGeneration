@@ -168,6 +168,11 @@ public sealed class OpenAlexWorkerService : BackgroundService
             await scope.ServiceProvider.GetRequiredService<AcceptedIdentityCohortBridgeExecutionJob>().ExecuteAsync(stoppingToken);
             return;
         }
+        if (string.Equals(_options.Value.JobName, "AcceptedIdentityWorkPromotion", StringComparison.OrdinalIgnoreCase))
+        {
+            await scope.ServiceProvider.GetRequiredService<AcceptedIdentityWorkPromotionJob>().ExecuteAsync(stoppingToken);
+            return;
+        }
         if (string.Equals(_options.Value.JobName, "ProcessQueuedJobRequests", StringComparison.OrdinalIgnoreCase))
         {
             await scope.ServiceProvider.GetRequiredService<QueuedJobRequestProcessorJob>().ExecuteAsync(stoppingToken);
