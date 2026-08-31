@@ -24,7 +24,7 @@ builder.Services.Configure<FacultyPublicationCandidatePreviewOptions>(builder.Co
 builder.Services.Configure<FacultyPublicationCandidateExecutionOptions>(builder.Configuration.GetSection("FacultyPublicationCandidateExecution"));
 builder.Services.Configure<FacultyAuthorIdentityResolutionPreviewOptions>(builder.Configuration.GetSection("FacultyAuthorIdentityResolutionPreview"));
 builder.Services.Configure<AcceptedIdentityBridgePreviewOptions>(builder.Configuration.GetSection("AcceptedIdentityBridgePreview"));
-builder.Services.Configure<AcceptedIdentityBridgeExecutionOptions>(builder.Configuration.GetSection("AcceptedIdentityBridgeExecution"));
+builder.Services.Configure<AcceptedIdentityBridgeExecutionOptions>(builder.Configuration.GetSection("AcceptedIdentityBridgeExecution"));\nbuilder.Services.Configure<AcceptedIdentityCohortBridgeExecutionOptions>(builder.Configuration.GetSection("AcceptedIdentityCohortBridgeExecution"));
 builder.Services.Configure<PipelineOrchestrationOptions>(builder.Configuration.GetSection("Pipeline"));
 builder.Services.Configure<QueuedJobProcessorOptions>(builder.Configuration.GetSection("QueuedJobProcessor"));
 
@@ -32,7 +32,7 @@ builder.Services.AddOpenAlexData(builder.Configuration);
 builder.Services.AddOpenAlexClient(builder.Configuration);
 builder.Services.AddOpenAlexOperationalLogging(builder.Configuration);
 
-builder.Services.AddScoped<FacultyPublicationCandidateExecutionRepository>();
+builder.Services.AddScoped<FacultyPublicationCandidateExecutionRepository>();\nbuilder.Services.AddScoped<AcceptedIdentityCohortBridgeExecutionRepository>();
 
 builder.Services.AddScoped<InstitutionIngestionPreviewJob>();
 builder.Services.AddScoped<InstitutionIngestionJob>();
@@ -51,7 +51,7 @@ builder.Services.AddScoped<FacultyPublicationCandidatePreviewJob>();
 builder.Services.AddScoped<FacultyPublicationCandidateExecutionJob>();
 builder.Services.AddScoped<FacultyAuthorIdentityResolutionPreviewJob>();
 builder.Services.AddScoped<AcceptedIdentityBridgePreviewJob>();
-builder.Services.AddScoped<AcceptedIdentityBridgeExecutionJob>();
+builder.Services.AddScoped<AcceptedIdentityBridgeExecutionJob>();\nbuilder.Services.AddScoped<AcceptedIdentityCohortBridgeExecutionJob>();
 builder.Services.AddScoped<PipelineOrchestrationJob>();
 builder.Services.AddScoped<QueuedJobRequestProcessorJob>();
 
