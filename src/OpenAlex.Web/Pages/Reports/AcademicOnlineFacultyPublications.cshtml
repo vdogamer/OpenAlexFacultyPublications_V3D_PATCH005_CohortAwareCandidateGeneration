@@ -1,0 +1,119 @@
+@page
+@model OpenAlex.Web.Pages.Reports.AcademicOnlineFacultyPublicationsModel
+@{
+    ViewData["Title"] = "Academic Online Faculty Publications";
+}
+
+<h1>Academic Online → Faculty Publications HTML</h1>
+
+<section class="card">
+    <p>
+        PATCH018 manager demonstration and production path. This page resolves a durable
+        faculty-to-Academic-Online mapping, pulls the mapped scholar's publications directly
+        from Academic Online, follows every publication page, and renders reusable semantic HTML.
+    </p>
+</section>
+
+<section class="card">
+    <h2>Generate publications</h2>
+
+    <form method="get" class="filter-form">
+        <label>
+            FacultyId
+            <input type="number" name="FacultyId" value="@Model.FacultyId" min="1" />
+        </label>
+
+        <label>
+            From year
+            <input type="number" name="FromYear" value="@Model.FromYear" placeholder="optional" />
+        </label>
+
+        <label>
+            To year
+            <input type="number" name="ToYear" value="@Model.ToYear" placeholder="optional" />
+        </label>
+
+        <label>
+            <input type="checkbox" name="VerifiedOnly" value="true" checked="@Model.VerifiedOnly" />
+            Academic Online verified only
+        </label>
+
+        <div class="review-actions">
+            <button type="submit">Pull from Academic Online</button>
+        </div>
+    </form>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <h2>Unable to generate page</h2>
+        <p class="notice">@Model.ErrorMessage</p>
+    </section>
+}
+else if (Model.Result is not null)
+{
+    <section class="card">
+        <h2>Live result</h2>
+
+        <dl>
+            <dt>Faculty</dt>
+            <dd>@Model.Result.Mapping.FacultyDisplayName</dd>
+
+            <dt>Academic Online author</dt>
+            <dd>@Model.Result.Profile.Name (@Model.Result.Mapping.AcademicOnlineAuthorId)</dd>
+
+            <dt>Mapping source</dt>
+            <dd>@Model.Result.Mapping.MappingSource</dd>
+
+            <dt>Verified mapping</dt>
+            <dd>
+                @(Model.Result.Mapping.VerifiedAtUtc.HasValue
+                    ? $"{Model.Result.Mapping.VerifiedBy ?? "reviewer"} at {Model.Result.Mapping.VerifiedAtUtc:O}"
+                    : "Not marked verified")
+            </dd>
+
+            <dt>Publication pages fetched</dt>
+            <dd>@Model.Result.PagesFetched</dd>
+
+            <dt>Publications returned</dt>
+            <dd>@Model.Result.Publications.Count</dd>
+
+            <dt>Academic Online profile publication count</dt>
+            <dd>@(Model.Result.Profile.PublicationCount?.ToString() ?? "not supplied")</dd>
+        </dl>
+
+        @if (Model.Result.HitMaxPages)
+        {
+            <p class="notice">
+                Pagination reached the configured maximum page safeguard. Increase
+                AcademicOnline:MaxPublicationPages only after reviewing the source volume.
+            </p>
+        }
+
+        <p>
+            <a asp-page-handler="Html"
+               asp-route-FacultyId="@Model.FacultyId"
+               asp-route-VerifiedOnly="@Model.VerifiedOnly"
+               asp-route-FromYear="@Model.FromYear"
+               asp-route-ToYear="@Model.ToYear"
+               target="_blank"
+               rel="noopener">
+                Open standalone generated HTML
+            </a>
+        </p>
+    </section>
+
+    <section class="card">
+        <h2>Rendered publication page</h2>
+        @Html.Raw(Model.GeneratedHtmlFragment)
+    </section>
+
+    <section class="card">
+        <h2>Generated HTML source</h2>
+        <p class="small">
+            This fragment is generated from Academic Online values after HTML encoding and URL validation.
+        </p>
+        <textarea rows="28" style="width:100%;font-family:monospace;">@Model.GeneratedHtmlFragment</textarea>
+    </section>
+}
