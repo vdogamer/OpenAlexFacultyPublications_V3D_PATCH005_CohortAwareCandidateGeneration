@@ -41,6 +41,7 @@ builder.Services.AddScoped<AcceptedIdentityCohortBridgeExecutionRepository>();
 builder.Services.AddScoped<AcceptedIdentityWorkPromotionRepository>();
 builder.Services.AddScoped<FacultyPublicationCohortExecutionRepository>();
 builder.Services.AddScoped<FacultyPublicationCohortEvidenceEnhancementAuditRepository>();
+builder.Services.AddScoped<FacultyAcademicOnlineMappingRepository>();
 
 builder.Services.AddScoped<InstitutionIngestionPreviewJob>();
 builder.Services.AddScoped<InstitutionIngestionJob>();
