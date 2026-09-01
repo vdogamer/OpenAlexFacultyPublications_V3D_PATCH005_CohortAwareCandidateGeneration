@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -42,11 +41,12 @@ public sealed class AcademicOnlinePublicationHtmlFormatter
                          .OrderByDescending(group => group.Key ?? int.MinValue))
             {
                 var yearLabel = yearGroup.Key?.ToString() ?? "Year not supplied";
+                var yearId = yearGroup.Key?.ToString() ?? "unknown";
                 sb.Append("  <section class=\"faculty-publications__year\" aria-labelledby=\"pub-year-")
-                    .Append(EncodeAttribute(yearLabel))
+                    .Append(EncodeAttribute(yearId))
                     .AppendLine("\">");
                 sb.Append("    <h3 id=\"pub-year-")
-                    .Append(EncodeAttribute(yearLabel))
+                    .Append(EncodeAttribute(yearId))
                     .Append("\">")
                     .Append(Encode(yearLabel))
                     .AppendLine("</h3>");
