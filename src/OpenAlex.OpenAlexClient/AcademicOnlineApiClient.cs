@@ -131,6 +131,8 @@ public sealed class AcademicOnlineApiClient
             }
 
             var pageCount = 0;
+            var publicationCountBeforePage = publications.Count;
+
             foreach (var publication in array.EnumerateArray())
             {
                 pageCount++;
@@ -144,7 +146,11 @@ public sealed class AcademicOnlineApiClient
                 }
             }
 
-            if (pageCount < pageSize)
+            var newUniquePublications = publications.Count - publicationCountBeforePage;
+
+            // Do not assume the service honors the requested page size. Continue until
+            // Academic Online returns no rows or stops yielding new unique publications.
+            if (pageCount == 0 || newUniquePublications == 0)
             {
                 break;
             }
