@@ -88,6 +88,85 @@ public sealed class AcademicOnlineApiClient
         return GetJsonDocumentAsync("author/publications?" + BuildQueryString(query), cancellationToken);
     }
 
+    public async Task<AcademicOnlinePublicationCollection> GetAllAuthorPublicationsAsync(
+        string authorId,
+        bool verifiedOnly,
+        int? rowsPerPage = null,
+        int? maxPages = null,
+        int? fromYear = null,
+        int? toYear = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(authorId))
+        {
+            throw new ArgumentException("Academic Online authorId is required.", nameof(authorId));
+        }
+
+        var pageSize = Math.Clamp(rowsPerPage ?? _options.PublicationRowsPerPage, 1, 100);
+        var pageLimit = Math.Clamp(maxPages ?? _options.MaxPublicationPages, 1, 1000);
+
+        var publications = new List<AcademicOnlinePublicationItem>();
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pagesFetched = 0;
+        var hitMaxPages = false;
+
+        for (var page = 0; page < pageLimit; page++)
+        {
+            using var document = await GetAuthorPublicationsAsync(
+                authorId,
+                verifiedOnly,
+                page,
+                pageSize,
+                fromYear,
+                toYear,
+                cancellationToken);
+
+            pagesFetched++;
+
+            if (!document.RootElement.TryGetProperty("publications", out var array) ||
+                array.ValueKind != JsonValueKind.Array)
+            {
+                throw new InvalidOperationException(
+                    "Academic Online author/publications response did not contain a publications array.");
+            }
+
+            var pageCount = 0;
+            foreach (var publication in array.EnumerateArray())
+            {
+                pageCount++;
+
+                var item = ParsePublication(publication);
+                var key = BuildPublicationDeduplicationKey(item, page, pageCount);
+
+                if (seenKeys.Add(key))
+                {
+                    publications.Add(item);
+                }
+            }
+
+            if (pageCount < pageSize)
+            {
+                break;
+            }
+
+            if (page == pageLimit - 1)
+            {
+                hitMaxPages = true;
+            }
+        }
+
+        return new AcademicOnlinePublicationCollection
+        {
+            Publications = publications
+                .OrderByDescending(item => item.PublicationYear ?? int.MinValue)
+                .ThenBy(item => item.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            PagesFetched = pagesFetched,
+            RowsPerPage = pageSize,
+            HitMaxPages = hitMaxPages
+        };
+    }
+
     private async Task<JsonDocument> GetJsonDocumentAsync(string relativeUri, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, relativeUri);
@@ -113,6 +192,121 @@ public sealed class AcademicOnlineApiClient
 
         return await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken)
             ?? throw new InvalidOperationException("Academic Online returned an empty JSON document.");
+    }
+
+    private static AcademicOnlinePublicationItem ParsePublication(JsonElement publication)
+    {
+        var yearText = GetString(publication, "year");
+
+        return new AcademicOnlinePublicationItem
+        {
+            Id = GetString(publication, "id"),
+            Title = GetString(publication, "title"),
+            Venue = GetString(publication, "venue"),
+            YearText = yearText,
+            PublicationYear = int.TryParse(yearText, out var year) ? year : null,
+            CitationCount = GetInt(publication, "num_citations"),
+            Doi = GetString(publication, "doi"),
+            OpenAlexId = GetString(publication, "openalex_id"),
+            Verified = GetBool(publication, "verified"),
+            Link = GetString(publication, "link"),
+            CoauthorsJson = GetRawJson(publication, "coauthors"),
+            KeywordsJson = GetRawJson(publication, "keywords"),
+            RawJson = publication.GetRawText()
+        };
+    }
+
+    private static string BuildPublicationDeduplicationKey(
+        AcademicOnlinePublicationItem item,
+        int page,
+        int ordinal)
+    {
+        if (!string.IsNullOrWhiteSpace(item.Id))
+        {
+            return "id:" + item.Id.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.OpenAlexId))
+        {
+            return "openalex:" + item.OpenAlexId.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Doi))
+        {
+            return "doi:" + item.Doi.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Title))
+        {
+            return "title-year:" + item.Title.Trim() + "|" + (item.PublicationYear?.ToString() ?? item.YearText ?? string.Empty);
+        }
+
+        return $"page-ordinal:{page}:{ordinal}";
+    }
+
+    private static string? GetString(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind == JsonValueKind.Null ||
+            value.ValueKind == JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : value.ToString();
+    }
+
+    private static int? GetInt(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind == JsonValueKind.Null ||
+            value.ValueKind == JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number))
+        {
+            return number;
+        }
+
+        return int.TryParse(value.ToString(), out var parsed) ? parsed : null;
+    }
+
+    private static bool? GetBool(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind == JsonValueKind.Null ||
+            value.ValueKind == JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.True)
+        {
+            return true;
+        }
+
+        if (value.ValueKind == JsonValueKind.False)
+        {
+            return false;
+        }
+
+        return bool.TryParse(value.ToString(), out var parsed) ? parsed : null;
+    }
+
+    private static string? GetRawJson(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind == JsonValueKind.Null ||
+            value.ValueKind == JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return value.GetRawText();
     }
 
     private void AddAuthorization(HttpRequestMessage request)
