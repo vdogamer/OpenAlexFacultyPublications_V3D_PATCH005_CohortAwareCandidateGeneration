@@ -1,0 +1,145 @@
+@page
+@model OpenAlex.Web.Pages.Admin.AcademicOnlineMappingsModel
+@{
+    ViewData["Title"] = "Academic Online Faculty Mapping";
+}
+
+<h1>Academic Online Faculty Mapping</h1>
+
+<section class="card">
+    <p>
+        Production mapping control for Faculty ↔ Academic Online scholar identities.
+        Publication pages use only the single current verified mapping for each faculty member.
+    </p>
+
+    <form method="get" class="filter-form">
+        <label>
+            FacultyId
+            <input type="number" name="FacultyId" value="@Model.FacultyId" min="1" />
+        </label>
+        <button type="submit">Load faculty</button>
+    </form>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <section class="card">
+        <p class="notice">@Model.StatusMessage</p>
+    </section>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <p class="notice">@Model.ErrorMessage</p>
+    </section>
+}
+
+@if (Model.Faculty is not null)
+{
+    <section class="card">
+        <h2>@Model.Faculty.FacultyDisplayName</h2>
+        <p>
+            @Model.Faculty.DepartmentName
+            @if (!string.IsNullOrWhiteSpace(Model.Faculty.FacultyOrcid))
+            {
+                <span> · Faculty ORCID: @Model.Faculty.FacultyOrcid</span>
+            }
+        </p>
+
+        <h3>Current mapping</h3>
+        @if (Model.Faculty.HasCurrentMapping)
+        {
+            <dl>
+                <dt>Academic Online author ID</dt>
+                <dd>@Model.Faculty.AcademicOnlineAuthorId</dd>
+                <dt>Name</dt>
+                <dd>@Model.Faculty.AcademicOnlineName</dd>
+                <dt>Email</dt>
+                <dd>@Model.Faculty.AcademicOnlineEmail</dd>
+                <dt>ORCID</dt>
+                <dd>@Model.Faculty.AcademicOnlineOrcidUrl</dd>
+                <dt>Source</dt>
+                <dd>@Model.Faculty.MappingSource</dd>
+                <dt>Verified</dt>
+                <dd>@Model.Faculty.VerifiedBy · @Model.Faculty.VerifiedAtUtc</dd>
+            </dl>
+        }
+        else
+        {
+            <p>No current mapping exists.</p>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Latest comparison candidate</h2>
+
+        @if (Model.LatestSnapshot is null)
+        {
+            <p>No Academic Online comparison snapshot is available for this faculty member.</p>
+        }
+        else
+        {
+            <dl>
+                <dt>Snapshot ID</dt>
+                <dd>@Model.LatestSnapshot.AcademicOnlineScholarSnapshotId</dd>
+                <dt>Academic Online author ID</dt>
+                <dd>@Model.LatestSnapshot.AcademicOnlineAuthorId</dd>
+                <dt>Name</dt>
+                <dd>@Model.LatestSnapshot.AcademicOnlineName</dd>
+                <dt>Email</dt>
+                <dd>@Model.LatestSnapshot.AcademicOnlineEmail</dd>
+                <dt>ORCID</dt>
+                <dd>@Model.LatestSnapshot.AcademicOnlineOrcidUrl</dd>
+                <dt>Publication count</dt>
+                <dd>@Model.LatestSnapshot.PublicationCount</dd>
+                <dt>Search ranking score</dt>
+                <dd>@Model.LatestSnapshot.SearchRankingScore</dd>
+            </dl>
+
+            <form method="post" asp-page-handler="PromoteLatestSnapshot">
+                <input type="hidden" name="FacultyId" value="@Model.FacultyId" />
+                <button type="submit">Promote and verify latest snapshot</button>
+            </form>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Set or replace mapping</h2>
+        <p class="small">
+            Saving a different author ID retires the previous current mapping but preserves its history.
+            One Academic Online author ID cannot be current for two faculty members.
+        </p>
+
+        <form method="post" asp-page-handler="Save" class="filter-form">
+            <input type="hidden" name="FacultyId" value="@Model.FacultyId" />
+
+            <label>
+                Academic Online author ID
+                <input type="text" asp-for="AcademicOnlineAuthorId" required />
+            </label>
+
+            <label>
+                Academic Online name
+                <input type="text" asp-for="AcademicOnlineName" />
+            </label>
+
+            <label>
+                Academic Online email
+                <input type="email" asp-for="AcademicOnlineEmail" />
+            </label>
+
+            <label>
+                Academic Online ORCID URL
+                <input type="text" asp-for="AcademicOnlineOrcidUrl" />
+            </label>
+
+            <label>
+                Verification notes
+                <textarea asp-for="EvidenceNotes" rows="4"></textarea>
+            </label>
+
+            <button type="submit">Save verified mapping</button>
+        </form>
+    </section>
+}
