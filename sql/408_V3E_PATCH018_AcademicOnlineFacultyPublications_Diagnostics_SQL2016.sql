@@ -137,7 +137,7 @@ SELECT
     CurrentDemoMappingCount = @CurrentDemoMappingCount,
     UnverifiedDemoMappingCount = @UnverifiedDemoMappingCount,
     SecurityStatus = 'AcademicOnlineApiKey_RuntimeSecret_NotStoredInMapping',
-    PaginationStatus = 'ClientLoopsUntilShortPage_WithMaxPageSafeguard',
+    PaginationStatus = 'ClientLoopsUntilEmptyOrRepeatedPage_WithMaxPageSafeguard',
     NextAction =
         CASE
             WHEN @CurrentDemoMappingCount <> 1
