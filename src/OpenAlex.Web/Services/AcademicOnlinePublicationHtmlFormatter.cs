@@ -78,27 +78,27 @@ public sealed class AcademicOnlinePublicationHtmlFormatter
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{title}</title>
+  <title>{{title}}</title>
   <style>
-    body {{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f7f8fa; color: #1b1f23; }}
-    main {{ max-width: 1000px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }}
-    .faculty-publications {{ background: white; border: 1px solid #d8dee4; border-radius: 12px; padding: 1.5rem; }}
-    .faculty-publications__header {{ border-bottom: 1px solid #d8dee4; margin-bottom: 1.5rem; padding-bottom: 1rem; }}
-    .faculty-publications__header h2 {{ margin-top: 0; }}
-    .faculty-publications__meta, .faculty-publications__source {{ color: #57606a; }}
-    .faculty-publications__year {{ margin-top: 2rem; }}
-    .faculty-publications__list {{ padding-left: 1.5rem; }}
-    .faculty-publications__item {{ margin-bottom: 1.25rem; }}
-    .faculty-publications__title {{ font-weight: 650; }}
-    .faculty-publications__details {{ margin: .25rem 0; color: #57606a; }}
-    .faculty-publications__badges {{ display: flex; gap: .5rem; flex-wrap: wrap; }}
-    .faculty-publications__badge {{ border: 1px solid #d0d7de; border-radius: 999px; padding: .15rem .5rem; font-size: .85rem; }}
-    a {{ color: #0969da; }}
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f7f8fa; color: #1b1f23; }
+    main { max-width: 1000px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    .faculty-publications { background: white; border: 1px solid #d8dee4; border-radius: 12px; padding: 1.5rem; }
+    .faculty-publications__header { border-bottom: 1px solid #d8dee4; margin-bottom: 1.5rem; padding-bottom: 1rem; }
+    .faculty-publications__header h2 { margin-top: 0; }
+    .faculty-publications__meta, .faculty-publications__source { color: #57606a; }
+    .faculty-publications__year { margin-top: 2rem; }
+    .faculty-publications__list { padding-left: 1.5rem; }
+    .faculty-publications__item { margin-bottom: 1.25rem; }
+    .faculty-publications__title { font-weight: 650; }
+    .faculty-publications__details { margin: .25rem 0; color: #57606a; }
+    .faculty-publications__badges { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .faculty-publications__badge { border: 1px solid #d0d7de; border-radius: 999px; padding: .15rem .5rem; font-size: .85rem; }
+    a { color: #0969da; }
   </style>
 </head>
 <body>
 <main>
-{fragment}
+{{fragment}}
 </main>
 </body>
 </html>
