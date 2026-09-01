@@ -11,6 +11,7 @@ public sealed class AcademicOnlineComparisonJob
     private readonly AcademicOnlineApiClient _client;
     private readonly CandidateGenerationRepository _candidateGenerationRepository;
     private readonly AcademicOnlineComparisonRepository _repository;
+    private readonly FacultyAcademicOnlineMappingRepository _mappingRepository;
     private readonly IOperationalLogger _logger;
     private readonly AcademicOnlineComparisonOptions _options;
 
@@ -18,12 +19,14 @@ public sealed class AcademicOnlineComparisonJob
         AcademicOnlineApiClient client,
         CandidateGenerationRepository candidateGenerationRepository,
         AcademicOnlineComparisonRepository repository,
+        FacultyAcademicOnlineMappingRepository mappingRepository,
         IOperationalLogger logger,
         IOptions<AcademicOnlineComparisonOptions> options)
     {
         _client = client;
         _candidateGenerationRepository = candidateGenerationRepository;
         _repository = repository;
+        _mappingRepository = mappingRepository;
         _logger = logger;
         _options = options.Value;
     }
@@ -69,33 +72,66 @@ public sealed class AcademicOnlineComparisonJob
             {
                 facultyProcessed++;
 
-                using var searchDocument = await _client.SearchScholarsAsync(
-                    faculty.DisplayName,
-                    faculty.DepartmentName,
-                    0,
-                    rowsPerPage,
+                var mapping = await _mappingRepository.GetCurrentMappingAsync(
+                    faculty.FacultyId,
                     cancellationToken);
 
-                var searchRawJson = searchDocument.RootElement.GetRawText();
-                var firstScholar = GetFirstArrayItem(
-                    searchDocument.RootElement,
-                    "results");
+                string searchRawJson;
+                string? authorId;
+                string? scholarName;
+                string? scholarEmail;
+                string? scholarPosition;
+                decimal? searchRankingScore;
 
-                var authorId = firstScholar.HasValue
-                    ? GetString(firstScholar.Value, "id")
-                    : null;
-                var scholarName = firstScholar.HasValue
-                    ? GetString(firstScholar.Value, "name")
-                    : null;
-                var scholarEmail = firstScholar.HasValue
-                    ? GetString(firstScholar.Value, "email")
-                    : null;
-                var scholarPosition = firstScholar.HasValue
-                    ? GetString(firstScholar.Value, "position")
-                    : null;
-                var searchRankingScore = firstScholar.HasValue
-                    ? GetDecimal(firstScholar.Value, "ranking_score")
-                    : null;
+                if (mapping?.HasCurrentMapping == true)
+                {
+                    authorId = mapping.AcademicOnlineAuthorId;
+                    scholarName = mapping.AcademicOnlineName;
+                    scholarEmail = mapping.AcademicOnlineEmail;
+                    scholarPosition = null;
+                    searchRankingScore = null;
+
+                    searchRawJson = JsonSerializer.Serialize(new
+                    {
+                        resolution = "DurableCurrentMapping",
+                        mapping.FacultyAcademicOnlineAuthorMapId,
+                        mapping.FacultyId,
+                        mapping.AcademicOnlineAuthorId,
+                        mapping.MappingSource,
+                        mapping.VerifiedBy,
+                        mapping.VerifiedAtUtc
+                    });
+                }
+                else
+                {
+                    using var searchDocument = await _client.SearchScholarsAsync(
+                        faculty.DisplayName,
+                        faculty.DepartmentName,
+                        0,
+                        rowsPerPage,
+                        cancellationToken);
+
+                    searchRawJson = searchDocument.RootElement.GetRawText();
+                    var firstScholar = GetFirstArrayItem(
+                        searchDocument.RootElement,
+                        "results");
+
+                    authorId = firstScholar.HasValue
+                        ? GetString(firstScholar.Value, "id")
+                        : null;
+                    scholarName = firstScholar.HasValue
+                        ? GetString(firstScholar.Value, "name")
+                        : null;
+                    scholarEmail = firstScholar.HasValue
+                        ? GetString(firstScholar.Value, "email")
+                        : null;
+                    scholarPosition = firstScholar.HasValue
+                        ? GetString(firstScholar.Value, "position")
+                        : null;
+                    searchRankingScore = firstScholar.HasValue
+                        ? GetDecimal(firstScholar.Value, "ranking_score")
+                        : null;
+                }
 
                 string? generalRawJson = null;
                 string? orcidUrl = null;
