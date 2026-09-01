@@ -6,6 +6,7 @@ using OpenAlex.Matching;
 using OpenAlex.Reporting;
 using OpenAlex.Web.Auth;
 using OpenAlex.Web.Diagnostics;
+using OpenAlex.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,9 @@ builder.Services.AddOpenAlexOperationalLogging(builder.Configuration);
 builder.Services.AddScoped<FacultyAuthorScoringService>();
 builder.Services.AddScoped<CsvExportService>();
 builder.Services.AddScoped<ConfigurationPreflightService>();
+builder.Services.AddScoped<FacultyAcademicOnlineMappingRepository>();
+builder.Services.AddScoped<AcademicOnlineFacultyPublicationsService>();
+builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
 
 var app = builder.Build();
 
