@@ -72,7 +72,7 @@ public sealed class AcademicOnlinePublicationHtmlFormatter
         var title = Encode(result.Profile.Name + " — Publications");
         var fragment = BuildFragment(result);
 
-        return $"""
+        return $$"""
 <!doctype html>
 <html lang="en">
 <head>
