@@ -91,6 +91,39 @@ else if (Model.Result is not null)
             </p>
         }
 
+        <div class="card">
+            <h3>Copy publications to a faculty profile</h3>
+            <p>
+                Choose the format your profile editor expects, then paste with
+                <kbd>Ctrl</kbd>+<kbd>V</kbd>.
+            </p>
+
+            <div class="review-actions">
+                <button type="button"
+                        id="copyProfileReadyPublications"
+                        data-copy-action="profile-ready">
+                    Copy for Profile Editor
+                </button>
+
+                <button type="button"
+                        id="copyPublicationHtmlSource"
+                        data-copy-action="html-source">
+                    Copy HTML Source
+                </button>
+            </div>
+
+            <p id="publicationCopyStatus"
+               class="small"
+               role="status"
+               aria-live="polite"></p>
+
+            <p class="small">
+                <strong>Copy for Profile Editor</strong> preserves formatting when the
+                destination supports rich text. <strong>Copy HTML Source</strong> copies
+                the raw generated HTML for a Pubs / HTML field.
+            </p>
+        </div>
+
         <p>
             <a asp-page-handler="Html"
                asp-route-FacultyId="@Model.FacultyId"
@@ -106,7 +139,9 @@ else if (Model.Result is not null)
 
     <section class="card">
         <h2>Rendered publication page</h2>
-        @Html.Raw(Model.GeneratedHtmlFragment)
+        <div id="generatedPublicationProfileContent">
+            @Html.Raw(Model.GeneratedHtmlFragment)
+        </div>
     </section>
 
     <section class="card">
@@ -114,6 +149,11 @@ else if (Model.Result is not null)
         <p class="small">
             This fragment is generated from Academic Online values after HTML encoding and URL validation.
         </p>
-        <textarea rows="28" style="width:100%;font-family:monospace;">@Model.GeneratedHtmlFragment</textarea>
+        <textarea id="generatedPublicationHtmlSource"
+                  rows="28"
+                  style="width:100%;font-family:monospace;">@Model.GeneratedHtmlFragment</textarea>
     </section>
 }
+
+
+<script src="/js/academic-online-publications-copy.js" defer></script>
