@@ -1,0 +1,129 @@
+@page
+@model OpenAlex.Web.Pages.Faculty.MyPublicationsModel
+@{
+    ViewData["Title"] = "My Publications";
+}
+
+<h1>My Publications</h1>
+
+<section class="card">
+    <p>
+        Pull your publications from Academic Online, review them, then copy the
+        formatted list into your faculty profile.
+    </p>
+</section>
+
+<section class="card">
+    <h2>Publication options</h2>
+
+    <form method="get" class="filter-form">
+        <label>
+            From year
+            <input type="number"
+                   name="FromYear"
+                   value="@Model.FromYear"
+                   placeholder="optional" />
+        </label>
+
+        <label>
+            To year
+            <input type="number"
+                   name="ToYear"
+                   value="@Model.ToYear"
+                   placeholder="optional" />
+        </label>
+
+        <label>
+            <input type="checkbox"
+                   name="VerifiedOnly"
+                   value="true"
+                   checked="@Model.VerifiedOnly" />
+            Show only publications verified in Academic Online
+        </label>
+
+        <div class="review-actions">
+            <button type="submit">Refresh My Publications</button>
+        </div>
+    </form>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <h2>Publications unavailable</h2>
+        <p class="notice">@Model.ErrorMessage</p>
+    </section>
+}
+else if (Model.Result is not null)
+{
+    <section class="card">
+        <h2>@Model.Result.Profile.Name</h2>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Result.Profile.Department))
+        {
+            <p>@Model.Result.Profile.Department</p>
+        }
+
+        <p>
+            <strong>@Model.Result.Publications.Count</strong>
+            publication@(Model.Result.Publications.Count == 1 ? "" : "s") loaded.
+        </p>
+
+        @if (Model.Result.HitMaxPages)
+        {
+            <p class="notice">
+                Your publication list is unusually large and reached the configured
+                retrieval safeguard. Please contact the faculty-profile administrator.
+            </p>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Copy to My Profile</h2>
+
+        <p>
+            Review the publications below. When they look correct, choose the copy
+            format your faculty profile editor expects and then paste with
+            <kbd>Ctrl</kbd>+<kbd>V</kbd>.
+        </p>
+
+        <div class="review-actions">
+            <button type="button"
+                    id="copyProfileReadyPublications"
+                    data-copy-action="profile-ready">
+                Copy for Profile Editor
+            </button>
+
+            <button type="button"
+                    id="copyPublicationHtmlSource"
+                    data-copy-action="html-source">
+                Copy HTML Source
+            </button>
+        </div>
+
+        <p id="publicationCopyStatus"
+           class="small"
+           role="status"
+           aria-live="polite"></p>
+
+        <p class="small">
+            <strong>Copy for Profile Editor</strong> is the normal choice for a
+            rich-text editor. Use <strong>Copy HTML Source</strong> when the profile
+            form specifically asks for HTML.
+        </p>
+    </section>
+
+    <section class="card">
+        <h2>Preview</h2>
+
+        <div id="generatedPublicationProfileContent">
+            @Html.Raw(Model.GeneratedHtmlFragment)
+        </div>
+    </section>
+
+    <textarea id="generatedPublicationHtmlSource"
+              hidden
+              aria-hidden="true">@Model.GeneratedHtmlFragment</textarea>
+}
+
+<script src="/js/academic-online-publications-copy.js" defer></script>
