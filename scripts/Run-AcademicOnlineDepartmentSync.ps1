@@ -13,6 +13,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ([string]::IsNullOrWhiteSpace($DepartmentName) -or
+    $DepartmentName -match 'PASTE EXACT DEPARTMENT NAME HERE|YOUR EXACT ACADEMIC ONLINE DEPARTMENT NAME') {
+    throw "Provide the exact department name returned by Academic Online; do not use the placeholder text."
+}
+
 if ([string]::IsNullOrWhiteSpace($env:AcademicOnline__ApiKey)) {
     throw "AcademicOnline__ApiKey is not set. Run .\scripts\Set-AcademicOnlineApiKeyForCurrentSession.ps1 first."
 }
