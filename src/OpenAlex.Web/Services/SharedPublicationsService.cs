@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpenAlex.OpenAlexClient;
 
 namespace OpenAlex.Web.Services;
@@ -95,6 +96,7 @@ public sealed class SharedPublicationsService
 
             resolvedPublicationSets.Add(new ResolvedPublicationSet(
                 userId,
+                profile.Name,
                 publications,
                 PublicationIndex.Build(publications)));
         }
@@ -116,11 +118,17 @@ public sealed class SharedPublicationsService
         var publicationsSharedByAll =
             FindIntersection(resolvedPublicationSets);
 
+        var coauthorSuggestions =
+            resolvedPublicationSets.Count > 0
+                ? BuildCoauthorSuggestions(resolvedPublicationSets[0])
+                : Array.Empty<SharedCoauthorSuggestion>();
+
         return new SharedPublicationsSearchResult
         {
             VerifiedOnly = verifiedOnly,
             Resolutions = resolutions,
-            Publications = publicationsSharedByAll
+            Publications = publicationsSharedByAll,
+            CoauthorSuggestions = coauthorSuggestions
         };
     }
 
@@ -199,6 +207,155 @@ public sealed class SharedPublicationsService
             .OrderByDescending(item => item.PublicationYear ?? int.MinValue)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static IReadOnlyList<SharedCoauthorSuggestion> BuildCoauthorSuggestions(
+        ResolvedPublicationSet seed)
+    {
+        var suggestions = new Dictionary<string, SharedCoauthorSuggestionBuilder>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var publication in seed.Publications)
+        {
+            if (string.IsNullOrWhiteSpace(publication.CoauthorsJson))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(publication.CoauthorsJson);
+                if (document.RootElement.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                var seenOnPublication = new HashSet<string>(
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var item in document.RootElement.EnumerateArray())
+                {
+                    string? name = null;
+                    string? email = null;
+
+                    if (item.ValueKind == JsonValueKind.String)
+                    {
+                        name = item.GetString();
+                    }
+                    else if (item.ValueKind == JsonValueKind.Object)
+                    {
+                        name = TryGetJsonString(item, "name")
+                            ?? TryGetJsonString(item, "display_name")
+                            ?? TryGetJsonString(item, "displayName");
+
+                        email = TryGetJsonString(item, "email")
+                            ?? TryGetJsonString(item, "mail")
+                            ?? TryGetJsonString(item, "uva_email");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        continue;
+                    }
+
+                    name = name.Trim();
+
+                    if (string.Equals(
+                            name,
+                            seed.Name,
+                            StringComparison.OrdinalIgnoreCase) ||
+                        !seenOnPublication.Add(name))
+                    {
+                        continue;
+                    }
+
+                    if (!suggestions.TryGetValue(name, out var builder))
+                    {
+                        builder = new SharedCoauthorSuggestionBuilder
+                        {
+                            Name = name
+                        };
+                        suggestions.Add(name, builder);
+                    }
+
+                    builder.SharedPublicationCount++;
+
+                    if (string.IsNullOrWhiteSpace(builder.ExamplePublicationTitle) &&
+                        !string.IsNullOrWhiteSpace(publication.Title))
+                    {
+                        builder.ExamplePublicationTitle = publication.Title.Trim();
+                    }
+
+                    var userId = TryGetUvaUserIdFromEmail(email);
+                    if (builder.UvaUserId is null && userId is not null)
+                    {
+                        builder.UvaUserId = userId;
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Coauthor discovery is advisory only. A malformed coauthor payload
+                // must never block the primary shared-publication comparison.
+            }
+        }
+
+        return suggestions.Values
+            .OrderByDescending(item => item.SharedPublicationCount)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .Select(item => new SharedCoauthorSuggestion
+            {
+                Name = item.Name,
+                UvaUserId = item.UvaUserId,
+                SharedPublicationCount = item.SharedPublicationCount,
+                ExamplePublicationTitle = item.ExamplePublicationTitle
+            })
+            .ToList();
+    }
+
+    private static string? TryGetJsonString(
+        JsonElement item,
+        string propertyName)
+    {
+        if (!item.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind == JsonValueKind.Null ||
+            value.ValueKind == JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : value.ToString();
+    }
+
+    private static string? TryGetUvaUserIdFromEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        const string suffix = "@virginia.edu";
+        var trimmed = email.Trim();
+
+        if (!trimmed.EndsWith(
+                suffix,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var userId = trimmed[..^suffix.Length].Trim();
+        if (userId.Length < 2 ||
+            userId.Length > 32 ||
+            userId.Any(character => !char.IsLetterOrDigit(character)))
+        {
+            return null;
+        }
+
+        return userId.ToLowerInvariant();
     }
 
     private static int MatchBasisRank(string matchBasis)
@@ -335,8 +492,17 @@ public sealed class SharedPublicationsService
 
     private sealed record ResolvedPublicationSet(
         string UserId,
+        string Name,
         IReadOnlyList<AcademicOnlinePublicationItem> Publications,
         PublicationIndex Index);
+
+    private sealed class SharedCoauthorSuggestionBuilder
+    {
+        public string Name { get; init; } = string.Empty;
+        public string? UvaUserId { get; set; }
+        public int SharedPublicationCount { get; set; }
+        public string? ExamplePublicationTitle { get; set; }
+    }
 
     private sealed class PublicationIndex
     {
@@ -458,6 +624,9 @@ public sealed class SharedPublicationsSearchResult
     public IReadOnlyList<SharedPublicationMatch> Publications { get; init; } =
         Array.Empty<SharedPublicationMatch>();
 
+    public IReadOnlyList<SharedCoauthorSuggestion> CoauthorSuggestions { get; init; } =
+        Array.Empty<SharedCoauthorSuggestion>();
+
     public bool HasResolutionErrors =>
         Resolutions.Any(item =>
             !string.Equals(
@@ -477,6 +646,14 @@ public sealed class SharedFacultyResolution
     public int PublicationCount { get; init; }
     public int CandidateCount { get; init; }
     public string? Message { get; init; }
+}
+
+public sealed class SharedCoauthorSuggestion
+{
+    public string Name { get; init; } = string.Empty;
+    public string? UvaUserId { get; init; }
+    public int SharedPublicationCount { get; init; }
+    public string? ExamplePublicationTitle { get; init; }
 }
 
 public sealed class SharedPublicationMatch
