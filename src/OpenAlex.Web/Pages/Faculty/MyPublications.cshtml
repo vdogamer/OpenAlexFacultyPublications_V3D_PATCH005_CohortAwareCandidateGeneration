@@ -60,6 +60,8 @@
 
     <form method="get" class="my-publications-options">
         <input type="hidden" name="Range" value="@Model.Range" />
+        <input type="hidden" name="FromYear" value="@Model.FromYear" />
+        <input type="hidden" name="ToYear" value="@Model.ToYear" />
 
         <label class="publication-keyword-field">
             Keyword or topic
@@ -73,12 +75,16 @@
         <label>
             Match
             <select name="KeywordMatchMode">
-                <option value="any" selected="@(Model.KeywordMatchModeLabel == "ANY")">
-                    ANY keyword
-                </option>
-                <option value="all" selected="@(Model.KeywordMatchModeLabel == "ALL")">
-                    ALL keywords
-                </option>
+                @if (Model.KeywordMatchModeLabel == "ALL")
+                {
+                    <option value="any">ANY keyword</option>
+                    <option value="all" selected>ALL keywords</option>
+                }
+                else
+                {
+                    <option value="any" selected>ANY keyword</option>
+                    <option value="all">ALL keywords</option>
+                }
             </select>
         </label>
 
@@ -96,7 +102,9 @@
         {
             <a class="button secondary"
                asp-route-Range="@Model.Range"
-               asp-route-VerifiedOnly="@Model.VerifiedOnly">
+               asp-route-VerifiedOnly="@Model.VerifiedOnly"
+               asp-route-FromYear="@Model.FromYear"
+               asp-route-ToYear="@Model.ToYear">
                 Clear keyword
             </a>
         }
