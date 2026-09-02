@@ -20,6 +20,23 @@ public sealed class AcademicOnlineFacultyPublicationsService
         _keywordFilter = keywordFilter;
     }
 
+    public Task<AcademicOnlineFacultyPublicationsResult> GetAsync(
+        long facultyId,
+        bool verifiedOnly,
+        int? fromYear,
+        int? toYear,
+        CancellationToken cancellationToken)
+    {
+        return GetAsync(
+            facultyId,
+            verifiedOnly,
+            fromYear,
+            toYear,
+            keywordQuery: null,
+            keywordMatchMode: null,
+            cancellationToken);
+    }
+
     public async Task<AcademicOnlineFacultyPublicationsResult> GetAsync(
         long facultyId,
         bool verifiedOnly,
