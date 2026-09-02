@@ -34,7 +34,7 @@ public sealed class AcademicOnlineFacultyPublicationsService
             toYear,
             keywordQuery: null,
             keywordMatchMode: null,
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     public async Task<AcademicOnlineFacultyPublicationsResult> GetAsync(
