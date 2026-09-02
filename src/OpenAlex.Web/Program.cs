@@ -57,6 +57,7 @@ builder.Services.AddScoped<FacultyAcademicOnlineMappingRepository>();
 builder.Services.AddScoped<AcademicOnlineFacultyPublicationsService>();
 builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
 builder.Services.AddScoped<AcademicOnlineUniversalFacultyLookupService>();
+builder.Services.AddScoped<SharedPublicationsService>();
 builder.Services.AddScoped<FacultyProfileHandoffService>();
 builder.Services.AddScoped<PublicationKeywordFilterService>();
 
