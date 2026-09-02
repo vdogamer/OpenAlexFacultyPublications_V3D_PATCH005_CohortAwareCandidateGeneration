@@ -58,11 +58,6 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
         try
         {
-            var departmentId = await _repository.UpsertDepartmentAsync(
-                runId,
-                departmentName,
-                cancellationToken);
-
             var departmentScholars =
                 await _client.GetDepartmentScholarsAsync(
                     departmentName,
@@ -77,6 +72,18 @@ public sealed class AcademicOnlineDepartmentSyncJob
                     cancellationToken: cancellationToken);
 
             scholarPagesFetched = departmentScholars.PagesFetched;
+
+            if (departmentScholars.Scholars.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Academic Online returned no scholars for department '{departmentName}'. " +
+                    "Verify the exact Academic Online department name before retrying.");
+            }
+
+            var departmentId = await _repository.UpsertDepartmentAsync(
+                runId,
+                departmentName,
+                cancellationToken);
 
             var scholars = departmentScholars.Scholars
                 .Take(maxScholars)
