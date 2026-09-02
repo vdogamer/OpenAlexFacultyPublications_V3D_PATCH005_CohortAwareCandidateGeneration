@@ -28,6 +28,9 @@ public sealed class MyPublicationsModel : PageModel
     public bool VerifiedOnly { get; set; }
 
     [BindProperty(SupportsGet = true)]
+    public string Range { get; set; } = "all";
+
+    [BindProperty(SupportsGet = true)]
     public int? FromYear { get; set; }
 
     [BindProperty(SupportsGet = true)]
@@ -42,6 +45,7 @@ public sealed class MyPublicationsModel : PageModel
     {
         try
         {
+            ApplyRangePreset();
             ValidateYearRange();
 
             var email = User.FindFirstValue(ClaimTypes.Email);
@@ -89,6 +93,65 @@ public sealed class MyPublicationsModel : PageModel
                 "We could not load your publications right now. " +
                 "Please try again or contact the faculty-profile administrator.";
         }
+    }
+
+    public string RangeLabel =>
+        Range.ToLowerInvariant() switch
+        {
+            "5" => "Last 5 years",
+            "10" => "Last 10 years",
+            "custom" => BuildCustomRangeLabel(),
+            _ => "All publications"
+        };
+
+    private void ApplyRangePreset()
+    {
+        var currentYear = DateTime.UtcNow.Year;
+
+        switch (Range.Trim().ToLowerInvariant())
+        {
+            case "5":
+                FromYear = currentYear - 4;
+                ToYear = currentYear;
+                Range = "5";
+                break;
+
+            case "10":
+                FromYear = currentYear - 9;
+                ToYear = currentYear;
+                Range = "10";
+                break;
+
+            case "custom":
+                Range = "custom";
+                break;
+
+            default:
+                Range = "all";
+                FromYear = null;
+                ToYear = null;
+                break;
+        }
+    }
+
+    private string BuildCustomRangeLabel()
+    {
+        if (FromYear.HasValue && ToYear.HasValue)
+        {
+            return $"{FromYear.Value}–{ToYear.Value}";
+        }
+
+        if (FromYear.HasValue)
+        {
+            return $"{FromYear.Value} and later";
+        }
+
+        if (ToYear.HasValue)
+        {
+            return $"Through {ToYear.Value}";
+        }
+
+        return "Custom range";
     }
 
     private void ValidateYearRange()
