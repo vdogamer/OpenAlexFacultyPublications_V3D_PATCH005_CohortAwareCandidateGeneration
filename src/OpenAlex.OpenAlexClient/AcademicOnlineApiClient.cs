@@ -110,6 +110,99 @@ public sealed class AcademicOnlineApiClient
             .ToList();
     }
 
+    public async Task<AcademicOnlineDepartmentScholarCollection> GetDepartmentScholarsAsync(
+        string departmentName,
+        int rowsPerPage = 100,
+        int maxPages = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(departmentName))
+        {
+            throw new ArgumentException(
+                "Academic Online department name is required.",
+                nameof(departmentName));
+        }
+
+        var pageSize = Math.Clamp(rowsPerPage, 1, 100);
+        var pageLimit = Math.Clamp(maxPages, 1, 1000);
+        var scholars = new List<AcademicOnlineScholarSearchCandidate>();
+        var seenAuthorIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pagesFetched = 0;
+        var hitMaxPages = false;
+
+        for (var page = 0; page < pageLimit; page++)
+        {
+            using var document = await SearchScholarsAsync(
+                facultyDisplayName: string.Empty,
+                departmentName: departmentName.Trim(),
+                page,
+                pageSize,
+                cancellationToken);
+
+            pagesFetched++;
+
+            if (!document.RootElement.TryGetProperty("results", out var results) ||
+                results.ValueKind != JsonValueKind.Array)
+            {
+                break;
+            }
+
+            var pageRowCount = 0;
+            var uniqueBefore = scholars.Count;
+
+            foreach (var item in results.EnumerateArray())
+            {
+                pageRowCount++;
+
+                var authorId = GetString(item, "id");
+                if (string.IsNullOrWhiteSpace(authorId) ||
+                    !seenAuthorIds.Add(authorId.Trim()))
+                {
+                    continue;
+                }
+
+                scholars.Add(new AcademicOnlineScholarSearchCandidate
+                {
+                    AuthorId = authorId.Trim(),
+                    Name = GetString(item, "name"),
+                    Email = GetString(item, "email"),
+                    Position = GetString(item, "position"),
+                    Department =
+                        GetString(item, "department")
+                        ?? GetString(item, "department_name"),
+                    Institution =
+                        GetString(item, "institution")
+                        ?? GetString(item, "institution_name"),
+                    OrcidUrl =
+                        GetString(item, "orcid_url")
+                        ?? GetString(item, "orcid"),
+                    RankingScore = GetDecimal(item, "ranking_score")
+                });
+            }
+
+            var newUniqueRows = scholars.Count - uniqueBefore;
+            if (pageRowCount == 0 || newUniqueRows == 0)
+            {
+                break;
+            }
+
+            if (page == pageLimit - 1)
+            {
+                hitMaxPages = true;
+            }
+        }
+
+        return new AcademicOnlineDepartmentScholarCollection
+        {
+            Scholars = scholars
+                .OrderBy(item => item.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            PagesFetched = pagesFetched,
+            RowsPerPage = pageSize,
+            HitMaxPages = hitMaxPages
+        };
+    }
+
     public Task<JsonDocument> GetAuthorGeneralAsync(string authorId, CancellationToken cancellationToken = default)
     {
         return GetJsonDocumentAsync("author/general?authorId=" + Uri.EscapeDataString(authorId), cancellationToken);
