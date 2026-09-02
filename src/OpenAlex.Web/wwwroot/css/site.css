@@ -569,3 +569,46 @@ button, .button {
         text-align: left;
     }
 }
+
+
+/* PATCH018F - publication keyword filtering */
+.my-publications-options > label:not(.checkbox-label) {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    font-weight: 700;
+}
+
+.publication-keyword-field {
+    min-width: min(360px, 100%);
+}
+
+.publication-keyword-field input {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.publication-filter-summary {
+    flex-basis: 100%;
+    margin: .75rem 0 0;
+    padding: .65rem .75rem;
+    border-left: 4px solid #667085;
+    background: #f8f9fb;
+}
+
+.publication-filter-summary .badge {
+    margin-left: .35rem;
+    margin-right: .35rem;
+}
+
+@media (max-width: 760px) {
+    .my-publications-options {
+        align-items: stretch;
+    }
+
+    .my-publications-options > label:not(.checkbox-label),
+    .publication-keyword-field {
+        width: 100%;
+        min-width: 0;
+    }
+}
