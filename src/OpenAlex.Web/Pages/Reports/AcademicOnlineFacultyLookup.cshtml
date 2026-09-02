@@ -214,6 +214,16 @@ else if (!string.IsNullOrWhiteSpace(Model.Search) &&
                rel="noopener">
                 Open Standalone HTML
             </a>
+
+            @if (!string.IsNullOrWhiteSpace(Model.SelectedFacultyProfileEditUrl))
+            {
+                <a class="button secondary"
+                   href="@Model.SelectedFacultyProfileEditUrl"
+                   target="_blank"
+                   rel="noopener">
+                    Open Faculty Pubs / HTML
+                </a>
+            }
         </div>
 
         <p id="publicationCopyStatus"
