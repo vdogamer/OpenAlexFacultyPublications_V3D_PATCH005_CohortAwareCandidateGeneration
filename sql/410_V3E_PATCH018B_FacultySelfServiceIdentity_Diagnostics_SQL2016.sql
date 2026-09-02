@@ -15,10 +15,6 @@ PRINT '1) Enabled app users that exactly match faculty by email';
 SELECT
     u.AppUserId,
     u.UserName,
-    AppUserComputingId =
-        CASE WHEN COL_LENGTH(N'openalex.AppUser', N'ComputingId') IS NULL
-             THEN NULL
-             ELSE u.ComputingId END,
     u.Email AS AppUserEmail,
     f.FacultyId,
     f.DisplayName AS FacultyDisplayName,
