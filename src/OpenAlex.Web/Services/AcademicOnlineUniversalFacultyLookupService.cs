@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using OpenAlex.Data;
 using OpenAlex.OpenAlexClient;
 
@@ -6,6 +7,9 @@ namespace OpenAlex.Web.Services;
 
 public sealed class AcademicOnlineUniversalFacultyLookupService
 {
+    private static readonly Regex UvaUserIdPattern =
+        new("^[A-Za-z0-9]{2,32}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     private readonly AcademicOnlineApiClient _client;
     private readonly PublicationKeywordFilterService _keywordFilter;
 
@@ -27,6 +31,79 @@ public sealed class AcademicOnlineUniversalFacultyLookupService
             departmentName,
             rowsPerPage: 25,
             cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AcademicOnlineScholarSearchCandidate>> SearchByUvaUserIdAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedUserId = NormalizeUvaUserId(userId);
+        var expectedEmail = normalizedUserId + "@virginia.edu";
+
+        var byEmail = await _client.SearchScholarCandidatesAsync(
+            expectedEmail,
+            departmentName: null,
+            rowsPerPage: 25,
+            cancellationToken);
+
+        var exactMatches = byEmail
+            .Where(candidate =>
+                string.Equals(
+                    candidate.Email?.Trim(),
+                    expectedEmail,
+                    StringComparison.OrdinalIgnoreCase))
+            .GroupBy(candidate => candidate.AuthorId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (exactMatches.Count > 0)
+        {
+            return exactMatches;
+        }
+
+        // Some Academic Online deployments may index the computing ID independently
+        // of the full email address. Try the normalized ID as a discovery fallback,
+        // but still require the returned scholar email to match exactly.
+        var byUserId = await _client.SearchScholarCandidatesAsync(
+            normalizedUserId,
+            departmentName: null,
+            rowsPerPage: 25,
+            cancellationToken);
+
+        return byUserId
+            .Where(candidate =>
+                string.Equals(
+                    candidate.Email?.Trim(),
+                    expectedEmail,
+                    StringComparison.OrdinalIgnoreCase))
+            .GroupBy(candidate => candidate.AuthorId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    public static string NormalizeUvaUserId(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException("Enter a UVA User ID.");
+        }
+
+        var trimmed = value.Trim();
+
+        if (trimmed.EndsWith(
+                "@virginia.edu",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[..^"@virginia.edu".Length];
+        }
+
+        if (!UvaUserIdPattern.IsMatch(trimmed))
+        {
+            throw new InvalidOperationException(
+                "UVA User ID must contain only letters and numbers.");
+        }
+
+        return trimmed.ToLowerInvariant();
     }
 
     public Task<AcademicOnlineUniversalFacultyResult> GetPublicationsAsync(
