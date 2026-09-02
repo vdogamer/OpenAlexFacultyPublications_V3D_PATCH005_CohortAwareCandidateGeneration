@@ -101,35 +101,26 @@ public sealed class PublicationKeywordFilterService
         return string.Join("\n", parts);
     }
 
-    private static IEnumerable<string> ExtractKeywordText(string? keywordsJson)
+    private static IReadOnlyList<string> ExtractKeywordText(string? keywordsJson)
     {
         if (string.IsNullOrWhiteSpace(keywordsJson))
         {
-            yield break;
+            return Array.Empty<string>();
         }
-
-        JsonDocument? document = null;
 
         try
         {
-            document = JsonDocument.Parse(keywordsJson);
+            using var document = JsonDocument.Parse(keywordsJson);
 
-            foreach (var text in EnumerateStringValues(document.RootElement))
-            {
-                if (!string.IsNullOrWhiteSpace(text))
-                {
-                    yield return text;
-                }
-            }
+            return EnumerateStringValues(document.RootElement)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToList();
         }
         catch (JsonException)
         {
             // Preserve filtering availability even if an upstream keyword payload
             // is malformed. Title and venue matching still work.
-        }
-        finally
-        {
-            document?.Dispose();
+            return Array.Empty<string>();
         }
     }
 
