@@ -1,0 +1,188 @@
+@page
+@model OpenAlex.Web.Pages.Reports.DepartmentPublicationsModel
+@{
+    ViewData["Title"] = "Newest Publications by Department";
+}
+
+<h1>Newest Publications by Department</h1>
+
+<section class="card">
+    <p>
+        Search the locally synchronized Academic Online reporting store for a department's
+        newest publications. This report does not call Academic Online when you search it.
+    </p>
+
+    <p class="small">
+        Results reflect the most recent completed department sync. Academic Online remains
+        the upstream source of record.
+    </p>
+
+    @if (Model.Departments.Count == 0)
+    {
+        <p>
+            No departments have been synchronized yet. Run PATCH019's
+            AcademicOnlineDepartmentSync worker for a department first.
+        </p>
+    }
+    else
+    {
+        <form method="get" class="filter-form">
+            <label>
+                Department
+                <select name="DepartmentId" required>
+                    <option value="">Choose a department</option>
+                    @foreach (var department in Model.Departments)
+                    {
+                        if (Model.DepartmentId == department.DepartmentId)
+                        {
+                            <option value="@department.DepartmentId" selected>
+                                @department.DepartmentName
+                            </option>
+                        }
+                        else
+                        {
+                            <option value="@department.DepartmentId">
+                                @department.DepartmentName
+                            </option>
+                        }
+                    }
+                </select>
+            </label>
+
+            <label>
+                Show newest
+                <select name="Top">
+                    @foreach (var size in new[] { 25, 50, 100, 250, 500 })
+                    {
+                        if (Model.Top == size)
+                        {
+                            <option value="@size" selected>@size publications</option>
+                        }
+                        else
+                        {
+                            <option value="@size">@size publications</option>
+                        }
+                    }
+                </select>
+            </label>
+
+            <label>
+                From year
+                <input type="number"
+                       name="FromYear"
+                       value="@Model.FromYear"
+                       placeholder="optional" />
+            </label>
+
+            <label class="checkbox-label">
+                <input type="checkbox"
+                       name="VerifiedOnly"
+                       value="true"
+                       checked="@Model.VerifiedOnly" />
+                Verified only
+            </label>
+
+            <button type="submit">Find Newest Publications</button>
+        </form>
+    }
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <h2>Report could not be loaded</h2>
+        <p>@Model.ErrorMessage</p>
+    </section>
+}
+
+@if (Model.SelectedDepartment is not null)
+{
+    <section class="card">
+        <h2>@Model.SelectedDepartment.DepartmentName</h2>
+        <p>
+            <strong>@Model.SelectedDepartment.ScholarCount</strong> synchronized scholar(s)
+            ·
+            <strong>@Model.SelectedDepartment.PublicationCount</strong> unique publication(s)
+            currently linked to the department.
+        </p>
+        <p class="small">
+            Department cache last refreshed:
+            @Model.SelectedDepartment.LastRetrievedAtUtc.ToString("u")
+        </p>
+    </section>
+
+    <h2>Newest publications (@Model.Publications.Count)</h2>
+
+    @if (Model.Publications.Count == 0)
+    {
+        <section class="card">
+            <p>No locally synchronized publications matched the selected filters.</p>
+        </section>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Publication</th>
+                    <th>Faculty</th>
+                    <th>Venue</th>
+                    <th>Citations</th>
+                    <th>Source identifiers</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var publication in Model.Publications)
+            {
+                <tr>
+                    <td>
+                        @(publication.PublicationYear?.ToString()
+                          ?? publication.YearText
+                          ?? "—")
+                    </td>
+                    <td>
+                        <strong>@publication.Title</strong>
+
+                        @if (!string.IsNullOrWhiteSpace(publication.Link))
+                        {
+                            <br />
+                            <a href="@publication.Link"
+                               target="_blank"
+                               rel="noopener">Open publication</a>
+                        }
+
+                        @if (publication.Verified == true)
+                        {
+                            <br />
+                            <span class="badge Accepted">Verified</span>
+                        }
+                    </td>
+                    <td>
+                        @publication.FacultyNames
+                        @if (publication.FacultyCount > 1)
+                        {
+                            <br />
+                            <span class="small">
+                                @publication.FacultyCount department faculty
+                            </span>
+                        }
+                    </td>
+                    <td>@publication.Venue</td>
+                    <td>@publication.CitationCount</td>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(publication.Doi))
+                        {
+                            <span class="small">DOI: @publication.Doi</span><br />
+                        }
+                        @if (!string.IsNullOrWhiteSpace(publication.OpenAlexId))
+                        {
+                            <span class="small">OpenAlex: @publication.OpenAlexId</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+}
