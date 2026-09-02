@@ -58,6 +58,7 @@ builder.Services.AddScoped<AcademicOnlineFacultyPublicationsService>();
 builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
 builder.Services.AddScoped<AcademicOnlineUniversalFacultyLookupService>();
 builder.Services.AddScoped<FacultyProfileHandoffService>();
+builder.Services.AddScoped<PublicationKeywordFilterService>();
 
 var app = builder.Build();
 
