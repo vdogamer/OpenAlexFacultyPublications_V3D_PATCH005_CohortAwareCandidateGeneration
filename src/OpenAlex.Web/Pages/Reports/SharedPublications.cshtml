@@ -128,14 +128,92 @@
     {
         <h2>Shared publications (@Model.Result.Publications.Count)</h2>
 
-        @if (Model.Result.Publications.Count == 0)
-        {
-            <section class="card">
+        <section class="card">
+            <p>
+                <strong>Publication sets searched:</strong>
+                @string.Join(
+                    " · ",
+                    Model.Result.Resolutions.Select(
+                        faculty => $"{faculty.UserId}: {faculty.PublicationCount} publications"))
+            </p>
+
+            @if (Model.Result.Publications.Count == 0)
+            {
                 <p>
                     No publications were found that are shared by all selected faculty
                     using the available Academic Online publication identifiers.
                 </p>
-            </section>
+            }
+            else
+            {
+                <p>
+                    @Model.Result.Publications.Count publication(s) matched across every
+                    selected faculty member.
+                </p>
+            }
+        </section>
+
+        @if (Model.Result.Publications.Count == 0)
+        {
+            @if (Model.Result.CoauthorSuggestions.Count > 0)
+            {
+                <section class="card">
+                    <h2>Likely coauthors to test</h2>
+                    <p>
+                        These names come from the first selected faculty member's
+                        Academic Online publication coauthor data. They are ranked by
+                        how many publications they appear on with that faculty member.
+                    </p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Coauthor</th>
+                                <th>Shared papers with first faculty</th>
+                                <th>Example publication</th>
+                                <th>Next test</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var suggestion in Model.Result.CoauthorSuggestions)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@suggestion.Name</strong>
+                                    @if (!string.IsNullOrWhiteSpace(suggestion.UvaUserId))
+                                    {
+                                        <br />
+                                        <span class="small">@suggestion.UvaUserId</span>
+                                    }
+                                </td>
+                                <td>@suggestion.SharedPublicationCount</td>
+                                <td>@suggestion.ExamplePublicationTitle</td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(suggestion.UvaUserId))
+                                    {
+                                        var firstUserId = Model.Result.Resolutions[0].UserId;
+                                        var pair = firstUserId + "," + suggestion.UvaUserId;
+
+                                        <a asp-page="/Reports/SharedPublications"
+                                           asp-route-UserIds="@pair"
+                                           asp-route-VerifiedOnly="@Model.VerifiedOnly">
+                                            Test this pair
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a asp-page="/Reports/AcademicOnlineFacultyLookup"
+                                           asp-route-Search="@suggestion.Name">
+                                            Find UVA User ID
+                                        </a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </section>
+            }
         }
         else
         {
