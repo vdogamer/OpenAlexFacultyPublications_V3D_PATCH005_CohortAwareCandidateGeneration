@@ -51,6 +51,65 @@ public sealed class AcademicOnlineApiClient
         return PostJsonDocumentAsync("scholars/filter_scholars_with_fts", body, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AcademicOnlineScholarSearchCandidate>> SearchScholarCandidatesAsync(
+        string searchText,
+        string? departmentName = null,
+        int rowsPerPage = 25,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            return Array.Empty<AcademicOnlineScholarSearchCandidate>();
+        }
+
+        using var document = await SearchScholarsAsync(
+            searchText.Trim(),
+            departmentName,
+            page: 0,
+            rowsPerPage: Math.Clamp(rowsPerPage, 1, 100),
+            cancellationToken);
+
+        if (!document.RootElement.TryGetProperty("results", out var results) ||
+            results.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<AcademicOnlineScholarSearchCandidate>();
+        }
+
+        var candidates = new List<AcademicOnlineScholarSearchCandidate>();
+
+        foreach (var item in results.EnumerateArray())
+        {
+            var authorId = GetString(item, "id");
+            if (string.IsNullOrWhiteSpace(authorId))
+            {
+                continue;
+            }
+
+            candidates.Add(new AcademicOnlineScholarSearchCandidate
+            {
+                AuthorId = authorId.Trim(),
+                Name = GetString(item, "name"),
+                Email = GetString(item, "email"),
+                Position = GetString(item, "position"),
+                Department =
+                    GetString(item, "department")
+                    ?? GetString(item, "department_name"),
+                Institution =
+                    GetString(item, "institution")
+                    ?? GetString(item, "institution_name"),
+                OrcidUrl =
+                    GetString(item, "orcid_url")
+                    ?? GetString(item, "orcid"),
+                RankingScore = GetDecimal(item, "ranking_score")
+            });
+        }
+
+        return candidates
+            .OrderByDescending(candidate => candidate.RankingScore ?? decimal.MinValue)
+            .ThenBy(candidate => candidate.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     public Task<JsonDocument> GetAuthorGeneralAsync(string authorId, CancellationToken cancellationToken = default)
     {
         return GetJsonDocumentAsync("author/general?authorId=" + Uri.EscapeDataString(authorId), cancellationToken);
@@ -279,6 +338,26 @@ public sealed class AcademicOnlineApiClient
         }
 
         return int.TryParse(value.ToString(), out var parsed) ? parsed : null;
+    }
+
+    private static decimal? GetDecimal(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind == JsonValueKind.Null ||
+            value.ValueKind == JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number &&
+            value.TryGetDecimal(out var number))
+        {
+            return number;
+        }
+
+        return decimal.TryParse(value.ToString(), out var parsed)
+            ? parsed
+            : null;
     }
 
     private static bool? GetBool(JsonElement element, string propertyName)
