@@ -35,25 +35,52 @@
     <div class="publication-range-options" aria-label="Publication range">
         <a class="button @(Model.Range == "all" ? "range-active" : "secondary")"
            asp-route-Range="all"
-           asp-route-VerifiedOnly="@Model.VerifiedOnly">
+           asp-route-VerifiedOnly="@Model.VerifiedOnly"
+           asp-route-Keyword="@Model.Keyword"
+           asp-route-KeywordMatchMode="@Model.KeywordMatchMode">
             All publications
         </a>
 
         <a class="button @(Model.Range == "10" ? "range-active" : "secondary")"
            asp-route-Range="10"
-           asp-route-VerifiedOnly="@Model.VerifiedOnly">
+           asp-route-VerifiedOnly="@Model.VerifiedOnly"
+           asp-route-Keyword="@Model.Keyword"
+           asp-route-KeywordMatchMode="@Model.KeywordMatchMode">
             Last 10 years
         </a>
 
         <a class="button @(Model.Range == "5" ? "range-active" : "secondary")"
            asp-route-Range="5"
-           asp-route-VerifiedOnly="@Model.VerifiedOnly">
+           asp-route-VerifiedOnly="@Model.VerifiedOnly"
+           asp-route-Keyword="@Model.Keyword"
+           asp-route-KeywordMatchMode="@Model.KeywordMatchMode">
             Last 5 years
         </a>
     </div>
 
     <form method="get" class="my-publications-options">
         <input type="hidden" name="Range" value="@Model.Range" />
+
+        <label class="publication-keyword-field">
+            Keyword or topic
+            <input type="text"
+                   name="Keyword"
+                   value="@Model.Keyword"
+                   maxlength="500"
+                   placeholder="e.g. cancer, genomics" />
+        </label>
+
+        <label>
+            Match
+            <select name="KeywordMatchMode">
+                <option value="any" selected="@(Model.KeywordMatchModeLabel == "ANY")">
+                    ANY keyword
+                </option>
+                <option value="all" selected="@(Model.KeywordMatchModeLabel == "ALL")">
+                    ALL keywords
+                </option>
+            </select>
+        </label>
 
         <label class="checkbox-label">
             <input type="checkbox"
@@ -63,7 +90,16 @@
             Show only publications verified in Academic Online
         </label>
 
-        <button type="submit">Refresh</button>
+        <button type="submit">Apply Filters</button>
+
+        @if (Model.HasKeywordFilter)
+        {
+            <a class="button secondary"
+               asp-route-Range="@Model.Range"
+               asp-route-VerifiedOnly="@Model.VerifiedOnly">
+                Clear keyword
+            </a>
+        }
     </form>
 
     <details class="advanced-publication-options"
@@ -72,6 +108,8 @@
 
         <form method="get" class="filter-form">
             <input type="hidden" name="Range" value="custom" />
+            <input type="hidden" name="Keyword" value="@Model.Keyword" />
+            <input type="hidden" name="KeywordMatchMode" value="@Model.KeywordMatchMode" />
 
             <label>
                 From year
@@ -128,9 +166,28 @@ else if (Model.Result is not null)
 
         <div class="publication-summary-count">
             <strong>@Model.Result.Publications.Count</strong>
-            <span>publication@(Model.Result.Publications.Count == 1 ? "" : "s")</span>
+            <span>
+                matching publication@(Model.Result.Publications.Count == 1 ? "" : "s")
+            </span>
             <small>@Model.RangeLabel</small>
+
+            @if (Model.HasKeywordFilter)
+            {
+                <small>
+                    from @Model.Result.UnfilteredPublicationCount before keyword filtering
+                </small>
+            }
         </div>
+
+        @if (Model.HasKeywordFilter)
+        {
+            <p class="publication-filter-summary">
+                <strong>Keyword filter:</strong>
+                @Model.Result.KeywordQuery
+                <span class="badge">@Model.KeywordMatchModeLabel</span>
+                <span class="small">Matches title, Academic Online keywords, or venue/journal.</span>
+            </p>
+        }
 
         @if (Model.Result.HitMaxPages)
         {
