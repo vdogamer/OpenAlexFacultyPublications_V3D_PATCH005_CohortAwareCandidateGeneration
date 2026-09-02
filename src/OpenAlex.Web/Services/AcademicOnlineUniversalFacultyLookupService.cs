@@ -7,11 +7,14 @@ namespace OpenAlex.Web.Services;
 public sealed class AcademicOnlineUniversalFacultyLookupService
 {
     private readonly AcademicOnlineApiClient _client;
+    private readonly PublicationKeywordFilterService _keywordFilter;
 
     public AcademicOnlineUniversalFacultyLookupService(
-        AcademicOnlineApiClient client)
+        AcademicOnlineApiClient client,
+        PublicationKeywordFilterService keywordFilter)
     {
         _client = client;
+        _keywordFilter = keywordFilter;
     }
 
     public Task<IReadOnlyList<AcademicOnlineScholarSearchCandidate>> SearchAsync(
@@ -31,6 +34,8 @@ public sealed class AcademicOnlineUniversalFacultyLookupService
         bool verifiedOnly,
         int? fromYear,
         int? toYear,
+        string? keywordQuery = null,
+        string? keywordMatchMode = null,
         CancellationToken cancellationToken = default)
     {
         var authorId = ValidateAuthorId(academicOnlineAuthorId);
@@ -48,6 +53,11 @@ public sealed class AcademicOnlineUniversalFacultyLookupService
 
         var profile = ParseProfile(general.RootElement);
 
+        var filtered = _keywordFilter.Apply(
+            publications.Publications,
+            keywordQuery,
+            keywordMatchMode);
+
         var renderResult = new AcademicOnlineFacultyPublicationsResult
         {
             Mapping = new FacultyAcademicOnlineMappingRow
@@ -60,7 +70,11 @@ public sealed class AcademicOnlineUniversalFacultyLookupService
                 MappingSource = "UniversalAcademicOnlineLookup"
             },
             Profile = profile,
-            Publications = publications.Publications,
+            Publications = filtered.Publications,
+            UnfilteredPublicationCount = filtered.SourcePublicationCount,
+            KeywordQuery = filtered.KeywordQuery,
+            KeywordMatchMode = filtered.MatchMode,
+            KeywordTerms = filtered.Terms,
             PagesFetched = publications.PagesFetched,
             RowsPerPage = publications.RowsPerPage,
             HitMaxPages = publications.HitMaxPages,
