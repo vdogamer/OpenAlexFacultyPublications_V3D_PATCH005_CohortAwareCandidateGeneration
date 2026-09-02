@@ -1,0 +1,238 @@
+@page
+@model OpenAlex.Web.Pages.Reports.AcademicOnlineFacultyLookupModel
+@{
+    ViewData["Title"] = "UVA Faculty Publication Lookup";
+}
+
+<h1>UVA Faculty Publication Lookup</h1>
+
+<section class="card">
+    <p>
+        Search the University of Virginia Academic Online tenant for a faculty member,
+        choose the correct scholar, and generate a publication page directly from
+        Academic Online.
+    </p>
+
+    <p class="small">
+        This lookup is read-only. Choosing a scholar here does not create or change a
+        production faculty-to-Academic-Online mapping.
+    </p>
+</section>
+
+<section class="card">
+    <h2>Find a UVA faculty member</h2>
+
+    <form method="get" class="filter-form">
+        <label>
+            Faculty name
+            <input type="text"
+                   name="Search"
+                   value="@Model.Search"
+                   placeholder="e.g. Charles Farber"
+                   required />
+        </label>
+
+        <label>
+            Department
+            <input type="text"
+                   name="Department"
+                   value="@Model.Department"
+                   placeholder="optional" />
+        </label>
+
+        <button type="submit">Search Academic Online</button>
+    </form>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <h2>Lookup error</h2>
+        <p class="notice">@Model.ErrorMessage</p>
+    </section>
+}
+
+@if (Model.SearchResults.Count > 0)
+{
+    <section class="card">
+        <h2>Choose the correct scholar</h2>
+
+        <div class="publication-review-list">
+            @foreach (var scholar in Model.SearchResults)
+            {
+                <article class="publication-review-card">
+                    <div class="publication-card-main">
+                        <div>
+                            <h3 class="publication-card-title">
+                                @(scholar.Name ?? "Unnamed scholar")
+                            </h3>
+
+                            <div class="publication-card-meta">
+                                @if (!string.IsNullOrWhiteSpace(scholar.Position))
+                                {
+                                    <span>@scholar.Position</span>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(scholar.Department))
+                                {
+                                    <span>@scholar.Department</span>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(scholar.Email))
+                                {
+                                    <span>@scholar.Email</span>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(scholar.OrcidUrl))
+                                {
+                                    <span>@scholar.OrcidUrl</span>
+                                }
+                            </div>
+
+                            @if (scholar.RankingScore.HasValue)
+                            {
+                                <p class="small">
+                                    Academic Online search score:
+                                    @scholar.RankingScore.Value.ToString("0.####")
+                                </p>
+                            }
+                        </div>
+
+                        <div class="publication-review-actions">
+                            <a class="button"
+                               asp-route-Search="@Model.Search"
+                               asp-route-Department="@Model.Department"
+                               asp-route-AuthorId="@scholar.AuthorId">
+                                Load Publications
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+}
+else if (!string.IsNullOrWhiteSpace(Model.Search) &&
+         Model.SelectedResult is null &&
+         string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <p>No Academic Online scholars matched that search.</p>
+    </section>
+}
+
+@if (Model.SelectedResult is not null)
+{
+    var result = Model.SelectedResult.RenderResult;
+
+    <section class="card">
+        <h2>@result.Profile.Name</h2>
+
+        <dl>
+            <dt>Position</dt>
+            <dd>@(result.Profile.Position ?? "not supplied")</dd>
+
+            <dt>Department</dt>
+            <dd>@(result.Profile.Department ?? "not supplied")</dd>
+
+            <dt>Email</dt>
+            <dd>@(result.Profile.Email ?? "not supplied")</dd>
+
+            <dt>Academic Online profile publication count</dt>
+            <dd>@(result.Profile.PublicationCount?.ToString() ?? "not supplied")</dd>
+
+            <dt>Publications returned</dt>
+            <dd>@result.Publications.Count</dd>
+
+            <dt>Publication pages fetched</dt>
+            <dd>@result.PagesFetched</dd>
+        </dl>
+
+        @if (result.HitMaxPages)
+        {
+            <p class="notice">
+                This scholar reached the configured pagination safeguard.
+            </p>
+        }
+
+        <form method="get" class="filter-form">
+            <input type="hidden" name="Search" value="@Model.Search" />
+            <input type="hidden" name="Department" value="@Model.Department" />
+            <input type="hidden" name="AuthorId" value="@Model.AuthorId" />
+
+            <label>
+                From year
+                <input type="number"
+                       name="FromYear"
+                       value="@Model.FromYear"
+                       placeholder="optional" />
+            </label>
+
+            <label>
+                To year
+                <input type="number"
+                       name="ToYear"
+                       value="@Model.ToYear"
+                       placeholder="optional" />
+            </label>
+
+            <label class="checkbox-label">
+                <input type="checkbox"
+                       name="VerifiedOnly"
+                       value="true"
+                       checked="@Model.VerifiedOnly" />
+                Verified only
+            </label>
+
+            <button type="submit">Refresh Publications</button>
+        </form>
+    </section>
+
+    <section class="card copy-profile-card">
+        <h2>Copy generated publications</h2>
+
+        <div class="review-actions">
+            <button type="button"
+                    id="copyProfileReadyPublications"
+                    class="copy-primary-button">
+                Copy Publications
+            </button>
+
+            <button type="button"
+                    id="copyPublicationHtmlSource"
+                    class="button secondary">
+                Copy HTML Source
+            </button>
+
+            <a class="button secondary"
+               asp-page-handler="Html"
+               asp-route-AuthorId="@Model.AuthorId"
+               asp-route-VerifiedOnly="@Model.VerifiedOnly"
+               asp-route-FromYear="@Model.FromYear"
+               asp-route-ToYear="@Model.ToYear"
+               target="_blank"
+               rel="noopener">
+                Open Standalone HTML
+            </a>
+        </div>
+
+        <p id="publicationCopyStatus"
+           class="copy-status"
+           role="status"
+           aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+        <h2>Publication preview</h2>
+
+        <div id="generatedPublicationProfileContent">
+            @Html.Raw(Model.GeneratedHtmlFragment)
+        </div>
+    </section>
+
+    <textarea id="generatedPublicationHtmlSource"
+              hidden
+              aria-hidden="true">@Model.GeneratedHtmlFragment</textarea>
+}
+
+<script src="/js/academic-online-publications-copy.js" defer></script>
