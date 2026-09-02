@@ -1,0 +1,92 @@
+@page
+@model OpenAlex.Web.Pages.Reports.SharedPublicationsModel
+
+<h1>Find Shared Publications</h1>
+
+<section class="card">
+    <p>Enter two or more UVA userids. A result is returned only when every selected faculty member has the same accepted publication.</p>
+    <form method="get">
+        <label for="userIds"><strong>Faculty userids</strong></label><br />
+        <textarea id="userIds" name="UserIds" rows="5" style="width:100%;max-width:720px" placeholder="abc1&#10;def2&#10;ghi3">@Model.UserIds</textarea>
+        <p class="small">Separate userids with commas, spaces, semicolons, or new lines. Maximum 25.</p>
+        <button class="button" type="submit">Find Shared Publications</button>
+    </form>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <strong>Search could not be completed.</strong>
+        <p>@Model.ErrorMessage</p>
+    </section>
+}
+
+@if (Model.Result is not null)
+{
+    <section class="card">
+        <h2>Faculty resolution</h2>
+        @if (Model.Result.ResolvedFaculty.Count > 0)
+        {
+            <ul>
+            @foreach (var faculty in Model.Result.ResolvedFaculty)
+            {
+                <li><strong>@faculty.UserId</strong> — @faculty.DisplayName <span class="small">(@faculty.PrimaryEmail)</span></li>
+            }
+            </ul>
+        }
+
+        @if (Model.Result.MissingUserIds.Count > 0)
+        {
+            <p><strong>Not resolved:</strong> @string.Join(", ", Model.Result.MissingUserIds)</p>
+            <p>No shared-publication query was run because every userid must resolve first.</p>
+        }
+    </section>
+
+    @if (Model.Result.MissingUserIds.Count == 0)
+    {
+        <h2>Shared publications (@Model.Result.Publications.Count)</h2>
+
+        @if (Model.Result.Publications.Count == 0)
+        {
+            <section class="card">
+                <p>No accepted publications are shared by all selected faculty.</p>
+            </section>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Publication</th>
+                        <th>Year</th>
+                        <th>Type</th>
+                        <th>Citations</th>
+                        <th>Shared faculty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model.Result.Publications)
+                {
+                    <tr>
+                        <td>
+                            <strong>@item.WorkTitle</strong><br />
+                            @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
+                            {
+                                <a href="@item.DoiUrl" target="_blank" rel="noopener">DOI</a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.WorkOpenAlexId))
+                            {
+                                <span class="small"> @item.WorkOpenAlexId</span>
+                            }
+                        </td>
+                        <td>@item.PublicationYear</td>
+                        <td>@item.WorkType</td>
+                        <td>@item.CitedByCount</td>
+                        <td>@item.SharedFacultyCount</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    }
+}
