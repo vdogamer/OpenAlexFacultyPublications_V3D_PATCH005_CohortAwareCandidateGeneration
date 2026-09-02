@@ -55,6 +55,7 @@ builder.Services.AddScoped<ConfigurationPreflightService>();
 builder.Services.AddScoped<FacultyAcademicOnlineMappingRepository>();
 builder.Services.AddScoped<AcademicOnlineFacultyPublicationsService>();
 builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
+builder.Services.AddScoped<AcademicOnlineUniversalFacultyLookupService>();
 
 var app = builder.Build();
 
