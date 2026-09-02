@@ -1,0 +1,1046 @@
+using System.Data;
+using Microsoft.Data.SqlClient;
+using OpenAlex.Data.Models;
+
+namespace OpenAlex.Data;
+
+public sealed class AcademicOnlineReportingStoreRepository
+{
+    private readonly SqlConnectionFactory _connectionFactory;
+
+    public AcademicOnlineReportingStoreRepository(
+        SqlConnectionFactory connectionFactory)
+    {
+        _connectionFactory = connectionFactory;
+    }
+
+    public async Task<long> StartRunAsync(
+        string departmentName,
+        int? fromYear,
+        int? toYear,
+        bool verifiedOnly,
+        string startedBy,
+        string applicationVersion,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await EnsureStoreExistsAsync(connection, cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+INSERT INTO academiconline.SyncRun
+(
+    SyncType,
+    DepartmentName,
+    FromYear,
+    ToYear,
+    VerifiedOnly,
+    RunStatus,
+    StartedBy,
+    ApplicationVersion,
+    StartedAtUtc,
+    CreatedAtUtc,
+    UpdatedAtUtc
+)
+OUTPUT INSERTED.AcademicOnlineSyncRunId
+VALUES
+(
+    N'DepartmentRecentPublications',
+    @DepartmentName,
+    @FromYear,
+    @ToYear,
+    @VerifiedOnly,
+    N'Running',
+    @StartedBy,
+    @ApplicationVersion,
+    SYSUTCDATETIME(),
+    SYSUTCDATETIME(),
+    SYSUTCDATETIME()
+);";
+
+        command.Parameters.AddWithValue("@DepartmentName", departmentName);
+        AddNullable(command, "@FromYear", SqlDbType.Int, fromYear);
+        AddNullable(command, "@ToYear", SqlDbType.Int, toYear);
+        command.Parameters.AddWithValue("@VerifiedOnly", verifiedOnly);
+        command.Parameters.AddWithValue("@StartedBy", startedBy);
+        command.Parameters.AddWithValue("@ApplicationVersion", applicationVersion);
+
+        return Convert.ToInt64(
+            await command.ExecuteScalarAsync(cancellationToken));
+    }
+
+    public async Task<long> UpsertDepartmentAsync(
+        long runId,
+        string sourceName,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = sourceName.Trim();
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using (var update = connection.CreateCommand())
+        {
+            update.CommandText = @"
+UPDATE academiconline.Department
+SET
+    CanonicalName = @CanonicalName,
+    IsActive = 1,
+    LastRetrievedAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE SourceName = @SourceName;";
+            update.Parameters.AddWithValue("@CanonicalName", normalized);
+            update.Parameters.AddWithValue("@RunId", runId);
+            update.Parameters.AddWithValue("@SourceName", normalized);
+            await update.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using (var insert = connection.CreateCommand())
+        {
+            insert.CommandText = @"
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM academiconline.Department
+    WHERE SourceName = @SourceName
+)
+BEGIN
+    INSERT INTO academiconline.Department
+    (
+        SourceName,
+        CanonicalName,
+        IsActive,
+        FirstSeenAtUtc,
+        LastRetrievedAtUtc,
+        LastSyncRunId
+    )
+    VALUES
+    (
+        @SourceName,
+        @CanonicalName,
+        1,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        @RunId
+    );
+END;";
+            insert.Parameters.AddWithValue("@SourceName", normalized);
+            insert.Parameters.AddWithValue("@CanonicalName", normalized);
+            insert.Parameters.AddWithValue("@RunId", runId);
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using var select = connection.CreateCommand();
+        select.CommandText = @"
+SELECT DepartmentId
+FROM academiconline.Department
+WHERE SourceName = @SourceName;";
+        select.Parameters.AddWithValue("@SourceName", normalized);
+
+        return Convert.ToInt64(
+            await select.ExecuteScalarAsync(cancellationToken));
+    }
+
+    public async Task UpsertScholarAsync(
+        long runId,
+        string academicOnlineAuthorId,
+        string displayName,
+        string? email,
+        string? position,
+        string? institution,
+        string? orcidUrl,
+        int? publicationCount,
+        bool? hasPublications,
+        bool? hasVerifiedPublications,
+        string? rawJson,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = TryGetUvaUserId(email);
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.Scholar
+SET
+    UvaUserId = @UvaUserId,
+    DisplayName = @DisplayName,
+    Email = @Email,
+    Position = @Position,
+    Institution = @Institution,
+    OrcidUrl = @OrcidUrl,
+    PublicationCount = @PublicationCount,
+    HasPublications = @HasPublications,
+    HasVerifiedPublications = @HasVerifiedPublications,
+    RawJson = @RawJson,
+    LastRetrievedAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE AcademicOnlineAuthorId = @AuthorId;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    INSERT INTO academiconline.Scholar
+    (
+        AcademicOnlineAuthorId,
+        UvaUserId,
+        DisplayName,
+        Email,
+        Position,
+        Institution,
+        OrcidUrl,
+        PublicationCount,
+        HasPublications,
+        HasVerifiedPublications,
+        RawJson,
+        FirstSeenAtUtc,
+        LastRetrievedAtUtc,
+        LastSyncRunId
+    )
+    VALUES
+    (
+        @AuthorId,
+        @UvaUserId,
+        @DisplayName,
+        @Email,
+        @Position,
+        @Institution,
+        @OrcidUrl,
+        @PublicationCount,
+        @HasPublications,
+        @HasVerifiedPublications,
+        @RawJson,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        @RunId
+    );
+END;";
+
+        command.Parameters.AddWithValue("@RunId", runId);
+        command.Parameters.AddWithValue("@AuthorId", academicOnlineAuthorId.Trim());
+        command.Parameters.AddWithValue("@DisplayName", displayName.Trim());
+        AddNullable(command, "@UvaUserId", SqlDbType.NVarChar, 32, userId);
+        AddNullable(command, "@Email", SqlDbType.NVarChar, 512, email);
+        AddNullable(command, "@Position", SqlDbType.NVarChar, 512, position);
+        AddNullable(command, "@Institution", SqlDbType.NVarChar, 512, institution);
+        AddNullable(command, "@OrcidUrl", SqlDbType.NVarChar, 512, orcidUrl);
+        AddNullable(command, "@PublicationCount", SqlDbType.Int, publicationCount);
+        AddNullable(command, "@HasPublications", SqlDbType.Bit, hasPublications);
+        AddNullable(command, "@HasVerifiedPublications", SqlDbType.Bit, hasVerifiedPublications);
+        AddNullable(command, "@RawJson", SqlDbType.NVarChar, -1, rawJson);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task TouchScholarDepartmentAsync(
+        long runId,
+        string academicOnlineAuthorId,
+        long departmentId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.ScholarDepartment
+SET
+    LastSeenAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE AcademicOnlineAuthorId = @AuthorId
+  AND DepartmentId = @DepartmentId;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    INSERT INTO academiconline.ScholarDepartment
+    (
+        AcademicOnlineAuthorId,
+        DepartmentId,
+        FirstSeenAtUtc,
+        LastSeenAtUtc,
+        LastSyncRunId
+    )
+    VALUES
+    (
+        @AuthorId,
+        @DepartmentId,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        @RunId
+    );
+END;";
+
+        command.Parameters.AddWithValue("@RunId", runId);
+        command.Parameters.AddWithValue("@AuthorId", academicOnlineAuthorId.Trim());
+        command.Parameters.AddWithValue("@DepartmentId", departmentId);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<long> UpsertPublicationAsync(
+        long runId,
+        string? academicOnlinePublicationId,
+        string? openAlexId,
+        string? doi,
+        string? title,
+        string? venue,
+        string? yearText,
+        int? publicationYear,
+        int? citationCount,
+        bool? verified,
+        string? link,
+        string? coauthorsJson,
+        string? keywordsJson,
+        string rawJson,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedAcademicOnlineId = NormalizeOptional(academicOnlinePublicationId);
+        var normalizedOpenAlexId = NormalizeOpenAlexId(openAlexId);
+        var normalizedDoi = NormalizeDoi(doi);
+        var titleYearFingerprint = BuildTitleYearFingerprint(
+            title,
+            publicationYear,
+            yearText);
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        long? publicationKey = null;
+
+        await using (var lookup = connection.CreateCommand())
+        {
+            lookup.CommandText = @"
+SELECT TOP (1)
+    PublicationKey
+FROM academiconline.Publication
+WHERE
+       (@AcademicOnlinePublicationId IS NOT NULL
+        AND AcademicOnlinePublicationId = @AcademicOnlinePublicationId)
+    OR (@OpenAlexId IS NOT NULL
+        AND OpenAlexId = @OpenAlexId)
+    OR (@DoiNormalized IS NOT NULL
+        AND DoiNormalized = @DoiNormalized)
+    OR (@TitleYearFingerprint IS NOT NULL
+        AND TitleYearFingerprint = @TitleYearFingerprint)
+ORDER BY
+    CASE
+        WHEN @AcademicOnlinePublicationId IS NOT NULL
+             AND AcademicOnlinePublicationId = @AcademicOnlinePublicationId THEN 1
+        WHEN @OpenAlexId IS NOT NULL
+             AND OpenAlexId = @OpenAlexId THEN 2
+        WHEN @DoiNormalized IS NOT NULL
+             AND DoiNormalized = @DoiNormalized THEN 3
+        ELSE 4
+    END,
+    PublicationKey;";
+
+            AddNullable(
+                lookup,
+                "@AcademicOnlinePublicationId",
+                SqlDbType.NVarChar,
+                128,
+                normalizedAcademicOnlineId);
+            AddNullable(
+                lookup,
+                "@OpenAlexId",
+                SqlDbType.NVarChar,
+                128,
+                normalizedOpenAlexId);
+            AddNullable(
+                lookup,
+                "@DoiNormalized",
+                SqlDbType.NVarChar,
+                512,
+                normalizedDoi);
+            AddNullable(
+                lookup,
+                "@TitleYearFingerprint",
+                SqlDbType.NVarChar,
+                900,
+                titleYearFingerprint);
+
+            var value = await lookup.ExecuteScalarAsync(cancellationToken);
+            if (value is not null && value != DBNull.Value)
+            {
+                publicationKey = Convert.ToInt64(value);
+            }
+        }
+
+        if (publicationKey.HasValue)
+        {
+            await using var update = connection.CreateCommand();
+            update.CommandText = @"
+UPDATE academiconline.Publication
+SET
+    AcademicOnlinePublicationId =
+        COALESCE(@AcademicOnlinePublicationId, AcademicOnlinePublicationId),
+    OpenAlexId = COALESCE(@OpenAlexId, OpenAlexId),
+    Doi = COALESCE(@Doi, Doi),
+    DoiNormalized = COALESCE(@DoiNormalized, DoiNormalized),
+    Title = COALESCE(@Title, Title),
+    TitleYearFingerprint =
+        COALESCE(@TitleYearFingerprint, TitleYearFingerprint),
+    Venue = COALESCE(@Venue, Venue),
+    YearText = COALESCE(@YearText, YearText),
+    PublicationYear = COALESCE(@PublicationYear, PublicationYear),
+    CitationCount = COALESCE(@CitationCount, CitationCount),
+    Verified = COALESCE(@Verified, Verified),
+    Link = COALESCE(@Link, Link),
+    CoauthorsJson = COALESCE(@CoauthorsJson, CoauthorsJson),
+    KeywordsJson = COALESCE(@KeywordsJson, KeywordsJson),
+    RawJson = @RawJson,
+    LastRetrievedAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE PublicationKey = @PublicationKey;";
+
+            AddPublicationParameters(
+                update,
+                runId,
+                publicationKey.Value,
+                normalizedAcademicOnlineId,
+                normalizedOpenAlexId,
+                doi,
+                normalizedDoi,
+                title,
+                titleYearFingerprint,
+                venue,
+                yearText,
+                publicationYear,
+                citationCount,
+                verified,
+                link,
+                coauthorsJson,
+                keywordsJson,
+                rawJson);
+
+            await update.ExecuteNonQueryAsync(cancellationToken);
+            return publicationKey.Value;
+        }
+
+        await using var insert = connection.CreateCommand();
+        insert.CommandText = @"
+INSERT INTO academiconline.Publication
+(
+    AcademicOnlinePublicationId,
+    OpenAlexId,
+    Doi,
+    DoiNormalized,
+    Title,
+    TitleYearFingerprint,
+    Venue,
+    YearText,
+    PublicationYear,
+    CitationCount,
+    Verified,
+    Link,
+    CoauthorsJson,
+    KeywordsJson,
+    RawJson,
+    FirstSeenAtUtc,
+    LastRetrievedAtUtc,
+    LastSyncRunId
+)
+OUTPUT INSERTED.PublicationKey
+VALUES
+(
+    @AcademicOnlinePublicationId,
+    @OpenAlexId,
+    @Doi,
+    @DoiNormalized,
+    @Title,
+    @TitleYearFingerprint,
+    @Venue,
+    @YearText,
+    @PublicationYear,
+    @CitationCount,
+    @Verified,
+    @Link,
+    @CoauthorsJson,
+    @KeywordsJson,
+    @RawJson,
+    SYSUTCDATETIME(),
+    SYSUTCDATETIME(),
+    @RunId
+);";
+
+        AddPublicationParameters(
+            insert,
+            runId,
+            publicationKey: null,
+            normalizedAcademicOnlineId,
+            normalizedOpenAlexId,
+            doi,
+            normalizedDoi,
+            title,
+            titleYearFingerprint,
+            venue,
+            yearText,
+            publicationYear,
+            citationCount,
+            verified,
+            link,
+            coauthorsJson,
+            keywordsJson,
+            rawJson);
+
+        return Convert.ToInt64(
+            await insert.ExecuteScalarAsync(cancellationToken));
+    }
+
+    public async Task TouchScholarPublicationAsync(
+        long runId,
+        string academicOnlineAuthorId,
+        long publicationKey,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.ScholarPublication
+SET
+    LastSeenAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE AcademicOnlineAuthorId = @AuthorId
+  AND PublicationKey = @PublicationKey;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    INSERT INTO academiconline.ScholarPublication
+    (
+        AcademicOnlineAuthorId,
+        PublicationKey,
+        FirstSeenAtUtc,
+        LastSeenAtUtc,
+        LastSyncRunId
+    )
+    VALUES
+    (
+        @AuthorId,
+        @PublicationKey,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        @RunId
+    );
+END;";
+
+        command.Parameters.AddWithValue("@RunId", runId);
+        command.Parameters.AddWithValue("@AuthorId", academicOnlineAuthorId.Trim());
+        command.Parameters.AddWithValue("@PublicationKey", publicationKey);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public Task CompleteRunAsync(
+        long runId,
+        int scholarsProcessed,
+        int publicationsProcessed,
+        int scholarPagesFetched,
+        int publicationPagesFetched,
+        string summaryText,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateRunAsync(
+            runId,
+            "Completed",
+            scholarsProcessed,
+            publicationsProcessed,
+            scholarPagesFetched,
+            publicationPagesFetched,
+            summaryText,
+            errorText: null,
+            cancellationToken);
+    }
+
+    public Task FailRunAsync(
+        long runId,
+        Exception exception,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateRunAsync(
+            runId,
+            "Failed",
+            scholarsProcessed: 0,
+            publicationsProcessed: 0,
+            scholarPagesFetched: 0,
+            publicationPagesFetched: 0,
+            summaryText: null,
+            errorText: exception.ToString(),
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AcademicOnlineDepartmentListItem>>
+        GetDepartmentsAsync(
+            CancellationToken cancellationToken = default)
+    {
+        var rows = new List<AcademicOnlineDepartmentListItem>();
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.Department",
+                "U",
+                cancellationToken))
+        {
+            return rows;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT
+    d.DepartmentId,
+    d.CanonicalName,
+    ScholarCount = COUNT(DISTINCT sd.AcademicOnlineAuthorId),
+    PublicationCount = COUNT(DISTINCT sp.PublicationKey),
+    d.LastRetrievedAtUtc
+FROM academiconline.Department d
+LEFT JOIN academiconline.ScholarDepartment sd
+    ON sd.DepartmentId = d.DepartmentId
+LEFT JOIN academiconline.ScholarPublication sp
+    ON sp.AcademicOnlineAuthorId = sd.AcademicOnlineAuthorId
+WHERE d.IsActive = 1
+GROUP BY
+    d.DepartmentId,
+    d.CanonicalName,
+    d.LastRetrievedAtUtc
+ORDER BY d.CanonicalName;";
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new AcademicOnlineDepartmentListItem
+            {
+                DepartmentId = reader.GetInt64(0),
+                DepartmentName = reader.GetString(1),
+                ScholarCount = reader.GetInt32(2),
+                PublicationCount = reader.GetInt32(3),
+                LastRetrievedAtUtc = reader.GetDateTime(4)
+            });
+        }
+
+        return rows;
+    }
+
+    public async Task<IReadOnlyList<AcademicOnlineDepartmentPublicationRow>>
+        GetNewestPublicationsByDepartmentAsync(
+            long departmentId,
+            int top,
+            int? fromYear,
+            bool verifiedOnly,
+            CancellationToken cancellationToken = default)
+    {
+        var rows = new List<AcademicOnlineDepartmentPublicationRow>();
+        var limit = Math.Clamp(top, 1, 500);
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.vw_DepartmentNewestPublication",
+                "V",
+                cancellationToken))
+        {
+            return rows;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT TOP (@Top)
+    DepartmentId,
+    DepartmentName,
+    PublicationKey,
+    AcademicOnlinePublicationId,
+    OpenAlexId,
+    Doi,
+    Title,
+    Venue,
+    YearText,
+    PublicationYear,
+    CitationCount,
+    Verified,
+    Link,
+    FacultyCount,
+    FacultyNames,
+    LastRetrievedAtUtc
+FROM academiconline.vw_DepartmentNewestPublication
+WHERE DepartmentId = @DepartmentId
+  AND (@FromYear IS NULL OR PublicationYear >= @FromYear)
+  AND (@VerifiedOnly = 0 OR Verified = 1)
+ORDER BY
+    PublicationYear DESC,
+    PublicationKey DESC;";
+
+        command.Parameters.AddWithValue("@Top", limit);
+        command.Parameters.AddWithValue("@DepartmentId", departmentId);
+        AddNullable(command, "@FromYear", SqlDbType.Int, fromYear);
+        command.Parameters.AddWithValue("@VerifiedOnly", verifiedOnly);
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new AcademicOnlineDepartmentPublicationRow
+            {
+                DepartmentId = reader.GetInt64(0),
+                DepartmentName = reader.GetString(1),
+                PublicationKey = reader.GetInt64(2),
+                AcademicOnlinePublicationId = GetNullableString(reader, 3),
+                OpenAlexId = GetNullableString(reader, 4),
+                Doi = GetNullableString(reader, 5),
+                Title = GetNullableString(reader, 6) ?? "(Untitled publication)",
+                Venue = GetNullableString(reader, 7),
+                YearText = GetNullableString(reader, 8),
+                PublicationYear = GetNullableInt(reader, 9),
+                CitationCount = GetNullableInt(reader, 10),
+                Verified = GetNullableBool(reader, 11),
+                Link = GetNullableString(reader, 12),
+                FacultyCount = reader.GetInt32(13),
+                FacultyNames = GetNullableString(reader, 14) ?? string.Empty,
+                LastRetrievedAtUtc = reader.GetDateTime(15)
+            });
+        }
+
+        return rows;
+    }
+
+    private async Task UpdateRunAsync(
+        long runId,
+        string status,
+        int scholarsProcessed,
+        int publicationsProcessed,
+        int scholarPagesFetched,
+        int publicationPagesFetched,
+        string? summaryText,
+        string? errorText,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.SyncRun
+SET
+    RunStatus = @RunStatus,
+    ScholarsProcessed = @ScholarsProcessed,
+    PublicationsProcessed = @PublicationsProcessed,
+    ScholarPagesFetched = @ScholarPagesFetched,
+    PublicationPagesFetched = @PublicationPagesFetched,
+    SummaryText = @SummaryText,
+    ErrorText = @ErrorText,
+    CompletedAtUtc = SYSUTCDATETIME(),
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE AcademicOnlineSyncRunId = @RunId;";
+
+        command.Parameters.AddWithValue("@RunId", runId);
+        command.Parameters.AddWithValue("@RunStatus", status);
+        command.Parameters.AddWithValue("@ScholarsProcessed", scholarsProcessed);
+        command.Parameters.AddWithValue("@PublicationsProcessed", publicationsProcessed);
+        command.Parameters.AddWithValue("@ScholarPagesFetched", scholarPagesFetched);
+        command.Parameters.AddWithValue("@PublicationPagesFetched", publicationPagesFetched);
+        AddNullable(command, "@SummaryText", SqlDbType.NVarChar, -1, summaryText);
+        AddNullable(command, "@ErrorText", SqlDbType.NVarChar, -1, errorText);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static void AddPublicationParameters(
+        SqlCommand command,
+        long runId,
+        long? publicationKey,
+        string? academicOnlinePublicationId,
+        string? openAlexId,
+        string? doi,
+        string? doiNormalized,
+        string? title,
+        string? titleYearFingerprint,
+        string? venue,
+        string? yearText,
+        int? publicationYear,
+        int? citationCount,
+        bool? verified,
+        string? link,
+        string? coauthorsJson,
+        string? keywordsJson,
+        string rawJson)
+    {
+        command.Parameters.AddWithValue("@RunId", runId);
+
+        if (publicationKey.HasValue)
+        {
+            command.Parameters.AddWithValue(
+                "@PublicationKey",
+                publicationKey.Value);
+        }
+
+        AddNullable(
+            command,
+            "@AcademicOnlinePublicationId",
+            SqlDbType.NVarChar,
+            128,
+            academicOnlinePublicationId);
+        AddNullable(
+            command,
+            "@OpenAlexId",
+            SqlDbType.NVarChar,
+            128,
+            openAlexId);
+        AddNullable(command, "@Doi", SqlDbType.NVarChar, 512, doi);
+        AddNullable(
+            command,
+            "@DoiNormalized",
+            SqlDbType.NVarChar,
+            512,
+            doiNormalized);
+        AddNullable(command, "@Title", SqlDbType.NVarChar, -1, title);
+        AddNullable(
+            command,
+            "@TitleYearFingerprint",
+            SqlDbType.NVarChar,
+            900,
+            titleYearFingerprint);
+        AddNullable(command, "@Venue", SqlDbType.NVarChar, 512, venue);
+        AddNullable(command, "@YearText", SqlDbType.NVarChar, 50, yearText);
+        AddNullable(command, "@PublicationYear", SqlDbType.Int, publicationYear);
+        AddNullable(command, "@CitationCount", SqlDbType.Int, citationCount);
+        AddNullable(command, "@Verified", SqlDbType.Bit, verified);
+        AddNullable(command, "@Link", SqlDbType.NVarChar, 1024, link);
+        AddNullable(
+            command,
+            "@CoauthorsJson",
+            SqlDbType.NVarChar,
+            -1,
+            coauthorsJson);
+        AddNullable(
+            command,
+            "@KeywordsJson",
+            SqlDbType.NVarChar,
+            -1,
+            keywordsJson);
+        AddNullable(command, "@RawJson", SqlDbType.NVarChar, -1, rawJson);
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+
+    private static string? NormalizeOpenAlexId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim()
+            .Replace(
+                "https://openalex.org/",
+                string.Empty,
+                StringComparison.OrdinalIgnoreCase)
+            .Replace(
+                "http://openalex.org/",
+                string.Empty,
+                StringComparison.OrdinalIgnoreCase)
+            .Trim('/');
+
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : normalized.ToUpperInvariant();
+    }
+
+    private static string? NormalizeDoi(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+
+        foreach (var prefix in new[]
+                 {
+                     "https://doi.org/",
+                     "http://doi.org/",
+                     "https://dx.doi.org/",
+                     "http://dx.doi.org/",
+                     "doi:"
+                 })
+        {
+            if (normalized.StartsWith(
+                    prefix,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized[prefix.Length..];
+                break;
+            }
+        }
+
+        normalized = normalized.Trim();
+
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : normalized.ToLowerInvariant();
+    }
+
+    private static string? BuildTitleYearFingerprint(
+        string? title,
+        int? publicationYear,
+        string? yearText)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return null;
+        }
+
+        var year = publicationYear?.ToString()
+            ?? NormalizeOptional(yearText);
+
+        if (string.IsNullOrWhiteSpace(year))
+        {
+            return null;
+        }
+
+        var characters = title
+            .Trim()
+            .ToLowerInvariant()
+            .Select(character =>
+                char.IsLetterOrDigit(character) ||
+                char.IsWhiteSpace(character)
+                    ? character
+                    : ' ')
+            .ToArray();
+
+        var normalizedTitle = string.Join(
+            " ",
+            new string(characters)
+                .Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries |
+                    StringSplitOptions.TrimEntries));
+
+        var fingerprint = normalizedTitle + "|" + year.Trim();
+
+        return fingerprint.Length <= 900
+            ? fingerprint
+            : fingerprint[..900];
+    }
+
+    private static string? TryGetUvaUserId(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        const string suffix = "@virginia.edu";
+        var trimmed = email.Trim();
+
+        if (!trimmed.EndsWith(
+                suffix,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var userId = trimmed[..^suffix.Length].Trim();
+
+        return userId.Length >= 2 &&
+               userId.Length <= 32 &&
+               userId.All(char.IsLetterOrDigit)
+            ? userId.ToLowerInvariant()
+            : null;
+    }
+
+    private static async Task EnsureStoreExistsAsync(
+        SqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.SyncRun",
+                "U",
+                cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "academiconline.SyncRun does not exist. Run sql/411_V3E_PATCH019_AcademicOnlineLocalReportingStore_SQL2016.sql first.");
+        }
+    }
+
+    private static async Task<bool> ObjectExistsAsync(
+        SqlConnection connection,
+        string objectName,
+        string objectType,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT CASE WHEN OBJECT_ID(@ObjectName, @ObjectType) IS NULL THEN 0 ELSE 1 END;";
+        command.Parameters.AddWithValue("@ObjectName", objectName);
+        command.Parameters.AddWithValue("@ObjectType", objectType);
+
+        return Convert.ToInt32(
+            await command.ExecuteScalarAsync(cancellationToken)) == 1;
+    }
+
+    private static void AddNullable(
+        SqlCommand command,
+        string name,
+        SqlDbType type,
+        object? value)
+    {
+        var parameter = command.Parameters.Add(name, type);
+        parameter.Value = value ?? DBNull.Value;
+    }
+
+    private static void AddNullable(
+        SqlCommand command,
+        string name,
+        SqlDbType type,
+        int size,
+        string? value)
+    {
+        var parameter = command.Parameters.Add(name, type, size);
+        parameter.Value =
+            string.IsNullOrWhiteSpace(value)
+                ? DBNull.Value
+                : value;
+    }
+
+    private static string? GetNullableString(
+        SqlDataReader reader,
+        int ordinal)
+    {
+        return reader.IsDBNull(ordinal)
+            ? null
+            : reader.GetString(ordinal);
+    }
+
+    private static int? GetNullableInt(
+        SqlDataReader reader,
+        int ordinal)
+    {
+        return reader.IsDBNull(ordinal)
+            ? null
+            : reader.GetInt32(ordinal);
+    }
+
+    private static bool? GetNullableBool(
+        SqlDataReader reader,
+        int ordinal)
+    {
+        return reader.IsDBNull(ordinal)
+            ? null
+            : reader.GetBoolean(ordinal);
+    }
+}
