@@ -29,6 +29,23 @@ public sealed class AcademicOnlineUniversalFacultyLookupService
             cancellationToken);
     }
 
+    public Task<AcademicOnlineUniversalFacultyResult> GetPublicationsAsync(
+        string academicOnlineAuthorId,
+        bool verifiedOnly,
+        int? fromYear,
+        int? toYear,
+        CancellationToken cancellationToken)
+    {
+        return GetPublicationsAsync(
+            academicOnlineAuthorId,
+            verifiedOnly,
+            fromYear,
+            toYear,
+            keywordQuery: null,
+            keywordMatchMode: null,
+            cancellationToken);
+    }
+
     public async Task<AcademicOnlineUniversalFacultyResult> GetPublicationsAsync(
         string academicOnlineAuthorId,
         bool verifiedOnly,
