@@ -25,6 +25,7 @@ builder.Services.AddRazorPages(options =>
 });
 
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection("Auth"));
+builder.Services.Configure<FacultyProfileHandoffOptions>(builder.Configuration.GetSection("FacultyProfileHandoff"));
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -56,6 +57,7 @@ builder.Services.AddScoped<FacultyAcademicOnlineMappingRepository>();
 builder.Services.AddScoped<AcademicOnlineFacultyPublicationsService>();
 builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
 builder.Services.AddScoped<AcademicOnlineUniversalFacultyLookupService>();
+builder.Services.AddScoped<FacultyProfileHandoffService>();
 
 var app = builder.Build();
 
