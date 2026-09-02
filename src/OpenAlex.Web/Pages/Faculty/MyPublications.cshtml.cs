@@ -96,7 +96,7 @@ public sealed class MyPublicationsModel : PageModel
     }
 
     public string RangeLabel =>
-        Range.ToLowerInvariant() switch
+        NormalizeRange() switch
         {
             "5" => "Last 5 years",
             "10" => "Last 10 years",
@@ -108,7 +108,7 @@ public sealed class MyPublicationsModel : PageModel
     {
         var currentYear = DateTime.UtcNow.Year;
 
-        switch (Range.Trim().ToLowerInvariant())
+        switch (NormalizeRange())
         {
             case "5":
                 FromYear = currentYear - 4;
@@ -132,6 +132,13 @@ public sealed class MyPublicationsModel : PageModel
                 ToYear = null;
                 break;
         }
+    }
+
+    private string NormalizeRange()
+    {
+        return string.IsNullOrWhiteSpace(Range)
+            ? "all"
+            : Range.Trim().ToLowerInvariant();
     }
 
     private string BuildCustomRangeLabel()
