@@ -59,32 +59,108 @@ WHERE f.FacultyId = @FacultyId;";
             return null;
         }
 
-        return new FacultyAcademicOnlineMappingRow
+        return ReadMappingRow(reader);
+    }
+
+    public async Task<FacultyAcademicOnlineMappingRow?> ResolveCurrentMappingForSignedInUserAsync(
+        string? email,
+        string? computingId,
+        string? userName,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = NormalizeIdentityValue(email);
+        var normalizedComputingId = NormalizeIdentityValue(computingId);
+        var normalizedUserName = NormalizeIdentityValue(userName);
+
+        if (normalizedEmail is null &&
+            normalizedComputingId is null &&
+            normalizedUserName is null)
         {
-            FacultyId = reader.GetInt64(reader.GetOrdinal("FacultyId")),
-            FacultyDisplayName = reader.GetString(reader.GetOrdinal("DisplayName")),
-            DepartmentName = GetNullableString(reader, "DepartmentName"),
-            FacultyEmail = GetNullableString(reader, "PrimaryEmail"),
-            FacultyOrcid = GetNullableString(reader, "Orcid"),
-            FacultyAcademicOnlineAuthorMapId =
-                GetNullableInt64(reader, "FacultyAcademicOnlineAuthorMapId"),
-            AcademicOnlineAuthorId =
-                GetNullableString(reader, "AcademicOnlineAuthorId"),
-            AcademicOnlineName =
-                GetNullableString(reader, "AcademicOnlineName"),
-            AcademicOnlineEmail =
-                GetNullableString(reader, "AcademicOnlineEmail"),
-            AcademicOnlineOrcidUrl =
-                GetNullableString(reader, "AcademicOnlineOrcidUrl"),
-            MappingSource =
-                GetNullableString(reader, "MappingSource"),
-            EvidenceNotes =
-                GetNullableString(reader, "EvidenceNotes"),
-            VerifiedBy =
-                GetNullableString(reader, "VerifiedBy"),
-            VerifiedAtUtc =
-                GetNullableDateTime(reader, "VerifiedAtUtc")
-        };
+            return null;
+        }
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "openalex.FacultyAcademicOnlineAuthorMap",
+                "U",
+                cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "openalex.FacultyAcademicOnlineAuthorMap does not exist. Run sql/406_V3E_PATCH018_FacultyAcademicOnlineAuthorMap_SQL2016.sql first.");
+        }
+
+        var hasSourceFacultyKey = await ColumnExistsAsync(
+            connection,
+            "openalex.Faculty",
+            "SourceFacultyKey",
+            cancellationToken);
+
+        var sourceFacultyKeyClause = hasSourceFacultyKey
+            ? @"
+        OR LOWER(LTRIM(RTRIM(f.SourceFacultyKey))) = @ComputingId
+        OR LOWER(LTRIM(RTRIM(f.SourceFacultyKey))) = @UserName"
+            : string.Empty;
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $@"
+SELECT TOP (2)
+    f.FacultyId,
+    f.DisplayName,
+    f.DepartmentName,
+    f.PrimaryEmail,
+    f.Orcid,
+    m.FacultyAcademicOnlineAuthorMapId,
+    m.AcademicOnlineAuthorId,
+    m.AcademicOnlineName,
+    m.AcademicOnlineEmail,
+    m.AcademicOnlineOrcidUrl,
+    m.MappingSource,
+    m.EvidenceNotes,
+    m.VerifiedBy,
+    m.VerifiedAtUtc
+FROM openalex.Faculty f
+LEFT JOIN openalex.FacultyAcademicOnlineAuthorMap m
+    ON m.FacultyId = f.FacultyId
+   AND m.IsCurrent = 1
+WHERE
+    (
+        LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email
+        {sourceFacultyKeyClause}
+    )
+ORDER BY
+    CASE
+        WHEN LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email THEN 0
+        ELSE 1
+    END,
+    f.FacultyId;";
+
+        command.Parameters.AddWithValue("@Email", (object?)normalizedEmail ?? DBNull.Value);
+        command.Parameters.AddWithValue("@ComputingId", (object?)normalizedComputingId ?? DBNull.Value);
+        command.Parameters.AddWithValue("@UserName", (object?)normalizedUserName ?? DBNull.Value);
+
+        var rows = new List<FacultyAcademicOnlineMappingRow>();
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(ReadMappingRow(reader));
+        }
+
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        if (rows.Count > 1)
+        {
+            throw new InvalidOperationException(
+                "Your signed-in identity matches more than one faculty record. Please contact the faculty-profile administrator before using My Publications.");
+        }
+
+        return rows[0];
     }
 
     public async Task<FacultyAcademicOnlineSnapshotCandidate?> GetLatestSnapshotCandidateAsync(
@@ -343,6 +419,58 @@ END;";
         parameter.Value = string.IsNullOrWhiteSpace(value)
             ? DBNull.Value
             : value.Trim();
+    }
+
+    private static FacultyAcademicOnlineMappingRow ReadMappingRow(SqlDataReader reader)
+    {
+        return new FacultyAcademicOnlineMappingRow
+        {
+            FacultyId = reader.GetInt64(reader.GetOrdinal("FacultyId")),
+            FacultyDisplayName = reader.GetString(reader.GetOrdinal("DisplayName")),
+            DepartmentName = GetNullableString(reader, "DepartmentName"),
+            FacultyEmail = GetNullableString(reader, "PrimaryEmail"),
+            FacultyOrcid = GetNullableString(reader, "Orcid"),
+            FacultyAcademicOnlineAuthorMapId =
+                GetNullableInt64(reader, "FacultyAcademicOnlineAuthorMapId"),
+            AcademicOnlineAuthorId =
+                GetNullableString(reader, "AcademicOnlineAuthorId"),
+            AcademicOnlineName =
+                GetNullableString(reader, "AcademicOnlineName"),
+            AcademicOnlineEmail =
+                GetNullableString(reader, "AcademicOnlineEmail"),
+            AcademicOnlineOrcidUrl =
+                GetNullableString(reader, "AcademicOnlineOrcidUrl"),
+            MappingSource =
+                GetNullableString(reader, "MappingSource"),
+            EvidenceNotes =
+                GetNullableString(reader, "EvidenceNotes"),
+            VerifiedBy =
+                GetNullableString(reader, "VerifiedBy"),
+            VerifiedAtUtc =
+                GetNullableDateTime(reader, "VerifiedAtUtc")
+        };
+    }
+
+    private static string? NormalizeIdentityValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim().ToLowerInvariant();
+    }
+
+    private static async Task<bool> ColumnExistsAsync(
+        SqlConnection connection,
+        string objectName,
+        string columnName,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT CASE WHEN COL_LENGTH(@ObjectName, @ColumnName) IS NULL THEN 0 ELSE 1 END;";
+        command.Parameters.AddWithValue("@ObjectName", objectName);
+        command.Parameters.AddWithValue("@ColumnName", columnName);
+
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) == 1;
     }
 
     private static string? GetNullableString(SqlDataReader reader, string name)
