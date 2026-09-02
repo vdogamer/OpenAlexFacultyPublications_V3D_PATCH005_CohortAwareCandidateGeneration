@@ -11,13 +11,16 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
 {
     private readonly AcademicOnlineUniversalFacultyLookupService _lookupService;
     private readonly AcademicOnlinePublicationHtmlFormatter _formatter;
+    private readonly FacultyProfileHandoffService _profileHandoff;
 
     public AcademicOnlineFacultyLookupModel(
         AcademicOnlineUniversalFacultyLookupService lookupService,
-        AcademicOnlinePublicationHtmlFormatter formatter)
+        AcademicOnlinePublicationHtmlFormatter formatter,
+        FacultyProfileHandoffService profileHandoff)
     {
         _lookupService = lookupService;
         _formatter = formatter;
+        _profileHandoff = profileHandoff;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -43,6 +46,7 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
 
     public AcademicOnlineUniversalFacultyResult? SelectedResult { get; private set; }
     public string? GeneratedHtmlFragment { get; private set; }
+    public string? SelectedFacultyProfileEditUrl { get; private set; }
     public string? ErrorMessage { get; private set; }
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
@@ -62,6 +66,12 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
 
                 GeneratedHtmlFragment =
                     _formatter.BuildFragment(SelectedResult.RenderResult);
+
+                SelectedFacultyProfileEditUrl =
+                    _profileHandoff.BuildPublicationsEditorUrl(
+                        computingId: null,
+                        email: SelectedResult.RenderResult.Profile.Email,
+                        userName: null);
 
                 return;
             }
