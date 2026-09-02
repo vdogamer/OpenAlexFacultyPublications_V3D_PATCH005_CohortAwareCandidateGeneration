@@ -8,13 +8,16 @@ public sealed class AcademicOnlineFacultyPublicationsService
 {
     private readonly FacultyAcademicOnlineMappingRepository _mappingRepository;
     private readonly AcademicOnlineApiClient _academicOnlineClient;
+    private readonly PublicationKeywordFilterService _keywordFilter;
 
     public AcademicOnlineFacultyPublicationsService(
         FacultyAcademicOnlineMappingRepository mappingRepository,
-        AcademicOnlineApiClient academicOnlineClient)
+        AcademicOnlineApiClient academicOnlineClient,
+        PublicationKeywordFilterService keywordFilter)
     {
         _mappingRepository = mappingRepository;
         _academicOnlineClient = academicOnlineClient;
+        _keywordFilter = keywordFilter;
     }
 
     public async Task<AcademicOnlineFacultyPublicationsResult> GetAsync(
@@ -22,6 +25,8 @@ public sealed class AcademicOnlineFacultyPublicationsService
         bool verifiedOnly,
         int? fromYear,
         int? toYear,
+        string? keywordQuery = null,
+        string? keywordMatchMode = null,
         CancellationToken cancellationToken = default)
     {
         var mapping = await _mappingRepository.GetCurrentMappingAsync(
@@ -55,11 +60,20 @@ public sealed class AcademicOnlineFacultyPublicationsService
             general.RootElement,
             mapping);
 
+        var filtered = _keywordFilter.Apply(
+            publications.Publications,
+            keywordQuery,
+            keywordMatchMode);
+
         return new AcademicOnlineFacultyPublicationsResult
         {
             Mapping = mapping,
             Profile = profile,
-            Publications = publications.Publications,
+            Publications = filtered.Publications,
+            UnfilteredPublicationCount = filtered.SourcePublicationCount,
+            KeywordQuery = filtered.KeywordQuery,
+            KeywordMatchMode = filtered.MatchMode,
+            KeywordTerms = filtered.Terms,
             PagesFetched = publications.PagesFetched,
             RowsPerPage = publications.RowsPerPage,
             HitMaxPages = publications.HitMaxPages,
@@ -158,6 +172,11 @@ public sealed class AcademicOnlineFacultyPublicationsResult
     public AcademicOnlineFacultyProfile Profile { get; init; } = new();
     public IReadOnlyList<AcademicOnlinePublicationItem> Publications { get; init; } =
         Array.Empty<AcademicOnlinePublicationItem>();
+
+    public int UnfilteredPublicationCount { get; init; }
+    public string? KeywordQuery { get; init; }
+    public string KeywordMatchMode { get; init; } = "any";
+    public IReadOnlyList<string> KeywordTerms { get; init; } = Array.Empty<string>();
 
     public int PagesFetched { get; init; }
     public int RowsPerPage { get; init; }
