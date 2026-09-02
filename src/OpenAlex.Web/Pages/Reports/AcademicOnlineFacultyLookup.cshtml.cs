@@ -27,6 +27,9 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
     public string? Search { get; set; }
 
     [BindProperty(SupportsGet = true)]
+    public string? UserId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
     public string? Department { get; set; }
 
     [BindProperty(SupportsGet = true)]
@@ -84,6 +87,15 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(UserId))
+            {
+                SearchResults = await _lookupService.SearchByUvaUserIdAsync(
+                    UserId,
+                    cancellationToken);
+
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(Search))
             {
                 SearchResults = await _lookupService.SearchAsync(
@@ -128,6 +140,18 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
             return BadRequest(ex.Message);
         }
     }
+
+    public bool IsUserIdSearch =>
+        !string.IsNullOrWhiteSpace(UserId);
+
+    public bool HasScholarSearchInput =>
+        !string.IsNullOrWhiteSpace(UserId) ||
+        !string.IsNullOrWhiteSpace(Search);
+
+    public string SearchSummary =>
+        IsUserIdSearch
+            ? $"UVA User ID: {AcademicOnlineUniversalFacultyLookupService.NormalizeUvaUserId(UserId!)}"
+            : $"Faculty name: {Search?.Trim()}";
 
     public string KeywordMatchModeLabel =>
         PublicationKeywordFilterService.NormalizeMatchMode(KeywordMatchMode) == "all"
