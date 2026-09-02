@@ -13,15 +13,18 @@ public sealed class MyPublicationsModel : PageModel
     private readonly FacultyAcademicOnlineMappingRepository _mappingRepository;
     private readonly AcademicOnlineFacultyPublicationsService _publicationsService;
     private readonly AcademicOnlinePublicationHtmlFormatter _formatter;
+    private readonly FacultyProfileHandoffService _profileHandoff;
 
     public MyPublicationsModel(
         FacultyAcademicOnlineMappingRepository mappingRepository,
         AcademicOnlineFacultyPublicationsService publicationsService,
-        AcademicOnlinePublicationHtmlFormatter formatter)
+        AcademicOnlinePublicationHtmlFormatter formatter,
+        FacultyProfileHandoffService profileHandoff)
     {
         _mappingRepository = mappingRepository;
         _publicationsService = publicationsService;
         _formatter = formatter;
+        _profileHandoff = profileHandoff;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -40,6 +43,8 @@ public sealed class MyPublicationsModel : PageModel
     public string? GeneratedHtmlFragment { get; private set; }
     public string? ErrorMessage { get; private set; }
     public string? SignedInDisplayName { get; private set; }
+    public string? FacultyProfileEditUrl { get; private set; }
+    public bool DirectPublishingEnabled => _profileHandoff.DirectPublishingEnabled;
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -86,6 +91,11 @@ public sealed class MyPublicationsModel : PageModel
                 cancellationToken);
 
             GeneratedHtmlFragment = _formatter.BuildFragment(Result);
+
+            FacultyProfileEditUrl = _profileHandoff.BuildPublicationsEditorUrl(
+                computingId,
+                mapping.FacultyEmail ?? email,
+                userName);
         }
         catch (Exception)
         {
