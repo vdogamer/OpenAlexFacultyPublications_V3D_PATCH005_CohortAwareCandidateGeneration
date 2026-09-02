@@ -39,6 +39,12 @@ public sealed class MyPublicationsModel : PageModel
     [BindProperty(SupportsGet = true)]
     public int? ToYear { get; set; }
 
+    [BindProperty(SupportsGet = true)]
+    public string? Keyword { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string KeywordMatchMode { get; set; } = "any";
+
     public AcademicOnlineFacultyPublicationsResult? Result { get; private set; }
     public string? GeneratedHtmlFragment { get; private set; }
     public string? ErrorMessage { get; private set; }
@@ -88,6 +94,8 @@ public sealed class MyPublicationsModel : PageModel
                 VerifiedOnly,
                 FromYear,
                 ToYear,
+                Keyword,
+                KeywordMatchMode,
                 cancellationToken);
 
             GeneratedHtmlFragment = _formatter.BuildFragment(Result);
@@ -143,6 +151,14 @@ public sealed class MyPublicationsModel : PageModel
                 break;
         }
     }
+
+    public string KeywordMatchModeLabel =>
+        PublicationKeywordFilterService.NormalizeMatchMode(KeywordMatchMode) == "all"
+            ? "ALL"
+            : "ANY";
+
+    public bool HasKeywordFilter =>
+        Result?.KeywordTerms.Count > 0;
 
     private string NormalizeRange()
     {
