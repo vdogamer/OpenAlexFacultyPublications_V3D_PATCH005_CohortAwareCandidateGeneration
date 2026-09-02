@@ -142,7 +142,15 @@ else if (!string.IsNullOrWhiteSpace(Model.Search) &&
             <dd>@(result.Profile.PublicationCount?.ToString() ?? "not supplied")</dd>
 
             <dt>Publications returned</dt>
-            <dd>@result.Publications.Count</dd>
+            <dd>
+                @result.Publications.Count
+                @if (Model.HasKeywordFilter)
+                {
+                    <span class="small">
+                        of @result.UnfilteredPublicationCount before keyword filtering
+                    </span>
+                }
+            </dd>
 
             <dt>Publication pages fetched</dt>
             <dd>@result.PagesFetched</dd>
@@ -176,6 +184,31 @@ else if (!string.IsNullOrWhiteSpace(Model.Search) &&
                        placeholder="optional" />
             </label>
 
+            <label>
+                Keyword or topic
+                <input type="text"
+                       name="Keyword"
+                       value="@Model.Keyword"
+                       maxlength="500"
+                       placeholder="e.g. cancer, genomics" />
+            </label>
+
+            <label>
+                Match
+                <select name="KeywordMatchMode">
+                    @if (Model.KeywordMatchModeLabel == "ALL")
+                    {
+                        <option value="any">ANY keyword</option>
+                        <option value="all" selected>ALL keywords</option>
+                    }
+                    else
+                    {
+                        <option value="any" selected>ANY keyword</option>
+                        <option value="all">ALL keywords</option>
+                    }
+                </select>
+            </label>
+
             <label class="checkbox-label">
                 <input type="checkbox"
                        name="VerifiedOnly"
@@ -184,8 +217,31 @@ else if (!string.IsNullOrWhiteSpace(Model.Search) &&
                 Verified only
             </label>
 
-            <button type="submit">Refresh Publications</button>
+            <button type="submit">Apply Publication Filters</button>
+
+            @if (Model.HasKeywordFilter)
+            {
+                <a class="button secondary"
+                   asp-route-Search="@Model.Search"
+                   asp-route-Department="@Model.Department"
+                   asp-route-AuthorId="@Model.AuthorId"
+                   asp-route-VerifiedOnly="@Model.VerifiedOnly"
+                   asp-route-FromYear="@Model.FromYear"
+                   asp-route-ToYear="@Model.ToYear">
+                    Clear keyword
+                </a>
+            }
         </form>
+
+        @if (Model.HasKeywordFilter)
+        {
+            <p class="publication-filter-summary">
+                <strong>Keyword filter:</strong>
+                @result.KeywordQuery
+                <span class="badge">@Model.KeywordMatchModeLabel</span>
+                <span class="small">Matches title, Academic Online keywords, or venue/journal.</span>
+            </p>
+        }
     </section>
 
     <section class="card copy-profile-card">
@@ -210,6 +266,8 @@ else if (!string.IsNullOrWhiteSpace(Model.Search) &&
                asp-route-VerifiedOnly="@Model.VerifiedOnly"
                asp-route-FromYear="@Model.FromYear"
                asp-route-ToYear="@Model.ToYear"
+               asp-route-Keyword="@Model.Keyword"
+               asp-route-KeywordMatchMode="@Model.KeywordMatchMode"
                target="_blank"
                rel="noopener">
                 Open Standalone HTML
