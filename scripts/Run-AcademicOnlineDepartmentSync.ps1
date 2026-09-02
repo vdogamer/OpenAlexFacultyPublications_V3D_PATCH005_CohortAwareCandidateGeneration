@@ -14,7 +14,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($DepartmentName) -or
-    $DepartmentName -match 'PASTE EXACT DEPARTMENT NAME HERE|YOUR EXACT ACADEMIC ONLINE DEPARTMENT NAME') {
+    $DepartmentName -match 'PASTE EXACT DEPARTMENT NAME HERE|YOUR EXACT ACADEMIC ONLINE DEPARTMENT NAME|ACTUAL DEPARTMENT NAME') {
     throw "Provide the exact department name returned by Academic Online; do not use the placeholder text."
 }
 
