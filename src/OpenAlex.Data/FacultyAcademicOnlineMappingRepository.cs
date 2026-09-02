@@ -71,6 +71,14 @@ WHERE f.FacultyId = @FacultyId;";
         var normalizedEmail = NormalizeIdentityValue(email);
         var normalizedComputingId = NormalizeIdentityValue(computingId);
         var normalizedUserName = NormalizeIdentityValue(userName);
+        var normalizedUserNameEmail =
+            normalizedUserName?.Contains('@') == true
+                ? normalizedUserName
+                : null;
+        var normalizedComputingEmail =
+            normalizedComputingId is null
+                ? null
+                : normalizedComputingId + "@virginia.edu";
 
         if (normalizedEmail is null &&
             normalizedComputingId is null &&
@@ -128,18 +136,24 @@ LEFT JOIN openalex.FacultyAcademicOnlineAuthorMap m
 WHERE
     (
         LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email
+        OR LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @UserNameEmail
+        OR LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @ComputingEmail
         {sourceFacultyKeyClause}
     )
 ORDER BY
     CASE
         WHEN LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email THEN 0
-        ELSE 1
+        WHEN LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @UserNameEmail THEN 1
+        WHEN LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @ComputingEmail THEN 2
+        ELSE 3
     END,
     f.FacultyId;";
 
-        command.Parameters.AddWithValue("@Email", (object?)normalizedEmail ?? DBNull.Value);
-        command.Parameters.AddWithValue("@ComputingId", (object?)normalizedComputingId ?? DBNull.Value);
-        command.Parameters.AddWithValue("@UserName", (object?)normalizedUserName ?? DBNull.Value);
+        AddIdentityParameter(command, "@Email", normalizedEmail);
+        AddIdentityParameter(command, "@UserNameEmail", normalizedUserNameEmail);
+        AddIdentityParameter(command, "@ComputingEmail", normalizedComputingEmail);
+        AddIdentityParameter(command, "@ComputingId", normalizedComputingId);
+        AddIdentityParameter(command, "@UserName", normalizedUserName);
 
         var rows = new List<FacultyAcademicOnlineMappingRow>();
 
@@ -419,6 +433,18 @@ END;";
         parameter.Value = string.IsNullOrWhiteSpace(value)
             ? DBNull.Value
             : value.Trim();
+    }
+
+    private static void AddIdentityParameter(
+        SqlCommand command,
+        string name,
+        string? value)
+    {
+        var parameter = command.Parameters.Add(
+            name,
+            System.Data.SqlDbType.NVarChar,
+            512);
+        parameter.Value = (object?)value ?? DBNull.Value;
     }
 
     private static FacultyAcademicOnlineMappingRow ReadMappingRow(SqlDataReader reader)
