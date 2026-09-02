@@ -22,14 +22,26 @@
 <section class="card">
     <h2>Find a UVA faculty member</h2>
 
-    <form method="get" class="filter-form">
+    <p class="small">
+        Search by faculty name, or use a UVA User ID for an exact identity lookup.
+    </p>
+
+    <form method="get" class="filter-form faculty-search-form">
         <label>
             Faculty name
             <input type="text"
                    name="Search"
                    value="@Model.Search"
-                   placeholder="e.g. Charles Farber"
-                   required />
+                   placeholder="e.g. Charles Farber" />
+        </label>
+
+        <label>
+            UVA User ID
+            <input type="text"
+                   name="UserId"
+                   value="@Model.UserId"
+                   maxlength="64"
+                   placeholder="e.g. cf2s" />
         </label>
 
         <label>
@@ -37,11 +49,16 @@
             <input type="text"
                    name="Department"
                    value="@Model.Department"
-                   placeholder="optional" />
+                   placeholder="optional for name search" />
         </label>
 
         <button type="submit">Search Academic Online</button>
     </form>
+
+    <p class="small">
+        User ID search is exact and matches the scholar's UVA email
+        (<code>userid@virginia.edu</code>). If both fields are entered, User ID takes priority.
+    </p>
 </section>
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
@@ -56,6 +73,7 @@
 {
     <section class="card">
         <h2>Choose the correct scholar</h2>
+        <p class="small">@Model.SearchSummary</p>
 
         <div class="publication-review-list">
             @foreach (var scholar in Model.SearchResults)
@@ -101,6 +119,7 @@
                         <div class="publication-review-actions">
                             <a class="button"
                                asp-route-Search="@Model.Search"
+                               asp-route-UserId="@Model.UserId"
                                asp-route-Department="@Model.Department"
                                asp-route-AuthorId="@scholar.AuthorId">
                                 Load Publications
@@ -112,12 +131,22 @@
         </div>
     </section>
 }
-else if (!string.IsNullOrWhiteSpace(Model.Search) &&
+else if (Model.HasScholarSearchInput &&
          Model.SelectedResult is null &&
          string.IsNullOrWhiteSpace(Model.ErrorMessage))
 {
     <section class="card">
-        <p>No Academic Online scholars matched that search.</p>
+        @if (Model.IsUserIdSearch)
+        {
+            <p>
+                No Academic Online scholar matched that UVA User ID exactly.
+                Confirm the User ID or try searching by faculty name.
+            </p>
+        }
+        else
+        {
+            <p>No Academic Online scholars matched that name search.</p>
+        }
     </section>
 }
 
@@ -165,6 +194,7 @@ else if (!string.IsNullOrWhiteSpace(Model.Search) &&
 
         <form method="get" class="filter-form">
             <input type="hidden" name="Search" value="@Model.Search" />
+            <input type="hidden" name="UserId" value="@Model.UserId" />
             <input type="hidden" name="Department" value="@Model.Department" />
             <input type="hidden" name="AuthorId" value="@Model.AuthorId" />
 
@@ -223,6 +253,7 @@ else if (!string.IsNullOrWhiteSpace(Model.Search) &&
             {
                 <a class="button secondary"
                    asp-route-Search="@Model.Search"
+                   asp-route-UserId="@Model.UserId"
                    asp-route-Department="@Model.Department"
                    asp-route-AuthorId="@Model.AuthorId"
                    asp-route-VerifiedOnly="@Model.VerifiedOnly"
