@@ -135,9 +135,9 @@ public sealed class AcademicOnlineApiClient
             using var document = await SearchScholarsAsync(
                 facultyDisplayName: string.Empty,
                 departmentName: departmentName.Trim(),
-                page,
-                pageSize,
-                cancellationToken);
+                page: page,
+                rowsPerPage: pageSize,
+                cancellationToken: cancellationToken);
 
             pagesFetched++;
 
