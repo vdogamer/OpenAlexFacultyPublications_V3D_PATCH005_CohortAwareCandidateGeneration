@@ -4,36 +4,58 @@
     ViewData["Title"] = "My Publications";
 }
 
-<h1>My Publications</h1>
+<div class="my-publications-header">
+    <div>
+        <h1>My Publications</h1>
+        <p>
+            Review your Academic Online publications and copy the list into your
+            faculty profile.
+        </p>
+    </div>
+</div>
+
+<ol class="my-publications-steps" aria-label="Publication update steps">
+    <li>
+        <span class="step-number">1</span>
+        <span><strong>Choose</strong><br />Select which publications to show.</span>
+    </li>
+    <li>
+        <span class="step-number">2</span>
+        <span><strong>Review</strong><br />Make sure the list looks right.</span>
+    </li>
+    <li>
+        <span class="step-number">3</span>
+        <span><strong>Copy</strong><br />Paste the list into your profile.</span>
+    </li>
+</ol>
 
 <section class="card">
-    <p>
-        Pull your publications from Academic Online, review them, then copy the
-        formatted list into your faculty profile.
-    </p>
-</section>
+    <h2>1. Choose publications</h2>
 
-<section class="card">
-    <h2>Publication options</h2>
+    <div class="publication-range-options" aria-label="Publication range">
+        <a class="button @(Model.Range == "all" ? "range-active" : "secondary")"
+           asp-route-Range="all"
+           asp-route-VerifiedOnly="@Model.VerifiedOnly">
+            All publications
+        </a>
 
-    <form method="get" class="filter-form">
-        <label>
-            From year
-            <input type="number"
-                   name="FromYear"
-                   value="@Model.FromYear"
-                   placeholder="optional" />
-        </label>
+        <a class="button @(Model.Range == "10" ? "range-active" : "secondary")"
+           asp-route-Range="10"
+           asp-route-VerifiedOnly="@Model.VerifiedOnly">
+            Last 10 years
+        </a>
 
-        <label>
-            To year
-            <input type="number"
-                   name="ToYear"
-                   value="@Model.ToYear"
-                   placeholder="optional" />
-        </label>
+        <a class="button @(Model.Range == "5" ? "range-active" : "secondary")"
+           asp-route-Range="5"
+           asp-route-VerifiedOnly="@Model.VerifiedOnly">
+            Last 5 years
+        </a>
+    </div>
 
-        <label>
+    <form method="get" class="my-publications-options">
+        <input type="hidden" name="Range" value="@Model.Range" />
+
+        <label class="checkbox-label">
             <input type="checkbox"
                    name="VerifiedOnly"
                    value="true"
@@ -41,10 +63,46 @@
             Show only publications verified in Academic Online
         </label>
 
-        <div class="review-actions">
-            <button type="submit">Refresh My Publications</button>
-        </div>
+        <button type="submit">Refresh</button>
     </form>
+
+    <details class="advanced-publication-options" @(Model.Range == "custom" ? "open" : null)>
+        <summary>Advanced options: custom year range</summary>
+
+        <form method="get" class="filter-form">
+            <input type="hidden" name="Range" value="custom" />
+
+            <label>
+                From year
+                <input type="number"
+                       name="FromYear"
+                       value="@Model.FromYear"
+                       min="1800"
+                       max="@(DateTime.UtcNow.Year + 1)"
+                       placeholder="e.g. 2020" />
+            </label>
+
+            <label>
+                To year
+                <input type="number"
+                       name="ToYear"
+                       value="@Model.ToYear"
+                       min="1800"
+                       max="@(DateTime.UtcNow.Year + 1)"
+                       placeholder="e.g. @DateTime.UtcNow.Year" />
+            </label>
+
+            <label class="checkbox-label">
+                <input type="checkbox"
+                       name="VerifiedOnly"
+                       value="true"
+                       checked="@Model.VerifiedOnly" />
+                Verified only
+            </label>
+
+            <button type="submit">Apply custom range</button>
+        </form>
+    </details>
 </section>
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
@@ -56,69 +114,77 @@
 }
 else if (Model.Result is not null)
 {
-    <section class="card">
-        <h2>@Model.Result.Profile.Name</h2>
+    <section class="card publication-summary-card">
+        <div>
+            <span class="small">Signed in as</span>
+            <h2>@Model.Result.Profile.Name</h2>
 
-        @if (!string.IsNullOrWhiteSpace(Model.Result.Profile.Department))
-        {
-            <p>@Model.Result.Profile.Department</p>
-        }
+            @if (!string.IsNullOrWhiteSpace(Model.Result.Profile.Department))
+            {
+                <p>@Model.Result.Profile.Department</p>
+            }
+        </div>
 
-        <p>
+        <div class="publication-summary-count">
             <strong>@Model.Result.Publications.Count</strong>
-            publication@(Model.Result.Publications.Count == 1 ? "" : "s") loaded.
-        </p>
+            <span>publication@(Model.Result.Publications.Count == 1 ? "" : "s")</span>
+            <small>@Model.RangeLabel</small>
+        </div>
 
         @if (Model.Result.HitMaxPages)
         {
             <p class="notice">
-                Your publication list is unusually large and reached the configured
-                retrieval safeguard. Please contact the faculty-profile administrator.
+                Your publication list reached the retrieval safeguard. Please contact
+                the faculty-profile administrator before copying the list.
             </p>
         }
     </section>
 
     <section class="card">
-        <h2>Copy to My Profile</h2>
-
-        <p>
-            Review the publications below. When they look correct, choose the copy
-            format your faculty profile editor expects and then paste with
-            <kbd>Ctrl</kbd>+<kbd>V</kbd>.
+        <h2>2. Review</h2>
+        <p class="small">
+            Scan the list below before copying it to your faculty profile.
         </p>
 
-        <div class="review-actions">
-            <button type="button"
-                    id="copyProfileReadyPublications"
-                    data-copy-action="profile-ready">
-                Copy for Profile Editor
-            </button>
-
-            <button type="button"
-                    id="copyPublicationHtmlSource"
-                    data-copy-action="html-source">
-                Copy HTML Source
-            </button>
+        <div id="generatedPublicationProfileContent"
+             class="faculty-publication-preview">
+            @Html.Raw(Model.GeneratedHtmlFragment)
         </div>
+    </section>
+
+    <section class="card copy-profile-card">
+        <h2>3. Copy to my profile</h2>
+
+        <p>
+            When the list looks correct, copy it and paste it into your faculty
+            profile editor with <kbd>Ctrl</kbd>+<kbd>V</kbd>.
+        </p>
+
+        <button type="button"
+                id="copyProfileReadyPublications"
+                class="copy-primary-button"
+                data-copy-action="profile-ready">
+            Copy My Publications
+        </button>
 
         <p id="publicationCopyStatus"
-           class="small"
+           class="copy-status"
            role="status"
            aria-live="polite"></p>
 
-        <p class="small">
-            <strong>Copy for Profile Editor</strong> is the normal choice for a
-            rich-text editor. Use <strong>Copy HTML Source</strong> when the profile
-            form specifically asks for HTML.
-        </p>
-    </section>
+        <details class="advanced-publication-options">
+            <summary>Need HTML instead?</summary>
+            <p class="small">
+                Use this only when the profile form specifically asks you to paste HTML source.
+            </p>
 
-    <section class="card">
-        <h2>Preview</h2>
-
-        <div id="generatedPublicationProfileContent">
-            @Html.Raw(Model.GeneratedHtmlFragment)
-        </div>
+            <button type="button"
+                    id="copyPublicationHtmlSource"
+                    class="button secondary"
+                    data-copy-action="html-source">
+                Copy HTML Source
+            </button>
+        </details>
     </section>
 
     <textarea id="generatedPublicationHtmlSource"
