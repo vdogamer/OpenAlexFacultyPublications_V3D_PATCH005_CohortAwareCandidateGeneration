@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [ main ]
   push:
-    branches: [ main, feature/shared-publications-by-userid ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
