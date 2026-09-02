@@ -161,17 +161,44 @@ else if (Model.Result is not null)
             profile editor with <kbd>Ctrl</kbd>+<kbd>V</kbd>.
         </p>
 
-        <button type="button"
-                id="copyProfileReadyPublications"
-                class="copy-primary-button"
-                data-copy-action="profile-ready">
-            Copy My Publications
-        </button>
+        <div class="review-actions">
+            <button type="button"
+                    id="copyProfileReadyPublications"
+                    class="copy-primary-button"
+                    data-copy-action="profile-ready">
+                Copy My Publications
+            </button>
+
+            @if (!string.IsNullOrWhiteSpace(Model.FacultyProfileEditUrl))
+            {
+                <a class="button secondary"
+                   href="@Model.FacultyProfileEditUrl"
+                   target="_blank"
+                   rel="noopener">
+                    Open My Faculty Profile
+                </a>
+            }
+        </div>
 
         <p id="publicationCopyStatus"
            class="copy-status"
            role="status"
            aria-live="polite"></p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.FacultyProfileEditUrl))
+        {
+            <p class="small">
+                After copying, open your Pubs / HTML profile editor, paste with
+                <kbd>Ctrl</kbd>+<kbd>V</kbd>, review the result, and save.
+            </p>
+        }
+        else
+        {
+            <p class="small">
+                We could not determine your Research Faculty Directory editor link.
+                You can still copy the publications and open your faculty profile manually.
+            </p>
+        }
 
         <details class="advanced-publication-options">
             <summary>Need HTML instead?</summary>
