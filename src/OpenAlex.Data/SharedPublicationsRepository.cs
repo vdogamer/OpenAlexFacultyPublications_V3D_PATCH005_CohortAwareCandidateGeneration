@@ -155,7 +155,7 @@ FROM openalex.vw_FacultyPublicationExport
 WHERE PrimaryEmail IS NOT NULL
   AND WorkOpenAlexId IS NOT NULL
   AND LOWER(LEFT(PrimaryEmail, CHARINDEX('@', PrimaryEmail + '@') - 1)) IN ({string.Join(", ", inParameters)})
-  AND (DecisionStatus IS NULL OR DecisionStatus = 'Accepted')
+  AND DecisionStatus = 'Accepted'
 GROUP BY
     WorkTitle,
     PublicationYear,
