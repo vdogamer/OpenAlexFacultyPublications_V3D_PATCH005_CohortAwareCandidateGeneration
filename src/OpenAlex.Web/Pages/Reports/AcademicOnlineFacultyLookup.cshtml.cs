@@ -41,6 +41,12 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
     [BindProperty(SupportsGet = true)]
     public int? ToYear { get; set; }
 
+    [BindProperty(SupportsGet = true)]
+    public string? Keyword { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string KeywordMatchMode { get; set; } = "any";
+
     public IReadOnlyList<AcademicOnlineScholarSearchCandidate> SearchResults { get; private set; } =
         Array.Empty<AcademicOnlineScholarSearchCandidate>();
 
@@ -62,6 +68,8 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
                     VerifiedOnly,
                     FromYear,
                     ToYear,
+                    Keyword,
+                    KeywordMatchMode,
                     cancellationToken);
 
                 GeneratedHtmlFragment =
@@ -107,6 +115,8 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
                 VerifiedOnly,
                 FromYear,
                 ToYear,
+                Keyword,
+                KeywordMatchMode,
                 cancellationToken);
 
             return Content(
@@ -118,6 +128,14 @@ public sealed class AcademicOnlineFacultyLookupModel : PageModel
             return BadRequest(ex.Message);
         }
     }
+
+    public string KeywordMatchModeLabel =>
+        PublicationKeywordFilterService.NormalizeMatchMode(KeywordMatchMode) == "all"
+            ? "ALL"
+            : "ANY";
+
+    public bool HasKeywordFilter =>
+        SelectedResult?.RenderResult.KeywordTerms.Count > 0;
 
     private void ValidateYearRange()
     {
