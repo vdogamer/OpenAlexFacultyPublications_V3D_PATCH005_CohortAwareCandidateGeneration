@@ -74,7 +74,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         _options.MaxScholarPages,
                         1,
                         1000),
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
 
             scholarPagesFetched = departmentScholars.PagesFetched;
 
