@@ -28,8 +28,7 @@ END;
 
 DECLARE
     @DisplayName NVARCHAR(512),
-    @Email NVARCHAR(512),
-    @ComputingId NVARCHAR(256);
+    @Email NVARCHAR(512);
 
 SELECT
     @DisplayName = f.DisplayName,
@@ -55,13 +54,6 @@ BEGIN
     RETURN;
 END;
 
-SET @ComputingId =
-    CASE
-        WHEN CHARINDEX('@', @Email) > 1
-            THEN LEFT(@Email, CHARINDEX('@', @Email) - 1)
-        ELSE @Email
-    END;
-
 DECLARE @AppUserId BIGINT;
 DECLARE @ReaderRoleId BIGINT;
 
@@ -73,76 +65,36 @@ WHERE UserName = @DemoUserName;
 
 IF @AppUserId IS NULL
 BEGIN
-    IF COL_LENGTH(N'openalex.AppUser', N'ComputingId') IS NOT NULL
-    BEGIN
-        INSERT INTO openalex.AppUser
-        (
-            UserName,
-            ComputingId,
-            DisplayName,
-            Email,
-            IsEnabled,
-            CreatedAtUtc,
-            UpdatedAtUtc
-        )
-        VALUES
-        (
-            @DemoUserName,
-            @ComputingId,
-            @DisplayName,
-            @Email,
-            1,
-            SYSUTCDATETIME(),
-            SYSUTCDATETIME()
-        );
-    END
-    ELSE
-    BEGIN
-        INSERT INTO openalex.AppUser
-        (
-            UserName,
-            DisplayName,
-            Email,
-            IsEnabled,
-            CreatedAtUtc,
-            UpdatedAtUtc
-        )
-        VALUES
-        (
-            @DemoUserName,
-            @DisplayName,
-            @Email,
-            1,
-            SYSUTCDATETIME(),
-            SYSUTCDATETIME()
-        );
-    END;
+    INSERT INTO openalex.AppUser
+    (
+        UserName,
+        DisplayName,
+        Email,
+        IsEnabled,
+        CreatedAtUtc,
+        UpdatedAtUtc
+    )
+    VALUES
+    (
+        @DemoUserName,
+        @DisplayName,
+        @Email,
+        1,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME()
+    );
 
     SET @AppUserId = SCOPE_IDENTITY();
 END
 ELSE
 BEGIN
-    IF COL_LENGTH(N'openalex.AppUser', N'ComputingId') IS NOT NULL
-    BEGIN
-        UPDATE openalex.AppUser
-        SET
-            ComputingId = @ComputingId,
-            DisplayName = @DisplayName,
-            Email = @Email,
-            IsEnabled = 1,
-            UpdatedAtUtc = SYSUTCDATETIME()
-        WHERE AppUserId = @AppUserId;
-    END
-    ELSE
-    BEGIN
-        UPDATE openalex.AppUser
-        SET
-            DisplayName = @DisplayName,
-            Email = @Email,
-            IsEnabled = 1,
-            UpdatedAtUtc = SYSUTCDATETIME()
-        WHERE AppUserId = @AppUserId;
-    END;
+    UPDATE openalex.AppUser
+    SET
+        DisplayName = @DisplayName,
+        Email = @Email,
+        IsEnabled = 1,
+        UpdatedAtUtc = SYSUTCDATETIME()
+    WHERE AppUserId = @AppUserId;
 END;
 
 SELECT @ReaderRoleId = AppRoleId
@@ -186,6 +138,5 @@ SELECT
     FacultyId = @FacultyId,
     FacultyDisplayName = @DisplayName,
     FacultyEmail = @Email,
-    ComputingId = @ComputingId,
     RoleName = 'Reader',
     DemoStatus = 'Ready_LoginWithDemoUserName_ThenOpen_Faculty_MyPublications';
