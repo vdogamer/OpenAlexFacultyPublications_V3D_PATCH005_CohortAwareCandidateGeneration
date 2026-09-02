@@ -43,7 +43,7 @@ public sealed class AcademicOnlineUniversalFacultyLookupService
             toYear,
             keywordQuery: null,
             keywordMatchMode: null,
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     public async Task<AcademicOnlineUniversalFacultyResult> GetPublicationsAsync(
