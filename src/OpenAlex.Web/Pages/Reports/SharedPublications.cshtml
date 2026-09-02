@@ -1,0 +1,195 @@
+@page
+@model OpenAlex.Web.Pages.Reports.SharedPublicationsModel
+@{
+    ViewData["Title"] = "Find Shared Publications";
+}
+
+<h1>Find Shared Publications</h1>
+
+<section class="card">
+    <p>
+        Enter two or more UVA User IDs. The search resolves each person by exact
+        <code>userid@virginia.edu</code> identity in Academic Online, loads that
+        scholar's publications, and returns publications shared by every selected person.
+    </p>
+
+    <p class="small">
+        Faculty do not need to be preloaded in the OpenAlex pilot faculty table.
+        The search is read-only and does not create database mappings.
+    </p>
+
+    <form method="get">
+        <label for="userIds"><strong>Faculty User IDs</strong></label><br />
+        <textarea id="userIds"
+                  name="UserIds"
+                  rows="5"
+                  style="width:100%;max-width:720px"
+                  placeholder="ssb2v&#10;ra6u">@Model.UserIds</textarea>
+
+        <p class="small">
+            Separate User IDs with commas, spaces, semicolons, or new lines.
+            Maximum 25.
+        </p>
+
+        <label class="checkbox-label">
+            <input type="checkbox"
+                   name="VerifiedOnly"
+                   value="true"
+                   checked="@Model.VerifiedOnly" />
+            Verified publications only
+        </label>
+
+        <div style="margin-top:1rem">
+            <button type="submit">Find Shared Publications</button>
+        </div>
+    </form>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <h2>Search could not be completed</h2>
+        <p>@Model.ErrorMessage</p>
+    </section>
+}
+
+@if (Model.Result is not null)
+{
+    <section class="card">
+        <h2>Faculty resolution</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Faculty</th>
+                    <th>Department</th>
+                    <th>Publications</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var faculty in Model.Result.Resolutions)
+            {
+                <tr>
+                    <td><strong>@faculty.UserId</strong></td>
+                    <td>
+                        @if (faculty.Status == "Resolved")
+                        {
+                            <strong>@faculty.Name</strong><br />
+                            <span class="small">@faculty.Email</span>
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </td>
+                    <td>@faculty.Department</td>
+                    <td>
+                        @if (faculty.Status == "Resolved")
+                        {
+                            @faculty.PublicationCount
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </td>
+                    <td>
+                        @if (faculty.Status == "Resolved")
+                        {
+                            <span class="badge Accepted">Resolved</span>
+                        }
+                        else
+                        {
+                            <strong>@faculty.Status</strong>
+                            @if (!string.IsNullOrWhiteSpace(faculty.Message))
+                            {
+                                <br />
+                                <span class="small">@faculty.Message</span>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+
+        @if (Model.Result.HasResolutionErrors)
+        {
+            <p>
+                The shared-publication comparison was not run because every User ID
+                must resolve to one unambiguous Academic Online scholar profile.
+            </p>
+        }
+    </section>
+
+    @if (!Model.Result.HasResolutionErrors)
+    {
+        <h2>Shared publications (@Model.Result.Publications.Count)</h2>
+
+        @if (Model.Result.Publications.Count == 0)
+        {
+            <section class="card">
+                <p>
+                    No publications were found that are shared by all selected faculty
+                    using the available Academic Online publication identifiers.
+                </p>
+            </section>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Publication</th>
+                        <th>Year</th>
+                        <th>Venue</th>
+                        <th>Citations</th>
+                        <th>Match</th>
+                        <th>Faculty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var publication in Model.Result.Publications)
+                {
+                    <tr>
+                        <td>
+                            <strong>@publication.Title</strong><br />
+
+                            @if (!string.IsNullOrWhiteSpace(publication.Doi))
+                            {
+                                <span class="small">DOI: @publication.Doi</span><br />
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(publication.OpenAlexId))
+                            {
+                                <span class="small">OpenAlex: @publication.OpenAlexId</span><br />
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(publication.Link))
+                            {
+                                <a href="@publication.Link"
+                                   target="_blank"
+                                   rel="noopener">Open publication</a>
+                            }
+                        </td>
+                        <td>@publication.PublicationYear</td>
+                        <td>@publication.Venue</td>
+                        <td>@publication.CitationCount</td>
+                        <td>
+                            @publication.MatchBasis
+                            @if (publication.Verified == true)
+                            {
+                                <br />
+                                <span class="badge Accepted">Verified</span>
+                            }
+                        </td>
+                        <td>@publication.SharedFacultyCount</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    }
+}
