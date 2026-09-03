@@ -6,9 +6,13 @@ using OpenAlex.Worker.Jobs;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+var windowsServiceName =
+    builder.Configuration["WindowsService:ServiceName"]
+    ?? "OpenAlexAcademicOnlineDepartmentRefresh";
+
 builder.Services.AddWindowsService(options =>
 {
-    options.ServiceName = "OpenAlex Academic Online Department Refresh";
+    options.ServiceName = windowsServiceName;
 });
 
 // PATCH017B8A security hardening: the default HttpClient logging pipeline includes
