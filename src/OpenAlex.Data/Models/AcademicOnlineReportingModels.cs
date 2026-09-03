@@ -7,7 +7,7 @@ public sealed class AcademicOnlineDepartmentListItem
     public int ScholarCount { get; init; }
     public int PublicationCount { get; init; }
     public DateTime LastRetrievedAtUtc { get; init; }
-    public long? LastCompletedSyncRunId { get; init; }
+    public long? CurrentSnapshotRunId { get; init; }
     public int? ScholarsDiscovered { get; init; }
     public int? ScholarsProcessed { get; init; }
     public int? MaxScholarsToProcess { get; init; }
@@ -17,7 +17,7 @@ public sealed class AcademicOnlineDepartmentListItem
     public int? SyncFromYear { get; init; }
     public int? SyncToYear { get; init; }
     public bool? SyncVerifiedOnly { get; init; }
-    public DateTime? LastCompletedSyncAtUtc { get; init; }
+    public DateTime? CurrentSnapshotAtUtc { get; init; }
 }
 
 public sealed class AcademicOnlineDepartmentPublicationRow
