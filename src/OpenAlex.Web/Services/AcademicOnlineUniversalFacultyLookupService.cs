@@ -213,7 +213,7 @@ public sealed class AcademicOnlineUniversalFacultyLookupService
         return new AcademicOnlineFacultyProfile
         {
             Name = GetString(root, "name") ?? "Academic Online Scholar",
-            Department = GetString(root, "department"),
+            Department = AcademicOnlineDepartmentParser.GetPreferredDepartmentName(root),
             Institution = GetString(root, "institution"),
             Email = GetString(root, "email"),
             Position = GetString(root, "position"),
