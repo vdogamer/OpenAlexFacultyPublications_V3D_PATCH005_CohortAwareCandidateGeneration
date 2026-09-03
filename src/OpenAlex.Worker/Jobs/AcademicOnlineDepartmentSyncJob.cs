@@ -198,6 +198,13 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         publicationKey,
                         cancellationToken);
 
+                    await _repository.TouchDepartmentScholarPublicationAsync(
+                        runId,
+                        departmentId,
+                        candidate.AuthorId,
+                        publicationKey,
+                        cancellationToken);
+
                     publicationRowsProcessed++;
                 }
 
