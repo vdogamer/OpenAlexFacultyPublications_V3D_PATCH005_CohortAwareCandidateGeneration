@@ -13,7 +13,7 @@
     </p>
 
     <p class="small">
-        Results reflect the most recent completed department sync. Academic Online remains
+        Results reflect the most recent promoted complete department snapshot. Academic Online remains
         the upstream source of record.
     </p>
 
@@ -141,11 +141,11 @@
             }
         </p>
 
-        @if (Model.SelectedDepartment.LastCompletedSyncRunId.HasValue)
+        @if (Model.SelectedDepartment.CurrentSnapshotRunId.HasValue)
         {
             <p class="small">
-                Latest sync scope: @Model.CacheScopeLabel
-                · Run @Model.SelectedDepartment.LastCompletedSyncRunId
+                Current snapshot scope: @Model.CacheScopeLabel
+                · Run @Model.SelectedDepartment.CurrentSnapshotRunId
             </p>
         }
 
@@ -160,7 +160,7 @@
         }
 
         <p class="small">
-            Department cache last refreshed:
+            Current snapshot promoted:
             @Model.SelectedDepartment.LastRetrievedAtUtc.ToString("u")
         </p>
     </section>
