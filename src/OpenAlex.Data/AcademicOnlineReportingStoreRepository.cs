@@ -587,6 +587,60 @@ END;";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task TouchDepartmentScholarPublicationAsync(
+        long runId,
+        long departmentId,
+        string academicOnlineAuthorId,
+        long publicationKey,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.DepartmentScholarPublication
+SET
+    LastSeenAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE DepartmentId = @DepartmentId
+  AND AcademicOnlineAuthorId = @AuthorId
+  AND PublicationKey = @PublicationKey;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    INSERT INTO academiconline.DepartmentScholarPublication
+    (
+        DepartmentId,
+        AcademicOnlineAuthorId,
+        PublicationKey,
+        IsCurrent,
+        FirstSeenAtUtc,
+        LastSeenAtUtc,
+        LastSyncRunId,
+        CurrentSnapshotRunId
+    )
+    VALUES
+    (
+        @DepartmentId,
+        @AuthorId,
+        @PublicationKey,
+        0,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        @RunId,
+        NULL
+    );
+END;";
+
+        command.Parameters.AddWithValue("@RunId", runId);
+        command.Parameters.AddWithValue("@DepartmentId", departmentId);
+        command.Parameters.AddWithValue("@AuthorId", academicOnlineAuthorId.Trim());
+        command.Parameters.AddWithValue("@PublicationKey", publicationKey);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public async Task PromoteDepartmentSnapshotAsync(
         long runId,
         long departmentId,
@@ -629,6 +683,16 @@ SET
 WHERE DepartmentId = @DepartmentId;
 
 UPDATE academiconline.DepartmentPublication
+SET
+    IsCurrent =
+        CASE
+            WHEN LastSyncRunId = @RunId THEN 1
+            ELSE 0
+        END,
+    CurrentSnapshotRunId = @RunId
+WHERE DepartmentId = @DepartmentId;
+
+UPDATE academiconline.DepartmentScholarPublication
 SET
     IsCurrent =
         CASE
