@@ -270,30 +270,31 @@ ORDER BY DepartmentId;";
                 "@LeaseOwner",
                 leaseOwner.Trim());
 
-            await using var reader =
-                await command.ExecuteReaderAsync(cancellationToken);
-
-            while (await reader.ReadAsync(cancellationToken))
+            await using (var reader =
+                await command.ExecuteReaderAsync(cancellationToken))
             {
-                claims.Add(new AcademicOnlineDepartmentRefreshClaim
+                while (await reader.ReadAsync(cancellationToken))
                 {
-                    DepartmentId = reader.GetInt64(0),
-                    DepartmentName = reader.GetString(1),
-                    RefreshIntervalHours = reader.GetInt32(2),
-                    RefreshFailureRetryMinutes = reader.GetInt32(3),
-                    RefreshFromYear =
-                        reader.IsDBNull(4)
-                            ? null
-                            : reader.GetInt32(4),
-                    RefreshToYear =
-                        reader.IsDBNull(5)
-                            ? null
-                            : reader.GetInt32(5),
-                    RefreshVerifiedOnly = reader.GetBoolean(6),
-                    RefreshMaxScholars = reader.GetInt32(7),
-                    LeaseOwner = reader.GetString(8),
-                    LeaseUntilUtc = reader.GetDateTime(9)
-                });
+                    claims.Add(new AcademicOnlineDepartmentRefreshClaim
+                    {
+                        DepartmentId = reader.GetInt64(0),
+                        DepartmentName = reader.GetString(1),
+                        RefreshIntervalHours = reader.GetInt32(2),
+                        RefreshFailureRetryMinutes = reader.GetInt32(3),
+                        RefreshFromYear =
+                            reader.IsDBNull(4)
+                                ? null
+                                : reader.GetInt32(4),
+                        RefreshToYear =
+                            reader.IsDBNull(5)
+                                ? null
+                                : reader.GetInt32(5),
+                        RefreshVerifiedOnly = reader.GetBoolean(6),
+                        RefreshMaxScholars = reader.GetInt32(7),
+                        LeaseOwner = reader.GetString(8),
+                        LeaseUntilUtc = reader.GetDateTime(9)
+                    });
+                }
             }
 
             await transaction.CommitAsync(cancellationToken);
