@@ -12,6 +12,7 @@ SELECT
     LastPassStatus,
     LeaseOwner,
     PollIntervalSeconds,
+    IsContinuous,
     DepartmentsClaimed,
     DepartmentsCompleted,
     DepartmentsPartial,
@@ -26,7 +27,8 @@ SELECT
         END,
     HeartbeatHealth =
         CASE
-            WHEN PollIntervalSeconds IS NULL THEN N'UNKNOWN'
+            WHEN IsContinuous = 0 THEN N'ONE-PASS'
+            WHEN IsContinuous IS NULL OR PollIntervalSeconds IS NULL THEN N'UNKNOWN'
             WHEN DATEDIFF(SECOND, LastHeartbeatAtUtc, SYSUTCDATETIME())
                  <= (PollIntervalSeconds * 2) + 60
                 THEN N'ACTIVE'
