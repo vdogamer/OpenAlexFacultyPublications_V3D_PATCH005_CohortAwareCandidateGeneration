@@ -79,8 +79,45 @@ BEGIN
         LastSyncRunId BIGINT NULL,
         CurrentSnapshotRunId BIGINT NULL,
         CurrentSnapshotAtUtc DATETIME2(3) NULL,
+        RefreshEnabled BIT NOT NULL
+            CONSTRAINT DF_academiconline_Department_RefreshEnabled DEFAULT (0),
+        RefreshIntervalHours INT NOT NULL
+            CONSTRAINT DF_academiconline_Department_RefreshIntervalHours DEFAULT (168),
+        RefreshFailureRetryMinutes INT NOT NULL
+            CONSTRAINT DF_academiconline_Department_RefreshFailureRetryMinutes DEFAULT (60),
+        RefreshFromYear INT NULL,
+        RefreshToYear INT NULL,
+        RefreshVerifiedOnly BIT NOT NULL
+            CONSTRAINT DF_academiconline_Department_RefreshVerifiedOnly DEFAULT (0),
+        RefreshMaxScholars INT NOT NULL
+            CONSTRAINT DF_academiconline_Department_RefreshMaxScholars DEFAULT (250),
+        NextRefreshDueAtUtc DATETIME2(3) NULL,
+        LastRefreshAttemptAtUtc DATETIME2(3) NULL,
+        LastRefreshAttemptStatus NVARCHAR(30) NULL,
+        LastRefreshAttemptRunId BIGINT NULL,
+        LastRefreshError NVARCHAR(MAX) NULL,
+        RefreshLeaseOwner NVARCHAR(256) NULL,
+        RefreshLeaseUntilUtc DATETIME2(3) NULL,
         CONSTRAINT UQ_academiconline_Department_SourceName UNIQUE (SourceName)
     );
+END;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'academiconline.Department')
+      AND name = N'IX_academiconline_Department_RefreshDue'
+)
+BEGIN
+    CREATE INDEX IX_academiconline_Department_RefreshDue
+        ON academiconline.Department
+        (
+            RefreshEnabled,
+            NextRefreshDueAtUtc,
+            RefreshLeaseUntilUtc,
+            DepartmentId
+        );
 END;
 
 IF OBJECT_ID(N'academiconline.Scholar', N'U') IS NULL
