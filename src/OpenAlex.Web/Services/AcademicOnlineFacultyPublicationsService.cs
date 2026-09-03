@@ -109,7 +109,7 @@ public sealed class AcademicOnlineFacultyPublicationsService
             Name = GetString(root, "name")
                 ?? mapping.AcademicOnlineName
                 ?? mapping.FacultyDisplayName,
-            Department = GetString(root, "department")
+            Department = AcademicOnlineDepartmentParser.GetPreferredDepartmentName(root)
                 ?? mapping.DepartmentName,
             Institution = GetString(root, "institution"),
             Email = GetString(root, "email")
