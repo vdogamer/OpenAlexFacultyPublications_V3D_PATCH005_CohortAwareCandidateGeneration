@@ -37,7 +37,7 @@ $env:AcademicOnlineDepartmentRefreshScheduler__MaxDepartmentsPerPass =
 $env:AcademicOnlineDepartmentRefreshScheduler__LeaseMinutes =
     $LeaseMinutes.ToString()
 
-Write-Host "Running PATCH020 Academic Online department refresh scheduler..."
+Write-Host "Running PATCH020A Academic Online department refresh scheduler..."
 Write-Host "Mode: $(if ($Continuous.IsPresent) { 'continuous' } else { 'one pass' })"
 Write-Host "MaxDepartmentsPerPass: $MaxDepartments"
 Write-Host "LeaseMinutes: $LeaseMinutes"
