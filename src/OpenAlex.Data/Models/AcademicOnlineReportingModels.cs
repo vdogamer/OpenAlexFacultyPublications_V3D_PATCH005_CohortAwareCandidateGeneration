@@ -7,6 +7,17 @@ public sealed class AcademicOnlineDepartmentListItem
     public int ScholarCount { get; init; }
     public int PublicationCount { get; init; }
     public DateTime LastRetrievedAtUtc { get; init; }
+    public long? LastCompletedSyncRunId { get; init; }
+    public int? ScholarsDiscovered { get; init; }
+    public int? ScholarsProcessed { get; init; }
+    public int? MaxScholarsToProcess { get; init; }
+    public bool ScholarPaginationSafeguardHit { get; init; }
+    public int PublicationPaginationSafeguardHitCount { get; init; }
+    public bool? IsCacheComplete { get; init; }
+    public int? SyncFromYear { get; init; }
+    public int? SyncToYear { get; init; }
+    public bool? SyncVerifiedOnly { get; init; }
+    public DateTime? LastCompletedSyncAtUtc { get; init; }
 }
 
 public sealed class AcademicOnlineDepartmentPublicationRow
