@@ -77,6 +77,24 @@ Useful only when the target SQL Server and other dependencies explicitly permit 
 
 Do not assume that LocalSystem automatically has database access.
 
+## Service-account logon right
+
+A non-built-in Windows service account requires the local user right:
+
+\`Log on as a service\` / \`SeServiceLogonRight\`.
+
+PATCH020B's installer grants this right directly to the selected account before creating the service.
+
+If an earlier PATCH020B installation already exists and Windows Event Log shows Service Control Manager event 7041 stating that the account lacks \`Log on as a service\`, repair it without reinstalling:
+
+\`\`\`powershell
+.\scripts\Repair-AcademicOnlineDepartmentRefreshServiceLogon.ps1 -StartService
+\`\`\`
+
+This grants only \`SeServiceLogonRight\` to the service's configured account. It does not modify other local-security-policy rights.
+
+In a domain-managed environment, Group Policy can override local user-right assignments. If the right is later removed, involve the domain/security administrator.
+
 ## Startup
 
 The service is configured as:
