@@ -38,6 +38,8 @@ BEGIN
         PublicationPaginationSafeguardHitCount INT NOT NULL
             CONSTRAINT DF_academiconline_SyncRun_PublicationPaginationSafeguardHitCount DEFAULT (0),
         IsCacheComplete BIT NULL,
+        SnapshotPromoted BIT NOT NULL
+            CONSTRAINT DF_academiconline_SyncRun_SnapshotPromoted DEFAULT (0),
         PublicationsProcessed INT NOT NULL
             CONSTRAINT DF_academiconline_SyncRun_Publications DEFAULT (0),
         ScholarPagesFetched INT NOT NULL
@@ -75,6 +77,8 @@ BEGIN
             CONSTRAINT DF_academiconline_Department_FirstSeen DEFAULT (SYSUTCDATETIME()),
         LastRetrievedAtUtc DATETIME2(3) NOT NULL,
         LastSyncRunId BIGINT NULL,
+        CurrentSnapshotRunId BIGINT NULL,
+        CurrentSnapshotAtUtc DATETIME2(3) NULL,
         CONSTRAINT UQ_academiconline_Department_SourceName UNIQUE (SourceName)
     );
 END;
@@ -120,6 +124,9 @@ BEGIN
             CONSTRAINT DF_academiconline_ScholarDepartment_FirstSeen DEFAULT (SYSUTCDATETIME()),
         LastSeenAtUtc DATETIME2(3) NOT NULL,
         LastSyncRunId BIGINT NULL,
+        IsCurrent BIT NOT NULL
+            CONSTRAINT DF_academiconline_ScholarDepartment_IsCurrent DEFAULT (0),
+        CurrentSnapshotRunId BIGINT NULL,
         CONSTRAINT PK_academiconline_ScholarDepartment
             PRIMARY KEY (AcademicOnlineAuthorId, DepartmentId),
         CONSTRAINT FK_academiconline_ScholarDepartment_Scholar
@@ -201,6 +208,38 @@ BEGIN
         ON academiconline.ScholarPublication(PublicationKey, AcademicOnlineAuthorId);
 END;
 
+IF OBJECT_ID(N'academiconline.DepartmentPublication', N'U') IS NULL
+BEGIN
+    CREATE TABLE academiconline.DepartmentPublication
+    (
+        DepartmentId BIGINT NOT NULL,
+        PublicationKey BIGINT NOT NULL,
+        IsCurrent BIT NOT NULL
+            CONSTRAINT DF_academiconline_DepartmentPublication_IsCurrent DEFAULT (0),
+        FirstSeenAtUtc DATETIME2(3) NOT NULL
+            CONSTRAINT DF_academiconline_DepartmentPublication_FirstSeen DEFAULT (SYSUTCDATETIME()),
+        LastSeenAtUtc DATETIME2(3) NOT NULL,
+        LastSyncRunId BIGINT NULL,
+        CurrentSnapshotRunId BIGINT NULL,
+        CONSTRAINT PK_academiconline_DepartmentPublication
+            PRIMARY KEY (DepartmentId, PublicationKey),
+        CONSTRAINT FK_academiconline_DepartmentPublication_Department
+            FOREIGN KEY (DepartmentId)
+            REFERENCES academiconline.Department(DepartmentId),
+        CONSTRAINT FK_academiconline_DepartmentPublication_Publication
+            FOREIGN KEY (PublicationKey)
+            REFERENCES academiconline.Publication(PublicationKey)
+    );
+
+    CREATE INDEX IX_academiconline_DepartmentPublication_Current
+        ON academiconline.DepartmentPublication
+        (
+            DepartmentId,
+            IsCurrent,
+            PublicationKey
+        );
+END;
+
 IF OBJECT_ID(N'academiconline.vw_DepartmentNewestPublication', N'V') IS NOT NULL
 BEGIN
     DROP VIEW academiconline.vw_DepartmentNewestPublication;
@@ -230,8 +269,11 @@ SELECT
         FROM academiconline.ScholarPublication sp2
         JOIN academiconline.ScholarDepartment sd2
             ON sd2.AcademicOnlineAuthorId = sp2.AcademicOnlineAuthorId
+           AND sd2.DepartmentId = d.DepartmentId
+           AND sd2.IsCurrent = 1
+           AND sd2.CurrentSnapshotRunId = d.CurrentSnapshotRunId
         WHERE sp2.PublicationKey = p.PublicationKey
-          AND sd2.DepartmentId = d.DepartmentId
+          AND sp2.LastSyncRunId = d.CurrentSnapshotRunId
     ),
     FacultyNames =
         STUFF
@@ -241,10 +283,13 @@ SELECT
                 FROM academiconline.ScholarPublication sp3
                 JOIN academiconline.ScholarDepartment sd3
                     ON sd3.AcademicOnlineAuthorId = sp3.AcademicOnlineAuthorId
+                   AND sd3.DepartmentId = d.DepartmentId
+                   AND sd3.IsCurrent = 1
+                   AND sd3.CurrentSnapshotRunId = d.CurrentSnapshotRunId
                 JOIN academiconline.Scholar s2
                     ON s2.AcademicOnlineAuthorId = sp3.AcademicOnlineAuthorId
                 WHERE sp3.PublicationKey = p.PublicationKey
-                  AND sd3.DepartmentId = d.DepartmentId
+                  AND sp3.LastSyncRunId = d.CurrentSnapshotRunId
                 GROUP BY s2.DisplayName
                 ORDER BY s2.DisplayName
                 FOR XML PATH(N''''), TYPE
@@ -254,28 +299,14 @@ SELECT
             N''''
         )
 FROM academiconline.Department d
-JOIN academiconline.ScholarDepartment sd
-    ON sd.DepartmentId = d.DepartmentId
-JOIN academiconline.ScholarPublication sp
-    ON sp.AcademicOnlineAuthorId = sd.AcademicOnlineAuthorId
+JOIN academiconline.DepartmentPublication dp
+    ON dp.DepartmentId = d.DepartmentId
+   AND dp.IsCurrent = 1
+   AND dp.CurrentSnapshotRunId = d.CurrentSnapshotRunId
 JOIN academiconline.Publication p
-    ON p.PublicationKey = sp.PublicationKey
+    ON p.PublicationKey = dp.PublicationKey
 WHERE d.IsActive = 1
-GROUP BY
-    d.DepartmentId,
-    d.CanonicalName,
-    p.PublicationKey,
-    p.AcademicOnlinePublicationId,
-    p.OpenAlexId,
-    p.Doi,
-    p.Title,
-    p.Venue,
-    p.YearText,
-    p.PublicationYear,
-    p.CitationCount,
-    p.Verified,
-    p.Link,
-    p.LastRetrievedAtUtc;
+  AND d.CurrentSnapshotRunId IS NOT NULL;
 ');
 
 PRINT N'PATCH019 Academic Online local reporting store is ready.';
