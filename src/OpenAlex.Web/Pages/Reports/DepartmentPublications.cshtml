@@ -99,12 +99,66 @@
 {
     <section class="card">
         <h2>@Model.SelectedDepartment.DepartmentName</h2>
+
+        @if (Model.SelectedDepartment.ScholarsDiscovered.HasValue &&
+             Model.SelectedDepartment.ScholarsProcessed.HasValue)
+        {
+            <p>
+                <strong>
+                    @Model.SelectedDepartment.ScholarsProcessed of
+                    @Model.SelectedDepartment.ScholarsDiscovered discovered scholar(s)
+                    synchronized
+                </strong>
+                ·
+                <strong>@Model.SelectedDepartment.PublicationCount</strong>
+                unique publication(s) currently linked to the department.
+            </p>
+        }
+        else
+        {
+            <p>
+                <strong>@Model.SelectedDepartment.ScholarCount</strong>
+                synchronized scholar(s)
+                ·
+                <strong>@Model.SelectedDepartment.PublicationCount</strong>
+                unique publication(s) currently linked to the department.
+            </p>
+        }
+
         <p>
-            <strong>@Model.SelectedDepartment.ScholarCount</strong> synchronized scholar(s)
-            ·
-            <strong>@Model.SelectedDepartment.PublicationCount</strong> unique publication(s)
-            currently linked to the department.
+            <strong>Cache status:</strong>
+            @if (Model.SelectedDepartment.IsCacheComplete == true)
+            {
+                <span class="badge Accepted">COMPLETE</span>
+            }
+            else if (Model.SelectedDepartment.IsCacheComplete == false)
+            {
+                <span class="badge">PARTIAL</span>
+            }
+            else
+            {
+                <span class="badge">UNKNOWN</span>
+            }
         </p>
+
+        @if (Model.SelectedDepartment.LastCompletedSyncRunId.HasValue)
+        {
+            <p class="small">
+                Latest sync scope: @Model.CacheScopeLabel
+                · Run @Model.SelectedDepartment.LastCompletedSyncRunId
+            </p>
+        }
+
+        @if (Model.CacheWarnings.Count > 0)
+        {
+            <div class="notice">
+                @foreach (var warning in Model.CacheWarnings)
+                {
+                    <div>@warning</div>
+                }
+            </div>
+        }
+
         <p class="small">
             Department cache last refreshed:
             @Model.SelectedDepartment.LastRetrievedAtUtc.ToString("u")
@@ -142,7 +196,7 @@
                           ?? "—")
                     </td>
                     <td>
-                        <strong>@publication.Title</strong>
+                        <strong>@Model.GetDisplayTitle(publication.Title)</strong>
 
                         @if (!string.IsNullOrWhiteSpace(publication.Link))
                         {
