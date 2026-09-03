@@ -144,9 +144,7 @@ END;";
         command.CommandText = @"
 UPDATE academiconline.Department
 SET
-    NextRefreshDueAtUtc = SYSUTCDATETIME(),
-    RefreshLeaseOwner = NULL,
-    RefreshLeaseUntilUtc = NULL
+    NextRefreshDueAtUtc = SYSUTCDATETIME()
 WHERE DepartmentId = @DepartmentId;
 
 IF @@ROWCOUNT = 0
@@ -313,6 +311,7 @@ ORDER BY DepartmentId;";
         long? syncRunId,
         bool succeeded,
         bool cacheComplete,
+        string leaseOwner,
         string? errorMessage,
         CancellationToken cancellationToken = default)
     {
@@ -350,11 +349,23 @@ SET
         END,
     RefreshLeaseOwner = NULL,
     RefreshLeaseUntilUtc = NULL
-WHERE DepartmentId = @DepartmentId;";
+WHERE DepartmentId = @DepartmentId
+  AND RefreshLeaseOwner = @LeaseOwner;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    RAISERROR(
+        N'Department refresh lease is no longer owned by this worker.',
+        16,
+        1);
+END;";
 
         command.Parameters.AddWithValue(
             "@DepartmentId",
             departmentId);
+        command.Parameters.AddWithValue(
+            "@LeaseOwner",
+            leaseOwner.Trim());
         command.Parameters.AddWithValue(
             "@Succeeded",
             succeeded);
