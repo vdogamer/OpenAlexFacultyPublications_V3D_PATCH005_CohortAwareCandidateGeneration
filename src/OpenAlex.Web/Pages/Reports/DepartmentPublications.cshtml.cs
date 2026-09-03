@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using OpenAlex.Data;
 using OpenAlex.Data.Models;
+using OpenAlex.OpenAlexClient;
 
 namespace OpenAlex.Web.Pages.Reports;
 
@@ -38,6 +39,82 @@ public sealed class DepartmentPublicationsModel : PageModel
     public AcademicOnlineDepartmentListItem? SelectedDepartment { get; private set; }
 
     public string? ErrorMessage { get; private set; }
+
+    public string GetDisplayTitle(string? title)
+    {
+        return AcademicOnlineTextCleaner.ToPlainText(
+            title,
+            "(Untitled publication)");
+    }
+
+    public string CacheStatusLabel =>
+        SelectedDepartment?.IsCacheComplete switch
+        {
+            true => "COMPLETE",
+            false => "PARTIAL",
+            _ => "UNKNOWN"
+        };
+
+    public string CacheScopeLabel
+    {
+        get
+        {
+            if (SelectedDepartment is null)
+            {
+                return string.Empty;
+            }
+
+            var fromYear =
+                SelectedDepartment.SyncFromYear?.ToString() ?? "all years";
+            var toYear =
+                SelectedDepartment.SyncToYear?.ToString() ?? "present";
+            var verification =
+                SelectedDepartment.SyncVerifiedOnly == true
+                    ? "verified publications only"
+                    : "all returned publications";
+
+            return $"{fromYear}–{toYear}; {verification}";
+        }
+    }
+
+    public IReadOnlyList<string> CacheWarnings
+    {
+        get
+        {
+            if (SelectedDepartment is null ||
+                SelectedDepartment.IsCacheComplete != false)
+            {
+                return Array.Empty<string>();
+            }
+
+            var warnings = new List<string>();
+
+            if (SelectedDepartment.ScholarsDiscovered.HasValue &&
+                SelectedDepartment.ScholarsProcessed.HasValue &&
+                SelectedDepartment.ScholarsProcessed <
+                SelectedDepartment.ScholarsDiscovered)
+            {
+                warnings.Add(
+                    $"Only {SelectedDepartment.ScholarsProcessed} of " +
+                    $"{SelectedDepartment.ScholarsDiscovered} discovered scholars " +
+                    "were processed in the latest sync.");
+            }
+
+            if (SelectedDepartment.ScholarPaginationSafeguardHit)
+            {
+                warnings.Add(
+                    "The scholar pagination safeguard was reached, so the discovered scholar count may itself be incomplete.");
+            }
+
+            if (SelectedDepartment.PublicationPaginationSafeguardHitCount > 0)
+            {
+                warnings.Add(
+                    $"{SelectedDepartment.PublicationPaginationSafeguardHitCount} scholar publication fetch(es) reached the publication pagination safeguard.");
+            }
+
+            return warnings;
+        }
+    }
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
