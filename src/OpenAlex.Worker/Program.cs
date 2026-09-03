@@ -19,6 +19,7 @@ builder.Services.Configure<WorkIngestionOptions>(builder.Configuration.GetSectio
 builder.Services.Configure<CandidateGenerationOptions>(builder.Configuration.GetSection("CandidateGeneration"));
 builder.Services.Configure<AcademicOnlineComparisonOptions>(builder.Configuration.GetSection("AcademicOnlineComparison"));
 builder.Services.Configure<AcademicOnlineDepartmentSyncOptions>(builder.Configuration.GetSection("AcademicOnlineDepartmentSync"));
+builder.Services.Configure<AcademicOnlineDepartmentRefreshSchedulerOptions>(builder.Configuration.GetSection("AcademicOnlineDepartmentRefreshScheduler"));
 builder.Services.Configure<AcademicOnlineWorkBackfillPreviewOptions>(builder.Configuration.GetSection("AcademicOnlineWorkBackfillPreview"));
 builder.Services.Configure<AcademicOnlineWorkBackfillOptions>(builder.Configuration.GetSection("AcademicOnlineWorkBackfill"));
 builder.Services.Configure<FacultyPublicationCandidatePreviewOptions>(builder.Configuration.GetSection("FacultyPublicationCandidatePreview"));
@@ -56,6 +57,7 @@ builder.Services.AddScoped<FacultyAuthorCandidateGenerationJob>();
 builder.Services.AddScoped<FacultyPublicationCandidateGenerationJob>();
 builder.Services.AddScoped<AcademicOnlineComparisonJob>();
 builder.Services.AddScoped<AcademicOnlineDepartmentSyncJob>();
+builder.Services.AddScoped<AcademicOnlineDepartmentRefreshSchedulerJob>();
 builder.Services.AddScoped<AcademicOnlineWorkBackfillPreviewJob>();
 builder.Services.AddScoped<AcademicOnlineWorkBackfillJob>();
 builder.Services.AddScoped<FacultyPublicationCandidatePreviewJob>();
