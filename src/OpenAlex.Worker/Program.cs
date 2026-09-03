@@ -6,6 +6,11 @@ using OpenAlex.Worker.Jobs;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+builder.Services.AddWindowsService(options =>
+{
+    options.ServiceName = "OpenAlex Academic Online Department Refresh";
+});
+
 // PATCH017B8A security hardening: the default HttpClient logging pipeline includes
 // the full request URI. OpenAlex API keys are query-string credentials, so suppress
 // informational request/response URI logging for this named client.
