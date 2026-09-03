@@ -19,6 +19,7 @@ public sealed class AcademicOnlineReportingStoreRepository
         int? fromYear,
         int? toYear,
         bool verifiedOnly,
+        int maxScholarsToProcess,
         string startedBy,
         string applicationVersion,
         CancellationToken cancellationToken = default)
@@ -37,6 +38,7 @@ INSERT INTO academiconline.SyncRun
     FromYear,
     ToYear,
     VerifiedOnly,
+    MaxScholarsToProcess,
     RunStatus,
     StartedBy,
     ApplicationVersion,
@@ -52,6 +54,7 @@ VALUES
     @FromYear,
     @ToYear,
     @VerifiedOnly,
+    @MaxScholarsToProcess,
     N'Running',
     @StartedBy,
     @ApplicationVersion,
@@ -64,6 +67,7 @@ VALUES
         AddNullable(command, "@FromYear", SqlDbType.Int, fromYear);
         AddNullable(command, "@ToYear", SqlDbType.Int, toYear);
         command.Parameters.AddWithValue("@VerifiedOnly", verifiedOnly);
+        command.Parameters.AddWithValue("@MaxScholarsToProcess", maxScholarsToProcess);
         command.Parameters.AddWithValue("@StartedBy", startedBy);
         command.Parameters.AddWithValue("@ApplicationVersion", applicationVersion);
 
@@ -536,20 +540,28 @@ END;";
 
     public Task CompleteRunAsync(
         long runId,
+        int scholarsDiscovered,
         int scholarsProcessed,
         int publicationsProcessed,
         int scholarPagesFetched,
         int publicationPagesFetched,
+        bool scholarPaginationSafeguardHit,
+        int publicationPaginationSafeguardHitCount,
+        bool isCacheComplete,
         string summaryText,
         CancellationToken cancellationToken = default)
     {
         return UpdateRunAsync(
             runId,
             "Completed",
+            scholarsDiscovered,
             scholarsProcessed,
             publicationsProcessed,
             scholarPagesFetched,
             publicationPagesFetched,
+            scholarPaginationSafeguardHit,
+            publicationPaginationSafeguardHitCount,
+            isCacheComplete,
             summaryText,
             errorText: null,
             cancellationToken);
@@ -563,10 +575,14 @@ END;";
         return UpdateRunAsync(
             runId,
             "Failed",
+            scholarsDiscovered: null,
             scholarsProcessed: 0,
             publicationsProcessed: 0,
             scholarPagesFetched: 0,
             publicationPagesFetched: 0,
+            scholarPaginationSafeguardHit: false,
+            publicationPaginationSafeguardHitCount: 0,
+            isCacheComplete: null,
             summaryText: null,
             errorText: exception.ToString(),
             cancellationToken);
@@ -597,17 +613,60 @@ SELECT
     d.CanonicalName,
     ScholarCount = COUNT(DISTINCT sd.AcademicOnlineAuthorId),
     PublicationCount = COUNT(DISTINCT sp.PublicationKey),
-    d.LastRetrievedAtUtc
+    LastRetrievedAtUtc = COALESCE(latest.CompletedAtUtc, d.LastRetrievedAtUtc),
+    latest.AcademicOnlineSyncRunId,
+    latest.ScholarsDiscovered,
+    latest.ScholarsProcessed,
+    latest.MaxScholarsToProcess,
+    latest.ScholarPaginationSafeguardHit,
+    latest.PublicationPaginationSafeguardHitCount,
+    latest.IsCacheComplete,
+    latest.FromYear,
+    latest.ToYear,
+    latest.VerifiedOnly,
+    latest.CompletedAtUtc
 FROM academiconline.Department d
 LEFT JOIN academiconline.ScholarDepartment sd
     ON sd.DepartmentId = d.DepartmentId
 LEFT JOIN academiconline.ScholarPublication sp
     ON sp.AcademicOnlineAuthorId = sd.AcademicOnlineAuthorId
+OUTER APPLY
+(
+    SELECT TOP (1)
+        r.AcademicOnlineSyncRunId,
+        r.ScholarsDiscovered,
+        r.ScholarsProcessed,
+        r.MaxScholarsToProcess,
+        r.ScholarPaginationSafeguardHit,
+        r.PublicationPaginationSafeguardHitCount,
+        r.IsCacheComplete,
+        r.FromYear,
+        r.ToYear,
+        r.VerifiedOnly,
+        r.CompletedAtUtc
+    FROM academiconline.SyncRun r
+    WHERE r.DepartmentName = d.SourceName
+      AND r.RunStatus = N'Completed'
+    ORDER BY
+        r.CompletedAtUtc DESC,
+        r.AcademicOnlineSyncRunId DESC
+) latest
 WHERE d.IsActive = 1
 GROUP BY
     d.DepartmentId,
     d.CanonicalName,
-    d.LastRetrievedAtUtc
+    d.LastRetrievedAtUtc,
+    latest.AcademicOnlineSyncRunId,
+    latest.ScholarsDiscovered,
+    latest.ScholarsProcessed,
+    latest.MaxScholarsToProcess,
+    latest.ScholarPaginationSafeguardHit,
+    latest.PublicationPaginationSafeguardHitCount,
+    latest.IsCacheComplete,
+    latest.FromYear,
+    latest.ToYear,
+    latest.VerifiedOnly,
+    latest.CompletedAtUtc
 ORDER BY d.CanonicalName;";
 
         await using var reader =
@@ -621,7 +680,18 @@ ORDER BY d.CanonicalName;";
                 DepartmentName = reader.GetString(1),
                 ScholarCount = reader.GetInt32(2),
                 PublicationCount = reader.GetInt32(3),
-                LastRetrievedAtUtc = reader.GetDateTime(4)
+                LastRetrievedAtUtc = reader.GetDateTime(4),
+                LastCompletedSyncRunId = GetNullableLong(reader, 5),
+                ScholarsDiscovered = GetNullableInt(reader, 6),
+                ScholarsProcessed = GetNullableInt(reader, 7),
+                MaxScholarsToProcess = GetNullableInt(reader, 8),
+                ScholarPaginationSafeguardHit = GetNullableBool(reader, 9) ?? false,
+                PublicationPaginationSafeguardHitCount = GetNullableInt(reader, 10) ?? 0,
+                IsCacheComplete = GetNullableBool(reader, 11),
+                SyncFromYear = GetNullableInt(reader, 12),
+                SyncToYear = GetNullableInt(reader, 13),
+                SyncVerifiedOnly = GetNullableBool(reader, 14),
+                LastCompletedSyncAtUtc = GetNullableDateTime(reader, 15)
             });
         }
 
@@ -715,10 +785,14 @@ ORDER BY
     private async Task UpdateRunAsync(
         long runId,
         string status,
+        int? scholarsDiscovered,
         int scholarsProcessed,
         int publicationsProcessed,
         int scholarPagesFetched,
         int publicationPagesFetched,
+        bool scholarPaginationSafeguardHit,
+        int publicationPaginationSafeguardHitCount,
+        bool? isCacheComplete,
         string? summaryText,
         string? errorText,
         CancellationToken cancellationToken)
@@ -731,7 +805,11 @@ ORDER BY
 UPDATE academiconline.SyncRun
 SET
     RunStatus = @RunStatus,
+    ScholarsDiscovered = @ScholarsDiscovered,
     ScholarsProcessed = @ScholarsProcessed,
+    ScholarPaginationSafeguardHit = @ScholarPaginationSafeguardHit,
+    PublicationPaginationSafeguardHitCount = @PublicationPaginationSafeguardHitCount,
+    IsCacheComplete = @IsCacheComplete,
     PublicationsProcessed = @PublicationsProcessed,
     ScholarPagesFetched = @ScholarPagesFetched,
     PublicationPagesFetched = @PublicationPagesFetched,
@@ -743,7 +821,11 @@ WHERE AcademicOnlineSyncRunId = @RunId;";
 
         command.Parameters.AddWithValue("@RunId", runId);
         command.Parameters.AddWithValue("@RunStatus", status);
+        AddNullable(command, "@ScholarsDiscovered", SqlDbType.Int, scholarsDiscovered);
         command.Parameters.AddWithValue("@ScholarsProcessed", scholarsProcessed);
+        command.Parameters.AddWithValue("@ScholarPaginationSafeguardHit", scholarPaginationSafeguardHit);
+        command.Parameters.AddWithValue("@PublicationPaginationSafeguardHitCount", publicationPaginationSafeguardHitCount);
+        AddNullable(command, "@IsCacheComplete", SqlDbType.Bit, isCacheComplete);
         command.Parameters.AddWithValue("@PublicationsProcessed", publicationsProcessed);
         command.Parameters.AddWithValue("@ScholarPagesFetched", scholarPagesFetched);
         command.Parameters.AddWithValue("@PublicationPagesFetched", publicationPagesFetched);
@@ -1033,6 +1115,24 @@ WHERE AcademicOnlineSyncRunId = @RunId;";
         return reader.IsDBNull(ordinal)
             ? null
             : reader.GetInt32(ordinal);
+    }
+
+    private static long? GetNullableLong(
+        SqlDataReader reader,
+        int ordinal)
+    {
+        return reader.IsDBNull(ordinal)
+            ? null
+            : reader.GetInt64(ordinal);
+    }
+
+    private static DateTime? GetNullableDateTime(
+        SqlDataReader reader,
+        int ordinal)
+    {
+        return reader.IsDBNull(ordinal)
+            ? null
+            : reader.GetDateTime(ordinal);
     }
 
     private static bool? GetNullableBool(
