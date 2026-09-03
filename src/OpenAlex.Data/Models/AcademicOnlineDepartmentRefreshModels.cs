@@ -67,6 +67,7 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerState
     public string? LastPassStatus { get; init; }
     public string? LeaseOwner { get; init; }
     public int? PollIntervalSeconds { get; init; }
+    public bool? IsContinuous { get; init; }
     public int DepartmentsClaimed { get; init; }
     public int DepartmentsCompleted { get; init; }
     public int DepartmentsPartial { get; init; }
