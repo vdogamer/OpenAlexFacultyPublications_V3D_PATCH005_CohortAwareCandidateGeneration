@@ -133,6 +133,11 @@ public sealed class OpenAlexWorkerService : BackgroundService
             await scope.ServiceProvider.GetRequiredService<AcademicOnlineDepartmentSyncJob>().ExecuteAsync(stoppingToken);
             return;
         }
+        if (string.Equals(_options.Value.JobName, "AcademicOnlineDepartmentRefreshScheduler", StringComparison.OrdinalIgnoreCase))
+        {
+            await scope.ServiceProvider.GetRequiredService<AcademicOnlineDepartmentRefreshSchedulerJob>().ExecuteAsync(stoppingToken);
+            return;
+        }
         if (string.Equals(_options.Value.JobName, "AcademicOnlineWorkBackfillPreview", StringComparison.OrdinalIgnoreCase))
         {
             await scope.ServiceProvider.GetRequiredService<AcademicOnlineWorkBackfillPreviewJob>().ExecuteAsync(stoppingToken);
