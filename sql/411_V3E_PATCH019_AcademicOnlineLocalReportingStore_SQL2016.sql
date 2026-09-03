@@ -102,13 +102,16 @@ BEGIN
     );
 END;
 
-IF NOT EXISTS
-(
-    SELECT 1
-    FROM sys.indexes
-    WHERE object_id = OBJECT_ID(N'academiconline.Department')
-      AND name = N'IX_academiconline_Department_RefreshDue'
-)
+IF COL_LENGTH(N'academiconline.Department', N'RefreshEnabled') IS NOT NULL
+   AND COL_LENGTH(N'academiconline.Department', N'NextRefreshDueAtUtc') IS NOT NULL
+   AND COL_LENGTH(N'academiconline.Department', N'RefreshLeaseUntilUtc') IS NOT NULL
+   AND NOT EXISTS
+   (
+       SELECT 1
+       FROM sys.indexes
+       WHERE object_id = OBJECT_ID(N'academiconline.Department')
+         AND name = N'IX_academiconline_Department_RefreshDue'
+   )
 BEGIN
     CREATE INDEX IX_academiconline_Department_RefreshDue
         ON academiconline.Department
