@@ -240,6 +240,48 @@ BEGIN
         );
 END;
 
+IF OBJECT_ID(N'academiconline.DepartmentScholarPublication', N'U') IS NULL
+BEGIN
+    CREATE TABLE academiconline.DepartmentScholarPublication
+    (
+        DepartmentId BIGINT NOT NULL,
+        AcademicOnlineAuthorId NVARCHAR(128) NOT NULL,
+        PublicationKey BIGINT NOT NULL,
+        IsCurrent BIT NOT NULL
+            CONSTRAINT DF_academiconline_DepartmentScholarPublication_IsCurrent DEFAULT (0),
+        FirstSeenAtUtc DATETIME2(3) NOT NULL
+            CONSTRAINT DF_academiconline_DepartmentScholarPublication_FirstSeen DEFAULT (SYSUTCDATETIME()),
+        LastSeenAtUtc DATETIME2(3) NOT NULL,
+        LastSyncRunId BIGINT NULL,
+        CurrentSnapshotRunId BIGINT NULL,
+        CONSTRAINT PK_academiconline_DepartmentScholarPublication
+            PRIMARY KEY
+            (
+                DepartmentId,
+                AcademicOnlineAuthorId,
+                PublicationKey
+            ),
+        CONSTRAINT FK_academiconline_DepartmentScholarPublication_Department
+            FOREIGN KEY (DepartmentId)
+            REFERENCES academiconline.Department(DepartmentId),
+        CONSTRAINT FK_academiconline_DepartmentScholarPublication_Scholar
+            FOREIGN KEY (AcademicOnlineAuthorId)
+            REFERENCES academiconline.Scholar(AcademicOnlineAuthorId),
+        CONSTRAINT FK_academiconline_DepartmentScholarPublication_Publication
+            FOREIGN KEY (PublicationKey)
+            REFERENCES academiconline.Publication(PublicationKey)
+    );
+
+    CREATE INDEX IX_academiconline_DepartmentScholarPublication_Current
+        ON academiconline.DepartmentScholarPublication
+        (
+            DepartmentId,
+            IsCurrent,
+            PublicationKey,
+            AcademicOnlineAuthorId
+        );
+END;
+
 IF OBJECT_ID(N'academiconline.vw_DepartmentNewestPublication', N'V') IS NOT NULL
 BEGIN
     DROP VIEW academiconline.vw_DepartmentNewestPublication;
@@ -265,31 +307,25 @@ SELECT
     p.LastRetrievedAtUtc,
     FacultyCount =
     (
-        SELECT COUNT(DISTINCT sp2.AcademicOnlineAuthorId)
-        FROM academiconline.ScholarPublication sp2
-        JOIN academiconline.ScholarDepartment sd2
-            ON sd2.AcademicOnlineAuthorId = sp2.AcademicOnlineAuthorId
-           AND sd2.DepartmentId = d.DepartmentId
-           AND sd2.IsCurrent = 1
-           AND sd2.CurrentSnapshotRunId = d.CurrentSnapshotRunId
-        WHERE sp2.PublicationKey = p.PublicationKey
-          AND sp2.LastSyncRunId = d.CurrentSnapshotRunId
+        SELECT COUNT(DISTINCT dsp2.AcademicOnlineAuthorId)
+        FROM academiconline.DepartmentScholarPublication dsp2
+        WHERE dsp2.DepartmentId = d.DepartmentId
+          AND dsp2.PublicationKey = p.PublicationKey
+          AND dsp2.IsCurrent = 1
+          AND dsp2.CurrentSnapshotRunId = d.CurrentSnapshotRunId
     ),
     FacultyNames =
         STUFF
         (
             (
                 SELECT N''; '' + s2.DisplayName
-                FROM academiconline.ScholarPublication sp3
-                JOIN academiconline.ScholarDepartment sd3
-                    ON sd3.AcademicOnlineAuthorId = sp3.AcademicOnlineAuthorId
-                   AND sd3.DepartmentId = d.DepartmentId
-                   AND sd3.IsCurrent = 1
-                   AND sd3.CurrentSnapshotRunId = d.CurrentSnapshotRunId
+                FROM academiconline.DepartmentScholarPublication dsp3
                 JOIN academiconline.Scholar s2
-                    ON s2.AcademicOnlineAuthorId = sp3.AcademicOnlineAuthorId
-                WHERE sp3.PublicationKey = p.PublicationKey
-                  AND sp3.LastSyncRunId = d.CurrentSnapshotRunId
+                    ON s2.AcademicOnlineAuthorId = dsp3.AcademicOnlineAuthorId
+                WHERE dsp3.DepartmentId = d.DepartmentId
+                  AND dsp3.PublicationKey = p.PublicationKey
+                  AND dsp3.IsCurrent = 1
+                  AND dsp3.CurrentSnapshotRunId = d.CurrentSnapshotRunId
                 GROUP BY s2.DisplayName
                 ORDER BY s2.DisplayName
                 FOR XML PATH(N''''), TYPE
