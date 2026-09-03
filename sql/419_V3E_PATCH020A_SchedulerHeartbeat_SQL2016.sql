@@ -46,4 +46,11 @@ BEGIN
     );
 END;
 
+IF OBJECT_ID(N'academiconline.RefreshSchedulerState', N'U') IS NOT NULL
+   AND COL_LENGTH(N'academiconline.RefreshSchedulerState', N'IsContinuous') IS NULL
+BEGIN
+    ALTER TABLE academiconline.RefreshSchedulerState
+        ADD IsContinuous BIT NULL;
+END;
+
 PRINT N'PATCH020A scheduler heartbeat state is ready.';
