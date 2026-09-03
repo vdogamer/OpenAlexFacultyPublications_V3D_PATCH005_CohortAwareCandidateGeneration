@@ -9,6 +9,7 @@
     <ProjectReference Include="..\OpenAlex.Reporting\OpenAlex.Reporting.csproj" />
     <ProjectReference Include="..\OpenAlex.OperationalLogging\OpenAlex.OperationalLogging.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
   </ItemGroup>
 </Project>
