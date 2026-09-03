@@ -1,0 +1,185 @@
+@page
+@model OpenAlex.Web.Pages.Admin.AcademicOnlineDepartmentsModel
+@{
+    ViewData["Title"] = "Academic Online Department Catalog";
+}
+
+<h1>Academic Online Department Catalog</h1>
+
+<section class="card">
+    <p>
+        Configure which synchronized Academic Online departments may refresh
+        automatically. The web application only changes refresh policy and due
+        timestamps; the background worker performs all API synchronization.
+    </p>
+    <p class="small">
+        New departments are disabled by default. A complete refresh advances the
+        normal interval. Failed or partial refreshes use the shorter retry interval.
+        Department leases prevent overlapping workers from refreshing the same
+        department at the same time.
+    </p>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Message))
+    {
+        <p><strong>@Model.Message</strong></p>
+    }
+</section>
+
+@if (Model.Departments.Count == 0)
+{
+    <section class="card">
+        <p>
+            No Academic Online departments are currently present in the local
+            reporting store.
+        </p>
+    </section>
+}
+else
+{
+    @foreach (var department in Model.Departments)
+    {
+        <section class="card">
+            <h2>@department.DepartmentName</h2>
+
+            <p>
+                <strong>Current snapshot:</strong>
+                @(department.CurrentSnapshotRunId?.ToString() ?? "none")
+                @if (department.CurrentSnapshotAtUtc.HasValue)
+                {
+                    <span>
+                        · @department.CurrentSnapshotAtUtc.Value.ToString("u")
+                    </span>
+                }
+            </p>
+
+            <p>
+                <strong>Next due:</strong>
+                @(department.NextRefreshDueAtUtc?.ToString("u") ?? "not scheduled")
+                ·
+                <strong>Status:</strong>
+                @(department.DueNow ? "DUE" : (department.RefreshEnabled ? "WAITING" : "DISABLED"))
+            </p>
+
+            @if (!string.IsNullOrWhiteSpace(department.LastRefreshAttemptStatus))
+            {
+                <p class="small">
+                    Last scheduler attempt:
+                    @department.LastRefreshAttemptStatus
+                    @if (department.LastRefreshAttemptRunId.HasValue)
+                    {
+                        <span>
+                            · Run @department.LastRefreshAttemptRunId
+                        </span>
+                    }
+                    @if (department.LastRefreshAttemptAtUtc.HasValue)
+                    {
+                        <span>
+                            · @department.LastRefreshAttemptAtUtc.Value.ToString("u")
+                        </span>
+                    }
+                </p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(department.LastRefreshError))
+            {
+                <p class="small">
+                    <strong>Last error:</strong>
+                    @department.LastRefreshError
+                </p>
+            }
+
+            @if (department.RefreshLeaseUntilUtc.HasValue &&
+                 department.RefreshLeaseUntilUtc > DateTime.UtcNow)
+            {
+                <p class="small">
+                    <strong>Lease:</strong>
+                    @department.RefreshLeaseOwner
+                    until @department.RefreshLeaseUntilUtc.Value.ToString("u")
+                </p>
+            }
+
+            <form method="post"
+                  asp-page-handler="SavePolicy"
+                  class="filter-form">
+                <input type="hidden"
+                       name="departmentId"
+                       value="@department.DepartmentId" />
+
+                <label class="checkbox-label">
+                    <input type="checkbox"
+                           name="refreshEnabled"
+                           value="true"
+                           checked="@department.RefreshEnabled" />
+                    Enable scheduled refresh
+                </label>
+
+                <label>
+                    Normal interval (hours)
+                    <input type="number"
+                           name="refreshIntervalHours"
+                           min="1"
+                           max="8760"
+                           value="@department.RefreshIntervalHours" />
+                </label>
+
+                <label>
+                    Retry after partial/failure (minutes)
+                    <input type="number"
+                           name="refreshFailureRetryMinutes"
+                           min="5"
+                           max="1440"
+                           value="@department.RefreshFailureRetryMinutes" />
+                </label>
+
+                <label>
+                    From year
+                    <input type="number"
+                           name="refreshFromYear"
+                           value="@department.RefreshFromYear"
+                           placeholder="all years" />
+                </label>
+
+                <label>
+                    To year
+                    <input type="number"
+                           name="refreshToYear"
+                           value="@department.RefreshToYear"
+                           placeholder="present" />
+                </label>
+
+                <label class="checkbox-label">
+                    <input type="checkbox"
+                           name="refreshVerifiedOnly"
+                           value="true"
+                           checked="@department.RefreshVerifiedOnly" />
+                    Verified publications only
+                </label>
+
+                <label>
+                    Maximum scholars
+                    <input type="number"
+                           name="refreshMaxScholars"
+                           min="1"
+                           max="5000"
+                           value="@department.RefreshMaxScholars" />
+                </label>
+
+                <button type="submit">Save Policy</button>
+            </form>
+
+            @if (department.RefreshEnabled)
+            {
+                <form method="post"
+                      asp-page-handler="DueNow"
+                      style="margin-top:1rem">
+                    <input type="hidden"
+                           name="departmentId"
+                           value="@department.DepartmentId" />
+                    <button type="submit">
+                        Mark Due Now
+                    </button>
+                </form>
+            }
+        </section>
+    }
+}
