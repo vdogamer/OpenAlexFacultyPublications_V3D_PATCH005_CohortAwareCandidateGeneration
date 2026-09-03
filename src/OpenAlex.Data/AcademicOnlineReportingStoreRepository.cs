@@ -538,6 +538,133 @@ END;";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task TouchDepartmentPublicationAsync(
+        long runId,
+        long departmentId,
+        long publicationKey,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.DepartmentPublication
+SET
+    LastSeenAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE DepartmentId = @DepartmentId
+  AND PublicationKey = @PublicationKey;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    INSERT INTO academiconline.DepartmentPublication
+    (
+        DepartmentId,
+        PublicationKey,
+        IsCurrent,
+        FirstSeenAtUtc,
+        LastSeenAtUtc,
+        LastSyncRunId,
+        CurrentSnapshotRunId
+    )
+    VALUES
+    (
+        @DepartmentId,
+        @PublicationKey,
+        0,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        @RunId,
+        NULL
+    );
+END;";
+
+        command.Parameters.AddWithValue("@RunId", runId);
+        command.Parameters.AddWithValue("@DepartmentId", departmentId);
+        command.Parameters.AddWithValue("@PublicationKey", publicationKey);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task PromoteDepartmentSnapshotAsync(
+        long runId,
+        long departmentId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction =
+            await connection.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqlTransaction)transaction;
+            command.CommandText = @"
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM academiconline.SyncRun
+    WHERE AcademicOnlineSyncRunId = @RunId
+      AND RunStatus = N'Completed'
+      AND IsCacheComplete = 1
+)
+BEGIN
+    RAISERROR(
+        N'Only a completed, cache-complete Academic Online sync may be promoted to the current department snapshot.',
+        16,
+        1);
+    RETURN;
+END;
+
+UPDATE academiconline.ScholarDepartment
+SET
+    IsCurrent =
+        CASE
+            WHEN LastSyncRunId = @RunId THEN 1
+            ELSE 0
+        END,
+    CurrentSnapshotRunId = @RunId
+WHERE DepartmentId = @DepartmentId;
+
+UPDATE academiconline.DepartmentPublication
+SET
+    IsCurrent =
+        CASE
+            WHEN LastSyncRunId = @RunId THEN 1
+            ELSE 0
+        END,
+    CurrentSnapshotRunId = @RunId
+WHERE DepartmentId = @DepartmentId;
+
+UPDATE academiconline.Department
+SET
+    CurrentSnapshotRunId = @RunId,
+    CurrentSnapshotAtUtc = SYSUTCDATETIME(),
+    LastRetrievedAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE DepartmentId = @DepartmentId;
+
+UPDATE academiconline.SyncRun
+SET
+    SnapshotPromoted = 1,
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE AcademicOnlineSyncRunId = @RunId;";
+
+            command.Parameters.AddWithValue("@RunId", runId);
+            command.Parameters.AddWithValue("@DepartmentId", departmentId);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
     public Task CompleteRunAsync(
         long runId,
         int scholarsDiscovered,
@@ -612,62 +739,48 @@ SELECT
     d.DepartmentId,
     d.CanonicalName,
     ScholarCount = COUNT(DISTINCT sd.AcademicOnlineAuthorId),
-    PublicationCount = COUNT(DISTINCT sp.PublicationKey),
-    LastRetrievedAtUtc = COALESCE(latest.CompletedAtUtc, d.LastRetrievedAtUtc),
-    latest.AcademicOnlineSyncRunId,
-    latest.ScholarsDiscovered,
-    latest.ScholarsProcessed,
-    latest.MaxScholarsToProcess,
-    latest.ScholarPaginationSafeguardHit,
-    latest.PublicationPaginationSafeguardHitCount,
-    latest.IsCacheComplete,
-    latest.FromYear,
-    latest.ToYear,
-    latest.VerifiedOnly,
-    latest.CompletedAtUtc
+    PublicationCount = COUNT(DISTINCT dp.PublicationKey),
+    LastRetrievedAtUtc =
+        COALESCE(d.CurrentSnapshotAtUtc, d.LastRetrievedAtUtc),
+    d.CurrentSnapshotRunId,
+    snapshot.ScholarsDiscovered,
+    snapshot.ScholarsProcessed,
+    snapshot.MaxScholarsToProcess,
+    snapshot.ScholarPaginationSafeguardHit,
+    snapshot.PublicationPaginationSafeguardHitCount,
+    snapshot.IsCacheComplete,
+    snapshot.FromYear,
+    snapshot.ToYear,
+    snapshot.VerifiedOnly,
+    d.CurrentSnapshotAtUtc
 FROM academiconline.Department d
 LEFT JOIN academiconline.ScholarDepartment sd
     ON sd.DepartmentId = d.DepartmentId
-LEFT JOIN academiconline.ScholarPublication sp
-    ON sp.AcademicOnlineAuthorId = sd.AcademicOnlineAuthorId
-OUTER APPLY
-(
-    SELECT TOP (1)
-        r.AcademicOnlineSyncRunId,
-        r.ScholarsDiscovered,
-        r.ScholarsProcessed,
-        r.MaxScholarsToProcess,
-        r.ScholarPaginationSafeguardHit,
-        r.PublicationPaginationSafeguardHitCount,
-        r.IsCacheComplete,
-        r.FromYear,
-        r.ToYear,
-        r.VerifiedOnly,
-        r.CompletedAtUtc
-    FROM academiconline.SyncRun r
-    WHERE r.DepartmentName = d.SourceName
-      AND r.RunStatus = N'Completed'
-    ORDER BY
-        r.CompletedAtUtc DESC,
-        r.AcademicOnlineSyncRunId DESC
-) latest
+   AND sd.IsCurrent = 1
+   AND sd.CurrentSnapshotRunId = d.CurrentSnapshotRunId
+LEFT JOIN academiconline.DepartmentPublication dp
+    ON dp.DepartmentId = d.DepartmentId
+   AND dp.IsCurrent = 1
+   AND dp.CurrentSnapshotRunId = d.CurrentSnapshotRunId
+LEFT JOIN academiconline.SyncRun snapshot
+    ON snapshot.AcademicOnlineSyncRunId = d.CurrentSnapshotRunId
 WHERE d.IsActive = 1
 GROUP BY
     d.DepartmentId,
     d.CanonicalName,
     d.LastRetrievedAtUtc,
-    latest.AcademicOnlineSyncRunId,
-    latest.ScholarsDiscovered,
-    latest.ScholarsProcessed,
-    latest.MaxScholarsToProcess,
-    latest.ScholarPaginationSafeguardHit,
-    latest.PublicationPaginationSafeguardHitCount,
-    latest.IsCacheComplete,
-    latest.FromYear,
-    latest.ToYear,
-    latest.VerifiedOnly,
-    latest.CompletedAtUtc
-ORDER BY d.CanonicalName;";
+    d.CurrentSnapshotRunId,
+    d.CurrentSnapshotAtUtc,
+    snapshot.ScholarsDiscovered,
+    snapshot.ScholarsProcessed,
+    snapshot.MaxScholarsToProcess,
+    snapshot.ScholarPaginationSafeguardHit,
+    snapshot.PublicationPaginationSafeguardHitCount,
+    snapshot.IsCacheComplete,
+    snapshot.FromYear,
+    snapshot.ToYear,
+    snapshot.VerifiedOnly
+ORDER BY d.CanonicalName;
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -681,7 +794,7 @@ ORDER BY d.CanonicalName;";
                 ScholarCount = reader.GetInt32(2),
                 PublicationCount = reader.GetInt32(3),
                 LastRetrievedAtUtc = reader.GetDateTime(4),
-                LastCompletedSyncRunId = GetNullableLong(reader, 5),
+                CurrentSnapshotRunId = GetNullableLong(reader, 5),
                 ScholarsDiscovered = GetNullableInt(reader, 6),
                 ScholarsProcessed = GetNullableInt(reader, 7),
                 MaxScholarsToProcess = GetNullableInt(reader, 8),
@@ -691,7 +804,7 @@ ORDER BY d.CanonicalName;";
                 SyncFromYear = GetNullableInt(reader, 12),
                 SyncToYear = GetNullableInt(reader, 13),
                 SyncVerifiedOnly = GetNullableBool(reader, 14),
-                LastCompletedSyncAtUtc = GetNullableDateTime(reader, 15)
+                CurrentSnapshotAtUtc = GetNullableDateTime(reader, 15)
             });
         }
 
