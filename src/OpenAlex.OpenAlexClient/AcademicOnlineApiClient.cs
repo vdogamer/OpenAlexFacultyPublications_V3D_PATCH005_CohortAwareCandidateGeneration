@@ -92,8 +92,7 @@ public sealed class AcademicOnlineApiClient
                 Email = GetString(item, "email"),
                 Position = GetString(item, "position"),
                 Department =
-                    GetString(item, "department")
-                    ?? GetString(item, "department_name"),
+                    AcademicOnlineDepartmentParser.GetPreferredDepartmentName(item),
                 Institution =
                     GetString(item, "institution")
                     ?? GetString(item, "institution_name"),
