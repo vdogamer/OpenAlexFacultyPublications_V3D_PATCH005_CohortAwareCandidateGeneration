@@ -388,6 +388,243 @@ END;";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<AcademicOnlineDepartmentRefreshSchedulerState?>
+        GetSchedulerStateAsync(
+            string schedulerKey,
+            CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.RefreshSchedulerState",
+                "U",
+                cancellationToken))
+        {
+            return null;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT
+    SchedulerKey,
+    LastHeartbeatAtUtc,
+    LastPassStartedAtUtc,
+    LastPassCompletedAtUtc,
+    LastPassStatus,
+    LeaseOwner,
+    PollIntervalSeconds,
+    DepartmentsClaimed,
+    DepartmentsCompleted,
+    DepartmentsPartial,
+    DepartmentsFailed,
+    LastError
+FROM academiconline.RefreshSchedulerState
+WHERE SchedulerKey = @SchedulerKey;";
+        command.Parameters.AddWithValue(
+            "@SchedulerKey",
+            schedulerKey);
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new AcademicOnlineDepartmentRefreshSchedulerState
+        {
+            SchedulerKey = reader.GetString(0),
+            LastHeartbeatAtUtc = reader.GetDateTime(1),
+            LastPassStartedAtUtc =
+                reader.IsDBNull(2) ? null : reader.GetDateTime(2),
+            LastPassCompletedAtUtc =
+                reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+            LastPassStatus =
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+            LeaseOwner =
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+            PollIntervalSeconds =
+                reader.IsDBNull(6) ? null : reader.GetInt32(6),
+            DepartmentsClaimed = reader.GetInt32(7),
+            DepartmentsCompleted = reader.GetInt32(8),
+            DepartmentsPartial = reader.GetInt32(9),
+            DepartmentsFailed = reader.GetInt32(10),
+            LastError =
+                reader.IsDBNull(11) ? null : reader.GetString(11)
+        };
+    }
+
+    public async Task RecordSchedulerPassStartedAsync(
+        string schedulerKey,
+        string leaseOwner,
+        int pollIntervalSeconds,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.RefreshSchedulerState
+SET
+    LastHeartbeatAtUtc = SYSUTCDATETIME(),
+    LastPassStartedAtUtc = SYSUTCDATETIME(),
+    LastPassCompletedAtUtc = NULL,
+    LastPassStatus = N'Running',
+    LeaseOwner = @LeaseOwner,
+    PollIntervalSeconds = @PollIntervalSeconds,
+    DepartmentsClaimed = 0,
+    DepartmentsCompleted = 0,
+    DepartmentsPartial = 0,
+    DepartmentsFailed = 0,
+    LastError = NULL,
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE SchedulerKey = @SchedulerKey;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    INSERT INTO academiconline.RefreshSchedulerState
+    (
+        SchedulerKey,
+        LastHeartbeatAtUtc,
+        LastPassStartedAtUtc,
+        LastPassStatus,
+        LeaseOwner,
+        PollIntervalSeconds,
+        DepartmentsClaimed,
+        DepartmentsCompleted,
+        DepartmentsPartial,
+        DepartmentsFailed,
+        CreatedAtUtc,
+        UpdatedAtUtc
+    )
+    VALUES
+    (
+        @SchedulerKey,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        N'Running',
+        @LeaseOwner,
+        @PollIntervalSeconds,
+        0,
+        0,
+        0,
+        0,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME()
+    );
+END;";
+        command.Parameters.AddWithValue(
+            "@SchedulerKey",
+            schedulerKey);
+        command.Parameters.AddWithValue(
+            "@LeaseOwner",
+            leaseOwner);
+        command.Parameters.AddWithValue(
+            "@PollIntervalSeconds",
+            Math.Max(10, pollIntervalSeconds));
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task RecordSchedulerPassCompletedAsync(
+        string schedulerKey,
+        int departmentsClaimed,
+        int departmentsCompleted,
+        int departmentsPartial,
+        int departmentsFailed,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.RefreshSchedulerState
+SET
+    LastHeartbeatAtUtc = SYSUTCDATETIME(),
+    LastPassCompletedAtUtc = SYSUTCDATETIME(),
+    LastPassStatus = N'Completed',
+    DepartmentsClaimed = @DepartmentsClaimed,
+    DepartmentsCompleted = @DepartmentsCompleted,
+    DepartmentsPartial = @DepartmentsPartial,
+    DepartmentsFailed = @DepartmentsFailed,
+    LastError = NULL,
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE SchedulerKey = @SchedulerKey;";
+        command.Parameters.AddWithValue(
+            "@SchedulerKey",
+            schedulerKey);
+        command.Parameters.AddWithValue(
+            "@DepartmentsClaimed",
+            departmentsClaimed);
+        command.Parameters.AddWithValue(
+            "@DepartmentsCompleted",
+            departmentsCompleted);
+        command.Parameters.AddWithValue(
+            "@DepartmentsPartial",
+            departmentsPartial);
+        command.Parameters.AddWithValue(
+            "@DepartmentsFailed",
+            departmentsFailed);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task RecordSchedulerPassFailedAsync(
+        string schedulerKey,
+        int departmentsClaimed,
+        int departmentsCompleted,
+        int departmentsPartial,
+        int departmentsFailed,
+        Exception exception,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.RefreshSchedulerState
+SET
+    LastHeartbeatAtUtc = SYSUTCDATETIME(),
+    LastPassCompletedAtUtc = SYSUTCDATETIME(),
+    LastPassStatus = N'Failed',
+    DepartmentsClaimed = @DepartmentsClaimed,
+    DepartmentsCompleted = @DepartmentsCompleted,
+    DepartmentsPartial = @DepartmentsPartial,
+    DepartmentsFailed = @DepartmentsFailed,
+    LastError = @LastError,
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE SchedulerKey = @SchedulerKey;";
+        command.Parameters.AddWithValue(
+            "@SchedulerKey",
+            schedulerKey);
+        command.Parameters.AddWithValue(
+            "@DepartmentsClaimed",
+            departmentsClaimed);
+        command.Parameters.AddWithValue(
+            "@DepartmentsCompleted",
+            departmentsCompleted);
+        command.Parameters.AddWithValue(
+            "@DepartmentsPartial",
+            departmentsPartial);
+        command.Parameters.AddWithValue(
+            "@DepartmentsFailed",
+            departmentsFailed);
+        AddNullable(
+            command,
+            "@LastError",
+            SqlDbType.NVarChar,
+            -1,
+            exception.ToString());
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static void ValidatePolicy(
         AcademicOnlineDepartmentRefreshPolicyUpdate policy)
     {
