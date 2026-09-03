@@ -84,6 +84,7 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
                 outcome.RunId,
                 outcome.Succeeded,
                 outcome.IsCacheComplete,
+                claim.LeaseOwner,
                 outcome.ErrorMessage,
                 CancellationToken.None);
 
