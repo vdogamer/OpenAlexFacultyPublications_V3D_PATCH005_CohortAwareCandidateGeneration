@@ -192,6 +192,12 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         publicationKey,
                         cancellationToken);
 
+                    await _repository.TouchDepartmentPublicationAsync(
+                        runId,
+                        departmentId,
+                        publicationKey,
+                        cancellationToken);
+
                     publicationRowsProcessed++;
                 }
 
@@ -233,6 +239,14 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 isCacheComplete,
                 summary,
                 cancellationToken);
+
+            if (isCacheComplete)
+            {
+                await _repository.PromoteDepartmentSnapshotAsync(
+                    runId,
+                    departmentId,
+                    cancellationToken);
+            }
 
             await _logger.LogInfoAsync(
                 "AcademicOnlineDepartmentSync",
