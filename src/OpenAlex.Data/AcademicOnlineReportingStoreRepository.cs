@@ -844,7 +844,7 @@ GROUP BY
     snapshot.FromYear,
     snapshot.ToYear,
     snapshot.VerifiedOnly
-ORDER BY d.CanonicalName;
+ORDER BY d.CanonicalName;";
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
