@@ -25,6 +25,64 @@
     }
 </section>
 
+<section class="card">
+    <h2>Background Scheduler</h2>
+
+    <p>
+        <strong>Status:</strong>
+        @Model.SchedulerHealthLabel
+    </p>
+
+    @if (Model.SchedulerState is null)
+    {
+        <p class="small">
+            No scheduler heartbeat has been recorded yet.
+        </p>
+    }
+    else
+    {
+        <p>
+            <strong>Last heartbeat:</strong>
+            @Model.SchedulerState.LastHeartbeatAtUtc.ToString("u")
+            ·
+            <strong>Mode:</strong>
+            @(Model.SchedulerState.IsContinuous == true ? "Continuous" : "One pass")
+        </p>
+
+        <p class="small">
+            Last pass:
+            @(Model.SchedulerState.LastPassStatus ?? "unknown")
+            @if (Model.SchedulerState.LastPassCompletedAtUtc.HasValue)
+            {
+                <span>
+                    · completed @Model.SchedulerState.LastPassCompletedAtUtc.Value.ToString("u")
+                </span>
+            }
+            @if (Model.SchedulerState.PollIntervalSeconds.HasValue)
+            {
+                <span>
+                    · poll every @Model.SchedulerState.PollIntervalSeconds second(s)
+                </span>
+            }
+        </p>
+
+        <p class="small">
+            Claimed @Model.SchedulerState.DepartmentsClaimed
+            · Completed @Model.SchedulerState.DepartmentsCompleted
+            · Partial @Model.SchedulerState.DepartmentsPartial
+            · Failed @Model.SchedulerState.DepartmentsFailed
+        </p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.SchedulerState.LastError))
+        {
+            <p class="small">
+                <strong>Scheduler error:</strong>
+                @Model.SchedulerState.LastError
+            </p>
+        }
+    }
+</section>
+
 @if (Model.Departments.Count == 0)
 {
     <section class="card">
