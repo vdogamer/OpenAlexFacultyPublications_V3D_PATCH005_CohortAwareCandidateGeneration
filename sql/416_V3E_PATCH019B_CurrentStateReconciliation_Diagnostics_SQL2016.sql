@@ -37,11 +37,25 @@ SELECT
         FROM academiconline.ScholarDepartment sd
         WHERE sd.DepartmentId = d.DepartmentId
     ),
+    CurrentDepartmentScholarPublicationRows =
+    (
+        SELECT COUNT(*)
+        FROM academiconline.DepartmentScholarPublication dsp
+        WHERE dsp.DepartmentId = d.DepartmentId
+          AND dsp.IsCurrent = 1
+          AND dsp.CurrentSnapshotRunId = d.CurrentSnapshotRunId
+    ),
     HistoricalDepartmentPublicationRows =
     (
         SELECT COUNT(*)
         FROM academiconline.DepartmentPublication dp
         WHERE dp.DepartmentId = d.DepartmentId
+    ),
+    HistoricalDepartmentScholarPublicationRows =
+    (
+        SELECT COUNT(*)
+        FROM academiconline.DepartmentScholarPublication dsp
+        WHERE dsp.DepartmentId = d.DepartmentId
     )
 FROM academiconline.Department d
 LEFT JOIN academiconline.SyncRun r
