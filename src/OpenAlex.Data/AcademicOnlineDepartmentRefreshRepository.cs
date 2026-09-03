@@ -415,6 +415,7 @@ SELECT
     LastPassStatus,
     LeaseOwner,
     PollIntervalSeconds,
+    IsContinuous,
     DepartmentsClaimed,
     DepartmentsCompleted,
     DepartmentsPartial,
@@ -448,12 +449,14 @@ WHERE SchedulerKey = @SchedulerKey;";
                 reader.IsDBNull(5) ? null : reader.GetString(5),
             PollIntervalSeconds =
                 reader.IsDBNull(6) ? null : reader.GetInt32(6),
-            DepartmentsClaimed = reader.GetInt32(7),
-            DepartmentsCompleted = reader.GetInt32(8),
-            DepartmentsPartial = reader.GetInt32(9),
-            DepartmentsFailed = reader.GetInt32(10),
+            IsContinuous =
+                reader.IsDBNull(7) ? null : reader.GetBoolean(7),
+            DepartmentsClaimed = reader.GetInt32(8),
+            DepartmentsCompleted = reader.GetInt32(9),
+            DepartmentsPartial = reader.GetInt32(10),
+            DepartmentsFailed = reader.GetInt32(11),
             LastError =
-                reader.IsDBNull(11) ? null : reader.GetString(11)
+                reader.IsDBNull(12) ? null : reader.GetString(12)
         };
     }
 
@@ -461,6 +464,7 @@ WHERE SchedulerKey = @SchedulerKey;";
         string schedulerKey,
         string leaseOwner,
         int pollIntervalSeconds,
+        bool isContinuous,
         CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();
@@ -476,6 +480,7 @@ SET
     LastPassStatus = N'Running',
     LeaseOwner = @LeaseOwner,
     PollIntervalSeconds = @PollIntervalSeconds,
+    IsContinuous = @IsContinuous,
     DepartmentsClaimed = 0,
     DepartmentsCompleted = 0,
     DepartmentsPartial = 0,
@@ -494,6 +499,7 @@ BEGIN
         LastPassStatus,
         LeaseOwner,
         PollIntervalSeconds,
+        IsContinuous,
         DepartmentsClaimed,
         DepartmentsCompleted,
         DepartmentsPartial,
@@ -509,6 +515,7 @@ BEGIN
         N'Running',
         @LeaseOwner,
         @PollIntervalSeconds,
+        @IsContinuous,
         0,
         0,
         0,
@@ -526,6 +533,9 @@ END;";
         command.Parameters.AddWithValue(
             "@PollIntervalSeconds",
             Math.Max(10, pollIntervalSeconds));
+        command.Parameters.AddWithValue(
+            "@IsContinuous",
+            isContinuous);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -547,7 +557,12 @@ UPDATE academiconline.RefreshSchedulerState
 SET
     LastHeartbeatAtUtc = SYSUTCDATETIME(),
     LastPassCompletedAtUtc = SYSUTCDATETIME(),
-    LastPassStatus = N'Completed',
+    LastPassStatus =
+        CASE
+            WHEN @DepartmentsFailed > 0 OR @DepartmentsPartial > 0
+                THEN N'CompletedWithIssues'
+            ELSE N'Completed'
+        END,
     DepartmentsClaimed = @DepartmentsClaimed,
     DepartmentsCompleted = @DepartmentsCompleted,
     DepartmentsPartial = @DepartmentsPartial,
