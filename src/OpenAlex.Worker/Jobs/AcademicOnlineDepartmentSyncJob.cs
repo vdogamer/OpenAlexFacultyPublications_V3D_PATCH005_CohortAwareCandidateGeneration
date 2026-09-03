@@ -27,30 +27,89 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
     public async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        var departmentName = _options.DepartmentName?.Trim();
+        var outcome = await ExecuteDepartmentAsync(
+            new AcademicOnlineDepartmentSyncRequest
+            {
+                DepartmentName = _options.DepartmentName,
+                FromYear = _options.FromYear,
+                ToYear = _options.ToYear,
+                VerifiedOnly = _options.VerifiedOnly,
+                MaxScholarsToProcess = _options.MaxScholarsToProcess,
+                StartedBy = _options.StartedBy,
+                ApplicationVersion = _options.ApplicationVersion
+            },
+            cancellationToken);
+
+        if (!outcome.Succeeded)
+        {
+            throw new InvalidOperationException(
+                outcome.ErrorMessage ??
+                "Academic Online department sync failed.");
+        }
+    }
+
+    public async Task<AcademicOnlineDepartmentSyncOutcome>
+        ExecuteDepartmentAsync(
+            AcademicOnlineDepartmentSyncRequest request,
+            CancellationToken cancellationToken)
+    {
+        var departmentName = request.DepartmentName?.Trim();
 
         if (string.IsNullOrWhiteSpace(departmentName))
         {
-            throw new InvalidOperationException(
-                "AcademicOnlineDepartmentSync:DepartmentName is required.");
+            return AcademicOnlineDepartmentSyncOutcome.Failed(
+                runId: null,
+                "Academic Online department name is required.");
         }
 
-        ValidateYearRange();
+        try
+        {
+            ValidateYearRange(
+                request.FromYear,
+                request.ToYear);
+        }
+        catch (Exception ex)
+        {
+            return AcademicOnlineDepartmentSyncOutcome.Failed(
+                runId: null,
+                ex.Message);
+        }
 
         var maxScholars = Math.Clamp(
-            _options.MaxScholarsToProcess,
+            request.MaxScholarsToProcess,
             1,
             5000);
 
-        var runId = await _repository.StartRunAsync(
-            departmentName,
-            _options.FromYear,
-            _options.ToYear,
-            _options.VerifiedOnly,
-            maxScholars,
-            _options.StartedBy,
-            _options.ApplicationVersion,
-            cancellationToken);
+        var startedBy =
+            string.IsNullOrWhiteSpace(request.StartedBy)
+                ? "OpenAlex.V3E.PATCH020"
+                : request.StartedBy.Trim();
+
+        var applicationVersion =
+            string.IsNullOrWhiteSpace(request.ApplicationVersion)
+                ? "3E-PATCH020-DepartmentCatalogScheduledRefresh"
+                : request.ApplicationVersion.Trim();
+
+        long runId;
+
+        try
+        {
+            runId = await _repository.StartRunAsync(
+                departmentName,
+                request.FromYear,
+                request.ToYear,
+                request.VerifiedOnly,
+                maxScholars,
+                startedBy,
+                applicationVersion,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return AcademicOnlineDepartmentSyncOutcome.Failed(
+                runId: null,
+                ex.Message);
+        }
 
         var scholarsProcessed = 0;
         var publicationRowsProcessed = 0;
@@ -146,7 +205,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 var publications =
                     await _client.GetAllAuthorPublicationsAsync(
                         candidate.AuthorId,
-                        _options.VerifiedOnly,
+                        request.VerifiedOnly,
                         rowsPerPage: Math.Clamp(
                             _options.PublicationRowsPerPage,
                             1,
@@ -155,8 +214,8 @@ public sealed class AcademicOnlineDepartmentSyncJob
                             _options.MaxPublicationPages,
                             1,
                             1000),
-                        fromYear: _options.FromYear,
-                        toYear: _options.ToYear,
+                        fromYear: request.FromYear,
+                        toYear: request.ToYear,
                         cancellationToken: cancellationToken);
 
                 publicationPagesFetched += publications.PagesFetched;
@@ -211,7 +270,8 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 scholarsProcessed++;
             }
 
-            var scholarsDiscovered = departmentScholars.Scholars.Count;
+            var scholarsDiscovered =
+                departmentScholars.Scholars.Count;
 
             var isCacheComplete =
                 !departmentScholars.HitMaxPages &&
@@ -227,9 +287,9 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 $"PublicationRowsProcessed={publicationRowsProcessed}; " +
                 $"ScholarPagesFetched={scholarPagesFetched}; " +
                 $"PublicationPagesFetched={publicationPagesFetched}; " +
-                $"FromYear={_options.FromYear?.ToString() ?? "(all)"}; " +
-                $"ToYear={_options.ToYear?.ToString() ?? "(current)"}; " +
-                $"VerifiedOnly={_options.VerifiedOnly}; " +
+                $"FromYear={request.FromYear?.ToString() ?? "(all)"}; " +
+                $"ToYear={request.ToYear?.ToString() ?? "(current)"}; " +
+                $"VerifiedOnly={request.VerifiedOnly}; " +
                 $"ScholarPaginationSafeguardHit={departmentScholars.HitMaxPages}; " +
                 $"PublicationPaginationSafeguardHitCount={publicationPaginationSafeguardHitCount}; " +
                 $"CacheComplete={isCacheComplete}.";
@@ -260,6 +320,16 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 "RunCompleted",
                 summary,
                 cancellationToken: cancellationToken);
+
+            return new AcademicOnlineDepartmentSyncOutcome
+            {
+                RunId = runId,
+                Succeeded = true,
+                IsCacheComplete = isCacheComplete,
+                ScholarsDiscovered = scholarsDiscovered,
+                ScholarsProcessed = scholarsProcessed,
+                PublicationsProcessed = publicationRowsProcessed
+            };
         }
         catch (Exception ex)
         {
@@ -275,27 +345,32 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 ex,
                 cancellationToken: CancellationToken.None);
 
-            throw;
+            return AcademicOnlineDepartmentSyncOutcome.Failed(
+                runId,
+                ex.Message);
         }
     }
 
-    private void ValidateYearRange()
+    private static void ValidateYearRange(
+        int? fromYear,
+        int? toYear)
     {
-        if (_options.FromYear.HasValue &&
-            _options.ToYear.HasValue &&
-            _options.FromYear > _options.ToYear)
+        if (fromYear.HasValue &&
+            toYear.HasValue &&
+            fromYear > toYear)
         {
             throw new InvalidOperationException(
-                "AcademicOnlineDepartmentSync:FromYear cannot be greater than ToYear.");
+                "Academic Online department sync FromYear cannot be greater than ToYear.");
         }
 
-        foreach (var year in new[] { _options.FromYear, _options.ToYear })
+        foreach (var year in new[] { fromYear, toYear })
         {
             if (year.HasValue &&
-                (year < 1800 || year > DateTime.UtcNow.Year + 1))
+                (year < 1800 ||
+                 year > DateTime.UtcNow.Year + 1))
             {
                 throw new InvalidOperationException(
-                    "AcademicOnlineDepartmentSync contains a publication year outside the allowed range.");
+                    "Academic Online department sync contains a publication year outside the allowed range.");
             }
         }
     }
@@ -366,5 +441,42 @@ public sealed class AcademicOnlineDepartmentSyncJob
             out var parsed)
             ? parsed
             : null;
+    }
+}
+
+public sealed class AcademicOnlineDepartmentSyncRequest
+{
+    public string DepartmentName { get; init; } = string.Empty;
+    public int? FromYear { get; init; }
+    public int? ToYear { get; init; }
+    public bool VerifiedOnly { get; init; }
+    public int MaxScholarsToProcess { get; init; } = 250;
+    public string StartedBy { get; init; } =
+        "OpenAlex.V3E.PATCH020";
+    public string ApplicationVersion { get; init; } =
+        "3E-PATCH020-DepartmentCatalogScheduledRefresh";
+}
+
+public sealed class AcademicOnlineDepartmentSyncOutcome
+{
+    public long? RunId { get; init; }
+    public bool Succeeded { get; init; }
+    public bool IsCacheComplete { get; init; }
+    public int ScholarsDiscovered { get; init; }
+    public int ScholarsProcessed { get; init; }
+    public int PublicationsProcessed { get; init; }
+    public string? ErrorMessage { get; init; }
+
+    public static AcademicOnlineDepartmentSyncOutcome Failed(
+        long? runId,
+        string errorMessage)
+    {
+        return new AcademicOnlineDepartmentSyncOutcome
+        {
+            RunId = runId,
+            Succeeded = false,
+            IsCacheComplete = false,
+            ErrorMessage = errorMessage
+        };
     }
 }
