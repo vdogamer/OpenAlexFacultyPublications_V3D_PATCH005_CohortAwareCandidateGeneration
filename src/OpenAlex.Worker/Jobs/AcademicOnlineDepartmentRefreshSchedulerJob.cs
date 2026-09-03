@@ -80,7 +80,7 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
                     departmentsCompleted: 0,
                     departmentsPartial: 0,
                     departmentsFailed: 0,
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
 
                 await _logger.LogInfoAsync(
                     "AcademicOnlineDepartmentRefreshScheduler",
