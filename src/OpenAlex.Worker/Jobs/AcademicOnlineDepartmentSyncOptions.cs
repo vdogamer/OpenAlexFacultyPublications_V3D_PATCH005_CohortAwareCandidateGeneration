@@ -11,7 +11,7 @@ public sealed class AcademicOnlineDepartmentSyncOptions
     public int? FromYear { get; set; } = DateTime.UtcNow.Year - 1;
     public int? ToYear { get; set; }
     public bool VerifiedOnly { get; set; } = false;
-    public string StartedBy { get; set; } = "OpenAlex.V3E.PATCH019";
+    public string StartedBy { get; set; } = "OpenAlex.V3E.PATCH019A";
     public string ApplicationVersion { get; set; } =
-        "3E-PATCH019-AcademicOnlineLocalReportingStore";
+        "3E-PATCH019A-DepartmentCacheCompleteness";
 }
