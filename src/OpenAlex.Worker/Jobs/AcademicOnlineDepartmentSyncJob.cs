@@ -47,6 +47,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
             _options.FromYear,
             _options.ToYear,
             _options.VerifiedOnly,
+            maxScholars,
             _options.StartedBy,
             _options.ApplicationVersion,
             cancellationToken);
@@ -55,6 +56,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
         var publicationRowsProcessed = 0;
         var scholarPagesFetched = 0;
         var publicationPagesFetched = 0;
+        var publicationPaginationSafeguardHitCount = 0;
 
         try
         {
@@ -159,6 +161,11 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
                 publicationPagesFetched += publications.PagesFetched;
 
+                if (publications.HitMaxPages)
+                {
+                    publicationPaginationSafeguardHitCount++;
+                }
+
                 foreach (var publication in publications.Publications)
                 {
                     var publicationKey =
@@ -191,25 +198,39 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 scholarsProcessed++;
             }
 
+            var scholarsDiscovered = departmentScholars.Scholars.Count;
+
+            var isCacheComplete =
+                !departmentScholars.HitMaxPages &&
+                scholarsProcessed == scholarsDiscovered &&
+                publicationPaginationSafeguardHitCount == 0;
+
             var summary =
                 $"Academic Online department sync completed. " +
                 $"Department={departmentName}; " +
-                $"ScholarsDiscovered={departmentScholars.Scholars.Count}; " +
+                $"ScholarsDiscovered={scholarsDiscovered}; " +
                 $"ScholarsProcessed={scholarsProcessed}; " +
+                $"MaxScholarsToProcess={maxScholars}; " +
                 $"PublicationRowsProcessed={publicationRowsProcessed}; " +
                 $"ScholarPagesFetched={scholarPagesFetched}; " +
                 $"PublicationPagesFetched={publicationPagesFetched}; " +
                 $"FromYear={_options.FromYear?.ToString() ?? "(all)"}; " +
                 $"ToYear={_options.ToYear?.ToString() ?? "(current)"}; " +
                 $"VerifiedOnly={_options.VerifiedOnly}; " +
-                $"ScholarPaginationSafeguardHit={departmentScholars.HitMaxPages}.";
+                $"ScholarPaginationSafeguardHit={departmentScholars.HitMaxPages}; " +
+                $"PublicationPaginationSafeguardHitCount={publicationPaginationSafeguardHitCount}; " +
+                $"CacheComplete={isCacheComplete}.";
 
             await _repository.CompleteRunAsync(
                 runId,
+                scholarsDiscovered,
                 scholarsProcessed,
                 publicationRowsProcessed,
                 scholarPagesFetched,
                 publicationPagesFetched,
+                departmentScholars.HitMaxPages,
+                publicationPaginationSafeguardHitCount,
+                isCacheComplete,
                 summary,
                 cancellationToken);
 
