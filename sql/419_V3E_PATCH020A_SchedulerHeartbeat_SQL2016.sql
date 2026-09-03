@@ -29,6 +29,7 @@ BEGIN
         LastPassStatus NVARCHAR(30) NULL,
         LeaseOwner NVARCHAR(256) NULL,
         PollIntervalSeconds INT NULL,
+        IsContinuous BIT NULL,
         DepartmentsClaimed INT NOT NULL
             CONSTRAINT DF_academiconline_RefreshSchedulerState_Claimed DEFAULT (0),
         DepartmentsCompleted INT NOT NULL
