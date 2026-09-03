@@ -385,4 +385,33 @@ WHERE d.IsActive = 1
   AND d.CurrentSnapshotRunId IS NOT NULL;
 ');
 
+IF OBJECT_ID(N'academiconline.RefreshSchedulerState', N'U') IS NULL
+BEGIN
+    CREATE TABLE academiconline.RefreshSchedulerState
+    (
+        SchedulerKey NVARCHAR(100) NOT NULL
+            CONSTRAINT PK_academiconline_RefreshSchedulerState PRIMARY KEY,
+        LastHeartbeatAtUtc DATETIME2(3) NOT NULL,
+        LastPassStartedAtUtc DATETIME2(3) NULL,
+        LastPassCompletedAtUtc DATETIME2(3) NULL,
+        LastPassStatus NVARCHAR(30) NULL,
+        LeaseOwner NVARCHAR(256) NULL,
+        PollIntervalSeconds INT NULL,
+        IsContinuous BIT NULL,
+        DepartmentsClaimed INT NOT NULL
+            CONSTRAINT DF_academiconline_RefreshSchedulerState_Claimed DEFAULT (0),
+        DepartmentsCompleted INT NOT NULL
+            CONSTRAINT DF_academiconline_RefreshSchedulerState_Completed DEFAULT (0),
+        DepartmentsPartial INT NOT NULL
+            CONSTRAINT DF_academiconline_RefreshSchedulerState_Partial DEFAULT (0),
+        DepartmentsFailed INT NOT NULL
+            CONSTRAINT DF_academiconline_RefreshSchedulerState_Failed DEFAULT (0),
+        LastError NVARCHAR(MAX) NULL,
+        CreatedAtUtc DATETIME2(3) NOT NULL
+            CONSTRAINT DF_academiconline_RefreshSchedulerState_Created DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NOT NULL
+            CONSTRAINT DF_academiconline_RefreshSchedulerState_Updated DEFAULT (SYSUTCDATETIME())
+    );
+END;
+
 PRINT N'PATCH019 Academic Online local reporting store is ready.';
