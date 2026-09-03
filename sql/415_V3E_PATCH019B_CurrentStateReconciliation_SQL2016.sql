@@ -135,6 +135,8 @@ BEGIN
         );
 END;
 
+GO
+
 /*
 Backfill the latest known complete PATCH019A run for each department.
 This preserves the already validated Cell Biology run without requiring
