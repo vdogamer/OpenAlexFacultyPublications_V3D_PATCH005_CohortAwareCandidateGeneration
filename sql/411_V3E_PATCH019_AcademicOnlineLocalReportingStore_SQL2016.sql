@@ -29,8 +29,15 @@ BEGIN
         VerifiedOnly BIT NOT NULL
             CONSTRAINT DF_academiconline_SyncRun_VerifiedOnly DEFAULT (0),
         RunStatus NVARCHAR(30) NOT NULL,
+        ScholarsDiscovered INT NULL,
         ScholarsProcessed INT NOT NULL
             CONSTRAINT DF_academiconline_SyncRun_Scholars DEFAULT (0),
+        MaxScholarsToProcess INT NULL,
+        ScholarPaginationSafeguardHit BIT NOT NULL
+            CONSTRAINT DF_academiconline_SyncRun_ScholarPaginationSafeguardHit DEFAULT (0),
+        PublicationPaginationSafeguardHitCount INT NOT NULL
+            CONSTRAINT DF_academiconline_SyncRun_PublicationPaginationSafeguardHitCount DEFAULT (0),
+        IsCacheComplete BIT NULL,
         PublicationsProcessed INT NOT NULL
             CONSTRAINT DF_academiconline_SyncRun_Publications DEFAULT (0),
         ScholarPagesFetched INT NOT NULL
