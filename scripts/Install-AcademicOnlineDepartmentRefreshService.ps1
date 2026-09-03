@@ -81,6 +81,14 @@ try {
         Write-Host "For local validation, use the account that already accesses OpenAlexIngestion_Test."
 
         $credential = Get-Credential -UserName $defaultUser -Message "Windows service logon account"
+
+        $serviceAccountName = $credential.UserName
+
+        if ($serviceAccountName.StartsWith(".\")) {
+            $serviceAccountName = "$env:COMPUTERNAME\$($serviceAccountName.Substring(2))"
+        }
+
+        & "$PSScriptRoot\Grant-LogOnAsServiceRight.ps1" -AccountName $serviceAccountName
     }
 
     $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
