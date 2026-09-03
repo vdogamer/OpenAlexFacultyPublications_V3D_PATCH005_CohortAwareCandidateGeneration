@@ -158,6 +158,7 @@ try {
 
     $serviceEnvironment = @(
         "DOTNET_ENVIRONMENT=Production",
+        "WindowsService__ServiceName=$ServiceName",
         "Worker__Enabled=true",
         "Worker__JobName=AcademicOnlineDepartmentRefreshScheduler",
         "Worker__RunOnceAndStop=false",
