@@ -167,7 +167,9 @@ else
                 <button type="submit">Save Policy</button>
             </form>
 
-            @if (department.RefreshEnabled)
+            @if (department.RefreshEnabled &&
+                 (!department.RefreshLeaseUntilUtc.HasValue ||
+                  department.RefreshLeaseUntilUtc <= DateTime.UtcNow))
             {
                 <form method="post"
                       asp-page-handler="DueNow"
