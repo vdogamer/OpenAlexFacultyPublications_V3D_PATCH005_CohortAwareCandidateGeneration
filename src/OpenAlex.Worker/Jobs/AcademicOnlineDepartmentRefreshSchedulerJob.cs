@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using OpenAlex.Data;
 using OpenAlex.OperationalLogging;
+using OpenAlex.Worker;
 
 namespace OpenAlex.Worker.Jobs;
 
