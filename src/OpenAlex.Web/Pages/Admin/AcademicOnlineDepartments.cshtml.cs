@@ -24,11 +24,39 @@ public sealed class AcademicOnlineDepartmentsModel : PageModel
         Departments { get; private set; } =
             Array.Empty<AcademicOnlineDepartmentRefreshCatalogItem>();
 
+    public AcademicOnlineDepartmentRefreshSchedulerState?
+        SchedulerState { get; private set; }
+
+    public string SchedulerHealthLabel
+    {
+        get
+        {
+            if (SchedulerState is null)
+            {
+                return "NOT STARTED";
+            }
+
+            if (SchedulerState.IsContinuous != true)
+            {
+                return "ONE-PASS";
+            }
+
+            return SchedulerState.IsHeartbeatFresh(DateTime.UtcNow)
+                ? "ACTIVE"
+                : "STALE";
+        }
+    }
+
     public async Task OnGetAsync(
         CancellationToken cancellationToken)
     {
         Departments = await _repository.GetCatalogAsync(
             cancellationToken);
+
+        SchedulerState =
+            await _repository.GetSchedulerStateAsync(
+                "AcademicOnlineDepartmentRefreshScheduler",
+                cancellationToken);
     }
 
     public async Task<IActionResult> OnPostSavePolicyAsync(
