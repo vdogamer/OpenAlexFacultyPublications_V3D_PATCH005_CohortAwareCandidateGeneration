@@ -87,9 +87,10 @@
     <h2>Discover Departments</h2>
 
     <p>
-        Queue a read-only Academic Online scan for direct organizational units
-        under the School of Medicine. The Windows Service performs the API work;
-        this page only creates the request.
+        Queue department onboarding for the School of Medicine. For this parent,
+        the system uses UVA's official department roster as candidate units and
+        validates each unit against Academic Online. The Windows Service performs
+        the API work; this page only creates the request.
     </p>
 
     <form method="post"
@@ -104,7 +105,7 @@
         </label>
 
         <label>
-            Maximum scholar pages
+            Fallback maximum scholar pages
             <input type="number"
                    name="maxPages"
                    value="100"
@@ -118,8 +119,9 @@
     </form>
 
     <p class="small">
-        Newly discovered departments are added to the local catalog with
-        scheduled refresh disabled. Review each entry before enabling it.
+        Validated departments are added to the local catalog with scheduled
+        refresh disabled. Review each entry before enabling it. The page-limit
+        setting is used only when no official seed roster exists for the parent.
     </p>
 
     @if (Model.DiscoveryStatus is not null)
