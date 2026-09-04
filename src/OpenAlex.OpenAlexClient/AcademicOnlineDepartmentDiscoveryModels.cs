@@ -20,5 +20,7 @@ public sealed class AcademicOnlineDepartmentDiscoveryCollection
     public int RowsPerPage { get; init; }
     public int ScholarsScanned { get; init; }
     public int AffiliationsObserved { get; init; }
+    public int ProfilesFetched { get; init; }
+    public int ProfileValidationFailures { get; init; }
     public bool HitMaxPages { get; init; }
 }
