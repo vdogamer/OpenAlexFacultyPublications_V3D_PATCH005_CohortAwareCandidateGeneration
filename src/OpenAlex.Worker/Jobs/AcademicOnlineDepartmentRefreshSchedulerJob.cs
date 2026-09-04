@@ -8,6 +8,8 @@ namespace OpenAlex.Worker.Jobs;
 public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
 {
     private readonly AcademicOnlineDepartmentRefreshRepository _refreshRepository;
+    private readonly AcademicOnlineDepartmentDiscoveryRepository _discoveryRepository;
+    private readonly AcademicOnlineDepartmentDiscoveryJob _discoveryJob;
     private readonly AcademicOnlineDepartmentSyncJob _syncJob;
     private readonly IOperationalLogger _logger;
     private readonly AcademicOnlineDepartmentRefreshSchedulerOptions _options;
@@ -15,12 +17,16 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
 
     public AcademicOnlineDepartmentRefreshSchedulerJob(
         AcademicOnlineDepartmentRefreshRepository refreshRepository,
+        AcademicOnlineDepartmentDiscoveryRepository discoveryRepository,
+        AcademicOnlineDepartmentDiscoveryJob discoveryJob,
         AcademicOnlineDepartmentSyncJob syncJob,
         IOperationalLogger logger,
         IOptions<AcademicOnlineDepartmentRefreshSchedulerOptions> options,
         IOptions<WorkerOptions> workerOptions)
     {
         _refreshRepository = refreshRepository;
+        _discoveryRepository = discoveryRepository;
+        _discoveryJob = discoveryJob;
         _syncJob = syncJob;
         _logger = logger;
         _options = options.Value;
@@ -57,6 +63,22 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
 
         try
         {
+            var discoveryClaim =
+                await _discoveryRepository.ClaimPendingRequestAsync(
+                    leaseOwner,
+                    Math.Clamp(
+                        _options.LeaseMinutes,
+                        5,
+                        1440),
+                    cancellationToken);
+
+            if (discoveryClaim is not null)
+            {
+                await _discoveryJob.ExecuteClaimAsync(
+                    discoveryClaim,
+                    cancellationToken);
+            }
+
             var claims =
                 await _refreshRepository.ClaimDueDepartmentsAsync(
                     Math.Clamp(
@@ -85,7 +107,9 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
                 await _logger.LogInfoAsync(
                     "AcademicOnlineDepartmentRefreshScheduler",
                     "NoDepartmentsDue",
-                    "No enabled Academic Online departments are currently due for refresh.",
+                    discoveryClaim is null
+                        ? "No discovery request or enabled Academic Online department is currently due."
+                        : "Department discovery request processed; no enabled Academic Online department is currently due.",
                     cancellationToken: cancellationToken);
                 return;
             }
