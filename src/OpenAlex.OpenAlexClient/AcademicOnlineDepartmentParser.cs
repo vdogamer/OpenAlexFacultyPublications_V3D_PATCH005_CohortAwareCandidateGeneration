@@ -6,7 +6,7 @@ public static class AcademicOnlineDepartmentParser
 {
     public static string? GetPreferredDepartmentName(JsonElement root)
     {
-        var affiliations = GetAffiliations(root);
+        var affiliations = GetDepartmentAffiliations(root);
         if (affiliations.Count == 0)
         {
             return null;
@@ -18,8 +18,6 @@ public static class AcademicOnlineDepartmentParser
             return primary.Name;
         }
 
-        // Prefer a leaf organizational unit. If one record's ID is used as another
-        // record's parent_id, that record is a parent rather than the most specific unit.
         var parentIds = affiliations
             .Where(item => !string.IsNullOrWhiteSpace(item.ParentId))
             .Select(item => item.ParentId!)
@@ -45,13 +43,14 @@ public static class AcademicOnlineDepartmentParser
 
     public static IReadOnlyList<string> GetDepartmentNames(JsonElement root)
     {
-        return GetAffiliations(root)
+        return GetDepartmentAffiliations(root)
             .Select(item => item.Name)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
-    private static List<DepartmentAffiliation> GetAffiliations(JsonElement root)
+    public static IReadOnlyList<AcademicOnlineDepartmentAffiliation>
+        GetDepartmentAffiliations(JsonElement root)
     {
         foreach (var propertyName in new[]
                  {
@@ -74,22 +73,25 @@ public static class AcademicOnlineDepartmentParser
             }
         }
 
-        return new List<DepartmentAffiliation>();
+        return Array.Empty<AcademicOnlineDepartmentAffiliation>();
     }
 
-    private static List<DepartmentAffiliation> ParseValue(JsonElement value)
+    private static List<AcademicOnlineDepartmentAffiliation>
+        ParseValue(JsonElement value)
     {
-        var affiliations = new List<DepartmentAffiliation>();
+        var affiliations =
+            new List<AcademicOnlineDepartmentAffiliation>();
 
         if (value.ValueKind == JsonValueKind.String)
         {
             var name = value.GetString();
             if (!string.IsNullOrWhiteSpace(name))
             {
-                affiliations.Add(new DepartmentAffiliation
-                {
-                    Name = name.Trim()
-                });
+                affiliations.Add(
+                    new AcademicOnlineDepartmentAffiliation
+                    {
+                        Name = name.Trim()
+                    });
             }
 
             return affiliations;
@@ -118,10 +120,11 @@ public static class AcademicOnlineDepartmentParser
                 var name = item.GetString();
                 if (!string.IsNullOrWhiteSpace(name))
                 {
-                    affiliations.Add(new DepartmentAffiliation
-                    {
-                        Name = name.Trim()
-                    });
+                    affiliations.Add(
+                        new AcademicOnlineDepartmentAffiliation
+                        {
+                            Name = name.Trim()
+                        });
                 }
 
                 continue;
@@ -138,12 +141,15 @@ public static class AcademicOnlineDepartmentParser
         }
 
         return affiliations
-            .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(
+                BuildAffiliationKey,
+                StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
     }
 
-    private static DepartmentAffiliation? ParseObject(JsonElement item)
+    private static AcademicOnlineDepartmentAffiliation?
+        ParseObject(JsonElement item)
     {
         var name =
             GetString(item, "name")
@@ -155,14 +161,32 @@ public static class AcademicOnlineDepartmentParser
             return null;
         }
 
-        return new DepartmentAffiliation
+        return new AcademicOnlineDepartmentAffiliation
         {
             Id = GetString(item, "id"),
             Name = name.Trim(),
+            Slug = GetString(item, "slug"),
             ParentId = GetString(item, "parent_id"),
             ParentName = GetString(item, "parent_name"),
+            ParentSlug = GetString(item, "parent_slug"),
             IsPrimary = GetBool(item, "is_primary")
         };
+    }
+
+    private static string BuildAffiliationKey(
+        AcademicOnlineDepartmentAffiliation affiliation)
+    {
+        if (!string.IsNullOrWhiteSpace(affiliation.Id))
+        {
+            return "id:" + affiliation.Id.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(affiliation.Slug))
+        {
+            return "slug:" + affiliation.Slug.Trim();
+        }
+
+        return "name:" + affiliation.Name.Trim();
     }
 
     private static string? GetString(
@@ -208,15 +232,9 @@ public static class AcademicOnlineDepartmentParser
             return number != 0;
         }
 
-        return bool.TryParse(value.ToString(), out var parsed) && parsed;
-    }
-
-    private sealed class DepartmentAffiliation
-    {
-        public string? Id { get; init; }
-        public string Name { get; init; } = string.Empty;
-        public string? ParentId { get; init; }
-        public string? ParentName { get; init; }
-        public bool IsPrimary { get; init; }
+        return bool.TryParse(
+            value.ToString(),
+            out var parsed) &&
+            parsed;
     }
 }
