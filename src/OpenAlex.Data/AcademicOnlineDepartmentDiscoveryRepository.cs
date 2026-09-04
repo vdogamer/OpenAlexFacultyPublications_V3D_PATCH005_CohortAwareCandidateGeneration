@@ -14,6 +14,76 @@ public sealed class AcademicOnlineDepartmentDiscoveryRepository
         _connectionFactory = connectionFactory;
     }
 
+    public async Task<IReadOnlyList<AcademicOnlineDepartmentDiscoverySeed>>
+        GetActiveSeedsAsync(
+            string parentName,
+            CancellationToken cancellationToken = default)
+    {
+        var rows =
+            new List<AcademicOnlineDepartmentDiscoverySeed>();
+
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.DepartmentDiscoverySeed",
+                "U",
+                cancellationToken))
+        {
+            return rows;
+        }
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandText = @"
+SELECT
+    DepartmentDiscoverySeedId,
+    ParentName,
+    OfficialName,
+    AcademicOnlineSearchName,
+    DepartmentCategory,
+    SearchPriority
+FROM academiconline.DepartmentDiscoverySeed
+WHERE ParentName = @ParentName
+  AND IsActive = 1
+ORDER BY
+    DepartmentCategory,
+    OfficialName,
+    SearchPriority;";
+
+        command.Parameters.AddWithValue(
+            "@ParentName",
+            parentName.Trim());
+
+        await using var reader =
+            await command.ExecuteReaderAsync(
+                cancellationToken);
+
+        while (await reader.ReadAsync(
+            cancellationToken))
+        {
+            rows.Add(
+                new AcademicOnlineDepartmentDiscoverySeed
+                {
+                    SeedId = reader.GetInt64(0),
+                    ParentName = reader.GetString(1),
+                    OfficialName = reader.GetString(2),
+                    AcademicOnlineSearchName =
+                        reader.GetString(3),
+                    DepartmentCategory =
+                        reader.GetString(4),
+                    SearchPriority =
+                        reader.GetInt32(5)
+                });
+        }
+
+        return rows;
+    }
+
     public async Task<long> QueueRequestAsync(
         string parentName,
         int rowsPerPage,
