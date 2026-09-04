@@ -10,11 +10,14 @@ namespace OpenAlex.Web.Pages.Admin;
 public sealed class AcademicOnlineDepartmentsModel : PageModel
 {
     private readonly AcademicOnlineDepartmentRefreshRepository _repository;
+    private readonly AcademicOnlineDepartmentDiscoveryRepository _discoveryRepository;
 
     public AcademicOnlineDepartmentsModel(
-        AcademicOnlineDepartmentRefreshRepository repository)
+        AcademicOnlineDepartmentRefreshRepository repository,
+        AcademicOnlineDepartmentDiscoveryRepository discoveryRepository)
     {
         _repository = repository;
+        _discoveryRepository = discoveryRepository;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -26,6 +29,9 @@ public sealed class AcademicOnlineDepartmentsModel : PageModel
 
     public AcademicOnlineDepartmentRefreshSchedulerState?
         SchedulerState { get; private set; }
+
+    public AcademicOnlineDepartmentDiscoveryStatus?
+        DiscoveryStatus { get; private set; }
 
     public string SchedulerHealthLabel
     {
@@ -56,6 +62,10 @@ public sealed class AcademicOnlineDepartmentsModel : PageModel
         SchedulerState =
             await _repository.GetSchedulerStateAsync(
                 "AcademicOnlineDepartmentRefreshScheduler",
+                cancellationToken);
+
+        DiscoveryStatus =
+            await _discoveryRepository.GetLatestStatusAsync(
                 cancellationToken);
     }
 
@@ -90,6 +100,34 @@ public sealed class AcademicOnlineDepartmentsModel : PageModel
             {
                 message =
                     "Department refresh policy saved."
+            });
+    }
+
+    public async Task<IActionResult> OnPostQueueDiscoveryAsync(
+        string parentName,
+        int maxPages,
+        CancellationToken cancellationToken)
+    {
+        var normalizedParentName =
+            string.IsNullOrWhiteSpace(parentName)
+                ? "School of Medicine"
+                : parentName.Trim();
+
+        var requestId =
+            await _discoveryRepository.QueueRequestAsync(
+                normalizedParentName,
+                rowsPerPage: 100,
+                maxPages: Math.Clamp(maxPages, 1, 1000),
+                requestedBy:
+                    User.Identity?.Name
+                    ?? "OpenAlex.Admin",
+                cancellationToken);
+
+        return RedirectToPage(
+            new
+            {
+                message =
+                    $"Department discovery request {requestId} is queued for the background scheduler."
             });
     }
 
