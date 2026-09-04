@@ -130,12 +130,18 @@ public sealed class AcademicOnlineApiClient
         var seenAuthorIds =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var accumulators =
+        var structuredAffiliations =
             new Dictionary<string, DepartmentDiscoveryAccumulator>(
+                StringComparer.OrdinalIgnoreCase);
+
+        var candidateDepartments =
+            new Dictionary<string, CandidateDepartmentAccumulator>(
                 StringComparer.OrdinalIgnoreCase);
 
         var pagesFetched = 0;
         var affiliationsObserved = 0;
+        var profilesFetched = 0;
+        var profileValidationFailures = 0;
         var hitMaxPages = false;
 
         for (var page = 0; page < pageLimit; page++)
@@ -187,7 +193,7 @@ public sealed class AcademicOnlineApiClient
                     var key = BuildDepartmentDiscoveryKey(
                         affiliation);
 
-                    if (!accumulators.TryGetValue(
+                    if (!structuredAffiliations.TryGetValue(
                             key,
                             out var accumulator))
                     {
@@ -195,12 +201,43 @@ public sealed class AcademicOnlineApiClient
                             new DepartmentDiscoveryAccumulator(
                                 affiliation);
 
-                        accumulators.Add(
+                        structuredAffiliations.Add(
                             key,
                             accumulator);
                     }
 
                     accumulator.AuthorIds.Add(
+                        normalizedAuthorId);
+                }
+
+                var preferredDepartment =
+                    AcademicOnlineDepartmentParser
+                        .GetPreferredDepartmentName(item);
+
+                if (!string.IsNullOrWhiteSpace(preferredDepartment) &&
+                    !string.Equals(
+                        preferredDepartment,
+                        normalizedParentName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    var candidateName =
+                        preferredDepartment.Trim();
+
+                    if (!candidateDepartments.TryGetValue(
+                            candidateName,
+                            out var candidate))
+                    {
+                        candidate =
+                            new CandidateDepartmentAccumulator(
+                                candidateName,
+                                normalizedAuthorId);
+
+                        candidateDepartments.Add(
+                            candidateName,
+                            candidate);
+                    }
+
+                    candidate.AuthorIds.Add(
                         normalizedAuthorId);
                 }
             }
@@ -221,7 +258,7 @@ public sealed class AcademicOnlineApiClient
         }
 
         var allAffiliations =
-            accumulators.Values
+            structuredAffiliations.Values
                 .Select(item => item.Affiliation)
                 .ToList();
 
@@ -247,36 +284,124 @@ public sealed class AcademicOnlineApiClient
                 .Select(item => item.Slug!)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var departments =
-            accumulators.Values
-                .Where(item =>
-                {
-                    var affiliation = item.Affiliation;
+        var validated =
+            new Dictionary<string, DepartmentDiscoveryAccumulator>(
+                StringComparer.OrdinalIgnoreCase);
 
-                    if (string.Equals(
-                            affiliation.Name,
+        foreach (var item in structuredAffiliations.Values)
+        {
+            if (!IsDirectChildOfParent(
+                    item.Affiliation,
+                    normalizedParentName,
+                    parentIds,
+                    parentSlugs))
+            {
+                continue;
+            }
+
+            MergeValidatedDepartment(
+                validated,
+                item.Affiliation,
+                item.AuthorIds);
+        }
+
+        foreach (var candidate in candidateDepartments.Values)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (validated.Values.Any(item =>
+                    string.Equals(
+                        item.Affiliation.Name,
+                        candidate.DepartmentName,
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var generalDocument =
+                    await GetAuthorGeneralAsync(
+                        candidate.RepresentativeAuthorId,
+                        cancellationToken);
+
+                profilesFetched++;
+
+                var profileAffiliations =
+                    AcademicOnlineDepartmentParser
+                        .GetDepartmentAffiliations(
+                            generalDocument.RootElement);
+
+                affiliationsObserved +=
+                    profileAffiliations.Count;
+
+                var profileParentIds =
+                    profileAffiliations
+                        .Where(item =>
+                            string.Equals(
+                                item.Name,
+                                normalizedParentName,
+                                StringComparison.OrdinalIgnoreCase) &&
+                            !string.IsNullOrWhiteSpace(item.Id))
+                        .Select(item => item.Id!)
+                        .ToHashSet(
+                            StringComparer.OrdinalIgnoreCase);
+
+                var profileParentSlugs =
+                    profileAffiliations
+                        .Where(item =>
+                            string.Equals(
+                                item.Name,
+                                normalizedParentName,
+                                StringComparison.OrdinalIgnoreCase) &&
+                            !string.IsNullOrWhiteSpace(item.Slug))
+                        .Select(item => item.Slug!)
+                        .ToHashSet(
+                            StringComparer.OrdinalIgnoreCase);
+
+                foreach (var affiliation in profileAffiliations)
+                {
+                    if (!IsDirectChildOfParent(
+                            affiliation,
                             normalizedParentName,
-                            StringComparison.OrdinalIgnoreCase))
+                            profileParentIds,
+                            profileParentSlugs))
                     {
-                        return false;
+                        continue;
                     }
 
-                    return
+                    var evidenceAuthorIds =
                         string.Equals(
-                            affiliation.ParentName,
-                            normalizedParentName,
+                            affiliation.Name,
+                            candidate.DepartmentName,
                             StringComparison.OrdinalIgnoreCase)
-                        ||
-                        (!string.IsNullOrWhiteSpace(
-                             affiliation.ParentId) &&
-                         parentIds.Contains(
-                             affiliation.ParentId))
-                        ||
-                        (!string.IsNullOrWhiteSpace(
-                             affiliation.ParentSlug) &&
-                         parentSlugs.Contains(
-                             affiliation.ParentSlug));
-                })
+                            ? candidate.AuthorIds
+                            : new HashSet<string>(
+                                new[]
+                                {
+                                    candidate.RepresentativeAuthorId
+                                },
+                                StringComparer.OrdinalIgnoreCase);
+
+                    MergeValidatedDepartment(
+                        validated,
+                        affiliation,
+                        evidenceAuthorIds);
+                }
+            }
+            catch (HttpRequestException)
+            {
+                profileValidationFailures++;
+            }
+            catch (TaskCanceledException)
+                when (!cancellationToken.IsCancellationRequested)
+            {
+                profileValidationFailures++;
+            }
+        }
+
+        var departments =
+            validated.Values
                 .Select(item =>
                     new AcademicOnlineDepartmentDiscoveryItem
                     {
@@ -308,8 +433,70 @@ public sealed class AcademicOnlineApiClient
             RowsPerPage = pageSize,
             ScholarsScanned = seenAuthorIds.Count,
             AffiliationsObserved = affiliationsObserved,
+            ProfilesFetched = profilesFetched,
+            ProfileValidationFailures = profileValidationFailures,
             HitMaxPages = hitMaxPages
         };
+    }
+
+    private static bool IsDirectChildOfParent(
+        AcademicOnlineDepartmentAffiliation affiliation,
+        string parentName,
+        HashSet<string> parentIds,
+        HashSet<string> parentSlugs)
+    {
+        if (string.Equals(
+                affiliation.Name,
+                parentName,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return
+            string.Equals(
+                affiliation.ParentName,
+                parentName,
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            (!string.IsNullOrWhiteSpace(
+                 affiliation.ParentId) &&
+             parentIds.Contains(
+                 affiliation.ParentId))
+            ||
+            (!string.IsNullOrWhiteSpace(
+                 affiliation.ParentSlug) &&
+             parentSlugs.Contains(
+                 affiliation.ParentSlug));
+    }
+
+    private static void MergeValidatedDepartment(
+        Dictionary<string, DepartmentDiscoveryAccumulator> validated,
+        AcademicOnlineDepartmentAffiliation affiliation,
+        IEnumerable<string> authorIds)
+    {
+        var key =
+            BuildDepartmentDiscoveryKey(
+                affiliation);
+
+        if (!validated.TryGetValue(
+                key,
+                out var accumulator))
+        {
+            accumulator =
+                new DepartmentDiscoveryAccumulator(
+                    affiliation);
+
+            validated.Add(
+                key,
+                accumulator);
+        }
+
+        foreach (var authorId in authorIds)
+        {
+            accumulator.AuthorIds.Add(
+                authorId);
+        }
     }
 
     public async Task<AcademicOnlineDepartmentScholarCollection> GetDepartmentScholarsAsync(
@@ -618,6 +805,24 @@ public sealed class AcademicOnlineApiClient
         }
 
         return "name:" + affiliation.Name.Trim();
+    }
+
+    private sealed class CandidateDepartmentAccumulator
+    {
+        public CandidateDepartmentAccumulator(
+            string departmentName,
+            string representativeAuthorId)
+        {
+            DepartmentName = departmentName;
+            RepresentativeAuthorId =
+                representativeAuthorId;
+        }
+
+        public string DepartmentName { get; }
+        public string RepresentativeAuthorId { get; }
+
+        public HashSet<string> AuthorIds { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed class DepartmentDiscoveryAccumulator
