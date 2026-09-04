@@ -34,6 +34,7 @@ public static class OpenAlexDataServiceCollectionExtensions
         services.AddScoped<AcademicOnlineComparisonRepository>();
         services.AddScoped<AcademicOnlineReportingStoreRepository>();
         services.AddScoped<AcademicOnlineDepartmentRefreshRepository>();
+        services.AddScoped<AcademicOnlineDepartmentDiscoveryRepository>();
         services.AddScoped<FacultyManualReviewRuleRepository>();
         services.AddScoped<FacultyIdentityCandidateRepository>();
         services.AddScoped<FacultyIdentityCandidateWorkRepository>();
