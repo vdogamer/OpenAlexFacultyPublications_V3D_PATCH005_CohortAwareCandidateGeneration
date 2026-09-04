@@ -797,6 +797,10 @@ END;";
         AcademicOnlineDepartmentDiscoveryClaim claim,
         long? runId,
         Exception exception,
+        int pagesFetched = 0,
+        int scholarsScanned = 0,
+        int affiliationsObserved = 0,
+        bool hitMaxPages = false,
         CancellationToken cancellationToken = default)
     {
         await using var connection =
@@ -820,6 +824,10 @@ END;";
 UPDATE academiconline.DepartmentDiscoveryRun
 SET
     RunStatus = N'Failed',
+    PagesFetched = @PagesFetched,
+    ScholarsScanned = @ScholarsScanned,
+    AffiliationsObserved = @AffiliationsObserved,
+    HitMaxPages = @HitMaxPages,
     ErrorText = @ErrorText,
     CompletedAtUtc = SYSUTCDATETIME(),
     UpdatedAtUtc = SYSUTCDATETIME()
@@ -828,6 +836,22 @@ WHERE DepartmentDiscoveryRunId = @RunId;";
                 runCommand.Parameters.AddWithValue(
                     "@RunId",
                     runId.Value);
+
+                runCommand.Parameters.AddWithValue(
+                    "@PagesFetched",
+                    Math.Max(0, pagesFetched));
+
+                runCommand.Parameters.AddWithValue(
+                    "@ScholarsScanned",
+                    Math.Max(0, scholarsScanned));
+
+                runCommand.Parameters.AddWithValue(
+                    "@AffiliationsObserved",
+                    Math.Max(0, affiliationsObserved));
+
+                runCommand.Parameters.AddWithValue(
+                    "@HitMaxPages",
+                    hitMaxPages);
 
                 runCommand.Parameters.AddWithValue(
                     "@ErrorText",
