@@ -22,5 +22,14 @@ public sealed class AcademicOnlineDepartmentDiscoveryCollection
     public int AffiliationsObserved { get; init; }
     public int ProfilesFetched { get; init; }
     public int ProfileValidationFailures { get; init; }
+    public int DepartmentsUnresolved { get; init; }
     public bool HitMaxPages { get; init; }
+}
+
+
+public sealed class AcademicOnlineDepartmentSeedCandidate
+{
+    public string OfficialName { get; init; } = string.Empty;
+    public string SearchName { get; init; } = string.Empty;
+    public int SearchPriority { get; init; }
 }
