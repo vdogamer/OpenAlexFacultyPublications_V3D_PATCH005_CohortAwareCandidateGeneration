@@ -121,7 +121,8 @@ public sealed class AcademicOnlineDepartmentsModel : PageModel
                 requestedBy:
                     User.Identity?.Name
                     ?? "OpenAlex.Admin",
-                cancellationToken);
+                cancellationToken:
+                    cancellationToken);
 
         return RedirectToPage(
             new
