@@ -39,12 +39,40 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                 cancellationToken:
                     cancellationToken);
 
-            discovery =
-                await _client.DiscoverDepartmentsAsync(
+            var seeds =
+                await _repository.GetActiveSeedsAsync(
                     claim.ParentName,
-                    claim.RowsPerPage,
-                    claim.MaxPages,
                     cancellationToken);
+
+            if (seeds.Count > 0)
+            {
+                discovery =
+                    await _client
+                        .DiscoverDepartmentsFromSeedsAsync(
+                            claim.ParentName,
+                            seeds
+                                .Select(seed =>
+                                    new AcademicOnlineDepartmentSeedCandidate
+                                    {
+                                        OfficialName =
+                                            seed.OfficialName,
+                                        SearchName =
+                                            seed.AcademicOnlineSearchName,
+                                        SearchPriority =
+                                            seed.SearchPriority
+                                    })
+                                .ToList(),
+                            cancellationToken);
+            }
+            else
+            {
+                discovery =
+                    await _client.DiscoverDepartmentsAsync(
+                        claim.ParentName,
+                        claim.RowsPerPage,
+                        claim.MaxPages,
+                        cancellationToken);
+            }
 
             if (discovery.ScholarsScanned == 0)
             {
@@ -100,7 +128,8 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
 
             var status =
                 discovery.HitMaxPages ||
-                discovery.ProfileValidationFailures > 0
+                discovery.ProfileValidationFailures > 0 ||
+                discovery.DepartmentsUnresolved > 0
                     ? "Partial"
                     : "Completed";
 
@@ -112,6 +141,7 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                 $"AffiliationsObserved={discovery.AffiliationsObserved}; " +
                 $"ProfilesFetched={discovery.ProfilesFetched}; " +
                 $"ProfileValidationFailures={discovery.ProfileValidationFailures}; " +
+                $"DepartmentsUnresolved={discovery.DepartmentsUnresolved}; " +
                 $"DepartmentsDiscovered={discovery.Departments.Count}; " +
                 $"DepartmentsInserted={inserted}; " +
                 $"DepartmentsUpdated={updated}; " +
