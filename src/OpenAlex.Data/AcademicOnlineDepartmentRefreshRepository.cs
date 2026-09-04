@@ -52,7 +52,13 @@ SELECT
     LastRefreshAttemptRunId,
     LastRefreshError,
     RefreshLeaseOwner,
-    RefreshLeaseUntilUtc
+    RefreshLeaseUntilUtc,
+    AcademicOnlineDepartmentId,
+    AcademicOnlineSlug,
+    ParentName,
+    ParentSlug,
+    DiscoveryScholarCount,
+    DiscoveryLastSeenAtUtc
 FROM academiconline.Department
 ORDER BY CanonicalName;";
 
@@ -728,7 +734,19 @@ WHERE SchedulerKey = @SchedulerKey;";
             RefreshLeaseOwner =
                 reader.IsDBNull(17) ? null : reader.GetString(17),
             RefreshLeaseUntilUtc =
-                reader.IsDBNull(18) ? null : reader.GetDateTime(18)
+                reader.IsDBNull(18) ? null : reader.GetDateTime(18),
+            AcademicOnlineDepartmentId =
+                reader.IsDBNull(19) ? null : reader.GetString(19),
+            AcademicOnlineSlug =
+                reader.IsDBNull(20) ? null : reader.GetString(20),
+            ParentName =
+                reader.IsDBNull(21) ? null : reader.GetString(21),
+            ParentSlug =
+                reader.IsDBNull(22) ? null : reader.GetString(22),
+            DiscoveryScholarCount =
+                reader.IsDBNull(23) ? null : reader.GetInt32(23),
+            DiscoveryLastSeenAtUtc =
+                reader.IsDBNull(24) ? null : reader.GetDateTime(24)
         };
     }
 
