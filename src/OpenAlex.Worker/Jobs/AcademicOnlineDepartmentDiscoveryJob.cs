@@ -26,6 +26,7 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
         CancellationToken cancellationToken)
     {
         long? runId = null;
+        AcademicOnlineDepartmentDiscoveryCollection? discovery = null;
 
         try
         {
@@ -38,7 +39,7 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                 cancellationToken:
                     cancellationToken);
 
-            var discovery =
+            discovery =
                 await _client.DiscoverDepartmentsAsync(
                     claim.ParentName,
                     claim.RowsPerPage,
@@ -98,7 +99,8 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
             }
 
             var status =
-                discovery.HitMaxPages
+                discovery.HitMaxPages ||
+                discovery.ProfileValidationFailures > 0
                     ? "Partial"
                     : "Completed";
 
@@ -108,6 +110,8 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                 $"PagesFetched={discovery.PagesFetched}; " +
                 $"ScholarsScanned={discovery.ScholarsScanned}; " +
                 $"AffiliationsObserved={discovery.AffiliationsObserved}; " +
+                $"ProfilesFetched={discovery.ProfilesFetched}; " +
+                $"ProfileValidationFailures={discovery.ProfileValidationFailures}; " +
                 $"DepartmentsDiscovered={discovery.Departments.Count}; " +
                 $"DepartmentsInserted={inserted}; " +
                 $"DepartmentsUpdated={updated}; " +
@@ -142,7 +146,16 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                     claim,
                     runId,
                     ex,
-                    CancellationToken.None);
+                    pagesFetched:
+                        discovery?.PagesFetched ?? 0,
+                    scholarsScanned:
+                        discovery?.ScholarsScanned ?? 0,
+                    affiliationsObserved:
+                        discovery?.AffiliationsObserved ?? 0,
+                    hitMaxPages:
+                        discovery?.HitMaxPages ?? false,
+                    cancellationToken:
+                        CancellationToken.None);
             }
             catch
             {
