@@ -22,6 +22,13 @@ public sealed class AcademicOnlineDepartmentRefreshCatalogItem
     public string? RefreshLeaseOwner { get; init; }
     public DateTime? RefreshLeaseUntilUtc { get; init; }
 
+    public string? AcademicOnlineDepartmentId { get; init; }
+    public string? AcademicOnlineSlug { get; init; }
+    public string? ParentName { get; init; }
+    public string? ParentSlug { get; init; }
+    public int? DiscoveryScholarCount { get; init; }
+    public DateTime? DiscoveryLastSeenAtUtc { get; init; }
+
     public bool DueNow =>
         IsActive &&
         RefreshEnabled &&
