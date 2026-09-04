@@ -48,3 +48,14 @@ public sealed class AcademicOnlineDepartmentDiscoveryStatus
     public bool? HitMaxPages { get; init; }
     public string? SummaryText { get; init; }
 }
+
+
+public sealed class AcademicOnlineDepartmentDiscoverySeed
+{
+    public long SeedId { get; init; }
+    public string ParentName { get; init; } = string.Empty;
+    public string OfficialName { get; init; } = string.Empty;
+    public string AcademicOnlineSearchName { get; init; } = string.Empty;
+    public string DepartmentCategory { get; init; } = string.Empty;
+    public int SearchPriority { get; init; }
+}
