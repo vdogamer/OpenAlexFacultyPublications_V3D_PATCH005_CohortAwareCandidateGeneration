@@ -83,6 +83,99 @@
     }
 </section>
 
+<section class="card">
+    <h2>Discover Departments</h2>
+
+    <p>
+        Queue a read-only Academic Online scan for direct organizational units
+        under the School of Medicine. The Windows Service performs the API work;
+        this page only creates the request.
+    </p>
+
+    <form method="post"
+          asp-page-handler="QueueDiscovery"
+          class="filter-form">
+        <label>
+            Parent organization
+            <input type="text"
+                   name="parentName"
+                   value="School of Medicine"
+                   maxlength="512" />
+        </label>
+
+        <label>
+            Maximum scholar pages
+            <input type="number"
+                   name="maxPages"
+                   value="100"
+                   min="1"
+                   max="1000" />
+        </label>
+
+        <button type="submit">
+            Queue Department Discovery
+        </button>
+    </form>
+
+    <p class="small">
+        Newly discovered departments are added to the local catalog with
+        scheduled refresh disabled. Review each entry before enabling it.
+    </p>
+
+    @if (Model.DiscoveryStatus is not null)
+    {
+        <hr />
+
+        <p>
+            <strong>Latest request:</strong>
+            @Model.DiscoveryStatus.RequestId
+            ·
+            <strong>Status:</strong>
+            @Model.DiscoveryStatus.RequestStatus
+            ·
+            <strong>Parent:</strong>
+            @Model.DiscoveryStatus.ParentName
+        </p>
+
+        <p class="small">
+            Requested @Model.DiscoveryStatus.RequestedAtUtc.ToString("u")
+            by @Model.DiscoveryStatus.RequestedBy
+            · page size @Model.DiscoveryStatus.RowsPerPage
+            · max pages @Model.DiscoveryStatus.MaxPages
+        </p>
+
+        @if (Model.DiscoveryStatus.DiscoveryRunId.HasValue)
+        {
+            <p class="small">
+                Run @Model.DiscoveryStatus.DiscoveryRunId
+                · @(Model.DiscoveryStatus.RunStatus ?? "unknown")
+                · pages @(Model.DiscoveryStatus.PagesFetched?.ToString() ?? "0")
+                · scholars @(Model.DiscoveryStatus.ScholarsScanned?.ToString() ?? "0")
+                · departments @(Model.DiscoveryStatus.DepartmentsDiscovered?.ToString() ?? "0")
+                · inserted @(Model.DiscoveryStatus.DepartmentsInserted?.ToString() ?? "0")
+                · updated @(Model.DiscoveryStatus.DepartmentsUpdated?.ToString() ?? "0")
+            </p>
+        }
+
+        @if (Model.DiscoveryStatus.HitMaxPages == true)
+        {
+            <p class="small">
+                <strong>PARTIAL:</strong>
+                The scholar-page safeguard was reached. The discovered catalog
+                may not be exhaustive.
+            </p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.DiscoveryStatus.ErrorText))
+        {
+            <p class="small">
+                <strong>Discovery error:</strong>
+                @Model.DiscoveryStatus.ErrorText
+            </p>
+        }
+    }
+</section>
+
 @if (Model.Departments.Count == 0)
 {
     <section class="card">
@@ -98,6 +191,39 @@ else
     {
         <section class="card">
             <h2>@department.DepartmentName</h2>
+
+            @if (department.DiscoveryLastSeenAtUtc.HasValue)
+            {
+                <p class="small">
+                    <strong>Academic Online discovery:</strong>
+                    @if (!string.IsNullOrWhiteSpace(department.ParentName))
+                    {
+                        <span>
+                            parent @department.ParentName ·
+                        </span>
+                    }
+                    @(department.DiscoveryScholarCount?.ToString() ?? "0")
+                    observed scholar(s)
+                    · last seen @department.DiscoveryLastSeenAtUtc.Value.ToString("u")
+                </p>
+
+                @if (!string.IsNullOrWhiteSpace(department.AcademicOnlineSlug) ||
+                     !string.IsNullOrWhiteSpace(department.AcademicOnlineDepartmentId))
+                {
+                    <p class="small">
+                        @if (!string.IsNullOrWhiteSpace(department.AcademicOnlineSlug))
+                        {
+                            <span>Slug: @department.AcademicOnlineSlug</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(department.AcademicOnlineDepartmentId))
+                        {
+                            <span>
+                                · ID: @department.AcademicOnlineDepartmentId
+                            </span>
+                        }
+                    </p>
+                }
+            }
 
             <p>
                 <strong>Current snapshot:</strong>
