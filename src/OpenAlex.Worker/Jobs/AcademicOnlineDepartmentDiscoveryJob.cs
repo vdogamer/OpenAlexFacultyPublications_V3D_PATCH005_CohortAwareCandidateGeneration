@@ -35,7 +35,8 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                     "OpenAlex.V3E.PATCH021.Scheduler",
                 applicationVersion:
                     "3E-PATCH021-DepartmentDiscoveryCatalogOnboarding",
-                cancellationToken);
+                cancellationToken:
+                    cancellationToken);
 
             var discovery =
                 await _client.DiscoverDepartmentsAsync(
