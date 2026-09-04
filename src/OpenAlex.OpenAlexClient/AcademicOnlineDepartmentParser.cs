@@ -54,8 +54,8 @@ public static class AcademicOnlineDepartmentParser
     {
         foreach (var propertyName in new[]
                  {
-                     "department",
                      "departments",
+                     "department",
                      "department_name"
                  })
         {
