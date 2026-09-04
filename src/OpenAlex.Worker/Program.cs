@@ -67,6 +67,7 @@ builder.Services.AddScoped<FacultyPublicationCandidateGenerationJob>();
 builder.Services.AddScoped<AcademicOnlineComparisonJob>();
 builder.Services.AddScoped<AcademicOnlineDepartmentSyncJob>();
 builder.Services.AddScoped<AcademicOnlineDepartmentRefreshSchedulerJob>();
+builder.Services.AddScoped<AcademicOnlineDepartmentDiscoveryJob>();
 builder.Services.AddScoped<AcademicOnlineWorkBackfillPreviewJob>();
 builder.Services.AddScoped<AcademicOnlineWorkBackfillJob>();
 builder.Services.AddScoped<FacultyPublicationCandidatePreviewJob>();
