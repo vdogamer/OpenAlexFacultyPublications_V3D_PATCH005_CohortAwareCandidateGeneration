@@ -219,6 +219,32 @@ Expected:
 
 Do this only during a controlled test window.
 
+## Normal polling cadence
+
+The 60-second poll interval is intended only for short validation tests.
+
+After service startup, recovery, and reboot tests pass, switch the durable service to the normal 15-minute cadence without reinstalling it:
+
+```powershell
+.\\scripts\\Set-AcademicOnlineDepartmentRefreshServicePollInterval.ps1 -PollSeconds 900
+```
+
+The helper:
+
+- preserves the existing service-specific environment block;
+- changes only `Worker__DelaySeconds`;
+- does not print or replace the stored Academic Online API key;
+- restarts the service so the new interval takes effect immediately.
+
+After the restart, PATCH020A should report:
+
+- `IsContinuous = 1`
+- `PollIntervalSeconds = 900`
+- `LastPassStatus = Completed`
+- `HeartbeatHealth = ACTIVE`
+
+The scheduler checking SQL every 15 minutes does not mean Academic Online is contacted every 15 minutes. API work occurs only when an enabled department is due.
+
 ## Reboot validation
 
 The final durable-hosting proof is:
