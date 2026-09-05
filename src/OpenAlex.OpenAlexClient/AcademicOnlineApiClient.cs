@@ -619,13 +619,26 @@ public sealed class AcademicOnlineApiClient
                     affiliationsObserved +=
                         affiliations.Count;
 
+                    var allowedParentNames =
+                        new[]
+                        {
+                            normalizedParentName,
+                            seed.ValidationParentName
+                        }
+                        .Where(name =>
+                            !string.IsNullOrWhiteSpace(name))
+                        .Select(name => name!.Trim())
+                        .Distinct(
+                            StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
                     var parentIds =
                         affiliations
                             .Where(item =>
-                                string.Equals(
-                                    item.Name,
-                                    normalizedParentName,
-                                    StringComparison.OrdinalIgnoreCase) &&
+                                allowedParentNames.Any(parent =>
+                                    DepartmentNamesEquivalent(
+                                        item.Name,
+                                        parent)) &&
                                 !string.IsNullOrWhiteSpace(
                                     item.Id))
                             .Select(item => item.Id!)
@@ -635,10 +648,10 @@ public sealed class AcademicOnlineApiClient
                     var parentSlugs =
                         affiliations
                             .Where(item =>
-                                string.Equals(
-                                    item.Name,
-                                    normalizedParentName,
-                                    StringComparison.OrdinalIgnoreCase) &&
+                                allowedParentNames.Any(parent =>
+                                    DepartmentNamesEquivalent(
+                                        item.Name,
+                                        parent)) &&
                                 !string.IsNullOrWhiteSpace(
                                     item.Slug))
                             .Select(item => item.Slug!)
@@ -648,11 +661,26 @@ public sealed class AcademicOnlineApiClient
                     var directChildren =
                         affiliations
                             .Where(item =>
-                                IsDirectChildOfParent(
-                                    item,
-                                    normalizedParentName,
-                                    parentIds,
-                                    parentSlugs))
+                                !allowedParentNames.Any(parent =>
+                                    DepartmentNamesEquivalent(
+                                        item.Name,
+                                        parent)) &&
+                                (
+                                    allowedParentNames.Any(parent =>
+                                        DepartmentNamesEquivalent(
+                                            item.ParentName,
+                                            parent))
+                                    ||
+                                    (!string.IsNullOrWhiteSpace(
+                                         item.ParentId) &&
+                                     parentIds.Contains(
+                                         item.ParentId))
+                                    ||
+                                    (!string.IsNullOrWhiteSpace(
+                                         item.ParentSlug) &&
+                                     parentSlugs.Contains(
+                                         item.ParentSlug))
+                                ))
                             .ToList();
 
                     var match =
