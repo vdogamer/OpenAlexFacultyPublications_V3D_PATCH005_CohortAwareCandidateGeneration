@@ -25,6 +25,24 @@ BEGIN
         ADD ValidationParentName NVARCHAR(512) NULL;
 END;
 
+GO
+
+/*
+SQL Server compiles a batch before executing ALTER TABLE. Start a new batch
+so ValidationParentName is visible to the statements below.
+*/
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+IF OBJECT_ID(N'academiconline.DepartmentDiscoverySeed', N'U') IS NULL
+BEGIN
+    RAISERROR(
+        N'academiconline.DepartmentDiscoverySeed does not exist. Apply PATCH021A first.',
+        16,
+        1);
+    RETURN;
+END;
+
 UPDATE academiconline.DepartmentDiscoverySeed
 SET
     ValidationParentName = ParentName,
