@@ -32,4 +32,5 @@ public sealed class AcademicOnlineDepartmentSeedCandidate
     public string OfficialName { get; init; } = string.Empty;
     public string SearchName { get; init; } = string.Empty;
     public int SearchPriority { get; init; }
+    public string? ValidationParentName { get; init; }
 }
