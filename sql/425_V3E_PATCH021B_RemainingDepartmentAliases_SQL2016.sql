@@ -31,50 +31,36 @@ SET
     UpdatedAtUtc = SYSUTCDATETIME()
 WHERE ValidationParentName IS NULL;
 
+/*
+Biomedical Engineering is a joint UVA School of Medicine / UVA Engineering
+department. Keep the existing search aliases, but allow the representative
+Academic Online profile to validate under either the request parent
+(School of Medicine) or this alternate parent.
+*/
+UPDATE academiconline.DepartmentDiscoverySeed
+SET
+    ValidationParentName =
+        N'School of Engineering and Applied Science',
+    SourceNote =
+        N'UVA identifies Biomedical Engineering as a joint department of the School of Medicine and UVA Engineering.',
+    SourceUrl =
+        N'https://engineering.virginia.edu/bme',
+    UpdatedAtUtc =
+        SYSUTCDATETIME()
+WHERE ParentName = N'School of Medicine'
+  AND OfficialName = N'Biomedical Engineering';
+
 DECLARE @ParentName NVARCHAR(512) =
     N'School of Medicine';
-
-DECLARE @ClinicalUrl NVARCHAR(1000) =
-    N'https://med.virginia.edu/clinical/';
-
-DECLARE @ResearchUrl NVARCHAR(1000) =
-    N'https://med.virginia.edu/research/';
 
 DECLARE @Alias TABLE
 (
     OfficialName NVARCHAR(512) NOT NULL,
     SearchName NVARCHAR(512) NOT NULL,
-    ValidationParentName NVARCHAR(512) NOT NULL,
     DepartmentCategory NVARCHAR(50) NOT NULL,
     SearchPriority INT NOT NULL,
     SourceUrl NVARCHAR(1000) NOT NULL,
     SourceNote NVARCHAR(1000) NOT NULL
-);
-
-/*
-Biomedical Engineering is jointly administered by UVA School of Medicine
-and UVA Engineering. Academic Online may place its structured department
-under either parent hierarchy.
-*/
-INSERT INTO @Alias
-VALUES
-(
-    N'Biomedical Engineering',
-    N'Department of Biomedical Engineering',
-    N'School of Engineering and Applied Science',
-    N'Research',
-    10,
-    N'https://engineering.virginia.edu/bme',
-    N'UVA identifies Biomedical Engineering as a joint department of the School of Medicine and UVA Engineering.'
-),
-(
-    N'Biomedical Engineering',
-    N'Biomedical Engineering',
-    N'School of Engineering and Applied Science',
-    N'Research',
-    11,
-    N'https://engineering.virginia.edu/bme',
-    N'UVA identifies Biomedical Engineering as a joint department of the School of Medicine and UVA Engineering.'
 );
 
 /* Department of Medicine may be represented in Academic Online as Internal Medicine. */
@@ -83,7 +69,6 @@ VALUES
 (
     N'Medicine',
     N'Department of Internal Medicine',
-    @ParentName,
     N'Clinical',
     10,
     N'https://med.virginia.edu/dom/',
@@ -92,7 +77,6 @@ VALUES
 (
     N'Medicine',
     N'Internal Medicine',
-    @ParentName,
     N'Clinical',
     11,
     N'https://med.virginia.edu/dom/',
@@ -105,7 +89,6 @@ VALUES
 (
     N'Neurosurgery',
     N'Department of Neurological Surgery',
-    @ParentName,
     N'Clinical',
     10,
     N'https://med.virginia.edu/neurosurgery/',
@@ -114,20 +97,18 @@ VALUES
 (
     N'Neurosurgery',
     N'Neurological Surgery',
-    @ParentName,
     N'Clinical',
     11,
     N'https://med.virginia.edu/neurosurgery/',
     N'Targeted Academic Online alias probe for the UVA Department of Neurosurgery.'
 );
 
-/* UVA uses both Orthopaedic and Orthopedic terminology across public-facing systems. */
+/* UVA uses Orthopaedic officially, while UVA Health also uses Orthopedics terminology. */
 INSERT INTO @Alias
 VALUES
 (
     N'Orthopaedic Surgery',
     N'Department of Orthopedic Surgery',
-    @ParentName,
     N'Clinical',
     10,
     N'https://med.virginia.edu/orthopaedic-surgery/',
@@ -136,7 +117,6 @@ VALUES
 (
     N'Orthopaedic Surgery',
     N'Orthopedic Surgery',
-    @ParentName,
     N'Clinical',
     11,
     N'https://med.virginia.edu/orthopaedic-surgery/',
@@ -145,7 +125,6 @@ VALUES
 (
     N'Orthopaedic Surgery',
     N'Department of Orthopedics',
-    @ParentName,
     N'Clinical',
     12,
     N'https://med.virginia.edu/orthopaedic-surgery/',
@@ -154,7 +133,6 @@ VALUES
 (
     N'Orthopaedic Surgery',
     N'Orthopedics',
-    @ParentName,
     N'Clinical',
     13,
     N'https://med.virginia.edu/orthopaedic-surgery/',
@@ -167,7 +145,6 @@ VALUES
 (
     N'Otolaryngology',
     N'Department of Otolaryngology-Head and Neck Surgery',
-    @ParentName,
     N'Clinical',
     10,
     N'https://med.virginia.edu/otolaryngology/',
@@ -176,7 +153,6 @@ VALUES
 (
     N'Otolaryngology',
     N'Department of Otolaryngology-Head & Neck Surgery',
-    @ParentName,
     N'Clinical',
     11,
     N'https://med.virginia.edu/otolaryngology/',
@@ -185,7 +161,6 @@ VALUES
 (
     N'Otolaryngology',
     N'Otolaryngology-Head and Neck Surgery',
-    @ParentName,
     N'Clinical',
     12,
     N'https://med.virginia.edu/otolaryngology/',
@@ -194,7 +169,6 @@ VALUES
 (
     N'Otolaryngology',
     N'Otolaryngology-Head & Neck Surgery',
-    @ParentName,
     N'Clinical',
     13,
     N'https://med.virginia.edu/otolaryngology/',
@@ -226,7 +200,7 @@ SELECT
     a.SourceNote,
     SYSUTCDATETIME(),
     SYSUTCDATETIME(),
-    a.ValidationParentName
+    @ParentName
 FROM @Alias a
 WHERE NOT EXISTS
 (
@@ -235,8 +209,6 @@ WHERE NOT EXISTS
     WHERE existing.ParentName = @ParentName
       AND existing.OfficialName = a.OfficialName
       AND existing.AcademicOnlineSearchName = a.SearchName
-      AND ISNULL(existing.ValidationParentName, existing.ParentName) =
-          a.ValidationParentName
 );
 
 PRINT N'PATCH021B targeted department aliases and joint-parent validation are ready.';
