@@ -28,6 +28,7 @@ BEGIN
         AcademicOnlineSearchName NVARCHAR(512) NOT NULL,
         DepartmentCategory NVARCHAR(50) NOT NULL,
         SearchPriority INT NOT NULL,
+        ValidationParentName NVARCHAR(512) NULL,
         IsActive BIT NOT NULL
             CONSTRAINT DF_academiconline_DepartmentDiscoverySeed_IsActive DEFAULT (1),
         SourceUrl NVARCHAR(1000) NULL,
@@ -189,6 +190,7 @@ INSERT INTO academiconline.DepartmentDiscoverySeed
     AcademicOnlineSearchName,
     DepartmentCategory,
     SearchPriority,
+    ValidationParentName,
     IsActive,
     SourceUrl,
     SourceNote,
@@ -201,6 +203,7 @@ SELECT
     s.SearchName,
     s.DepartmentCategory,
     s.SearchPriority,
+    @ParentName,
     1,
     s.SourceUrl,
     N'UVA School of Medicine official department roster; Academic Online name is validated at discovery time.',
