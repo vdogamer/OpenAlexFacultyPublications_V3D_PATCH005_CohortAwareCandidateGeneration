@@ -149,6 +149,17 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                 $"DepartmentsUpdated={updated}; " +
                 $"HitMaxPages={discovery.HitMaxPages}.";
 
+            foreach (var unresolvedDiagnostic in
+                discovery.UnresolvedDiagnostics)
+            {
+                await _logger.LogWarningAsync(
+                    "AcademicOnlineDepartmentDiscovery",
+                    "DepartmentUnresolvedDiagnostic",
+                    unresolvedDiagnostic,
+                    cancellationToken:
+                        CancellationToken.None);
+            }
+
             await _repository.CompleteAsync(
                 claim,
                 runId.Value,
