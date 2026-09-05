@@ -58,4 +58,5 @@ public sealed class AcademicOnlineDepartmentDiscoverySeed
     public string AcademicOnlineSearchName { get; init; } = string.Empty;
     public string DepartmentCategory { get; init; } = string.Empty;
     public int SearchPriority { get; init; }
+    public string ValidationParentName { get; init; } = string.Empty;
 }
