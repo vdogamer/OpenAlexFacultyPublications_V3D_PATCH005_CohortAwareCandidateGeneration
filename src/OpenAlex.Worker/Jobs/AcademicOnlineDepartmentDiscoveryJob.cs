@@ -59,7 +59,9 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                                         SearchName =
                                             seed.AcademicOnlineSearchName,
                                         SearchPriority =
-                                            seed.SearchPriority
+                                            seed.SearchPriority,
+                                        ValidationParentName =
+                                            seed.ValidationParentName
                                     })
                                 .ToList(),
                             cancellationToken);
