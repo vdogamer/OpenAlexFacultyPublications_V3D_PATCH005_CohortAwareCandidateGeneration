@@ -522,6 +522,9 @@ public sealed class AcademicOnlineApiClient
         var departments =
             new List<AcademicOnlineDepartmentDiscoveryItem>();
 
+        var unresolvedDiagnostics =
+            new List<string>();
+
         var seenAuthorIds =
             new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
@@ -545,6 +548,9 @@ public sealed class AcademicOnlineApiClient
         {
             AcademicOnlineDepartmentDiscoveryItem?
                 resolved = null;
+
+            var groupDiagnostics =
+                new List<string>();
 
             foreach (var seed in group
                 .OrderBy(item => item.SearchPriority))
@@ -590,6 +596,11 @@ public sealed class AcademicOnlineApiClient
                                 StringComparer.OrdinalIgnoreCase)
                             .ToList();
 
+                    groupDiagnostics.Add(
+                        $"Alias={seed.SearchName}; " +
+                        $"ValidationParent={seed.ValidationParentName ?? normalizedParentName}; " +
+                        $"Candidates={string.Join(",", authorIds)}");
+
                     foreach (var authorId in authorIds)
                     {
                         seenAuthorIds.Add(authorId);
@@ -615,6 +626,22 @@ public sealed class AcademicOnlineApiClient
 
                             affiliationsObserved +=
                                 affiliations.Count;
+
+                            var affiliationSummary =
+                                affiliations.Count == 0
+                                    ? "(none)"
+                                    : string.Join(
+                                        " | ",
+                                        affiliations.Select(item =>
+                                            $"Name={item.Name};" +
+                                            $"ParentName={item.ParentName ?? "(null)"};" +
+                                            $"Slug={item.Slug ?? "(null)"};" +
+                                            $"ParentSlug={item.ParentSlug ?? "(null)"}"));
+
+                            groupDiagnostics.Add(
+                                $"Alias={seed.SearchName}; " +
+                                $"AuthorId={authorId}; " +
+                                $"Affiliations={affiliationSummary}");
 
                             var allowedParentNames =
                                 new[]
@@ -722,14 +749,24 @@ public sealed class AcademicOnlineApiClient
 
                             break;
                         }
-                        catch (HttpRequestException)
+                        catch (HttpRequestException ex)
                         {
                             profileValidationFailures++;
+
+                            groupDiagnostics.Add(
+                                $"Alias={seed.SearchName}; " +
+                                $"AuthorId={authorId}; " +
+                                $"ProfileError={ex.Message}");
                         }
-                        catch (TaskCanceledException)
+                        catch (TaskCanceledException ex)
                             when (!cancellationToken.IsCancellationRequested)
                         {
                             profileValidationFailures++;
+
+                            groupDiagnostics.Add(
+                                $"Alias={seed.SearchName}; " +
+                                $"AuthorId={authorId}; " +
+                                $"ProfileTimeout={ex.Message}");
                         }
                     }
 
@@ -752,6 +789,11 @@ public sealed class AcademicOnlineApiClient
             if (resolved is null)
             {
                 departmentsUnresolved++;
+
+                unresolvedDiagnostics.Add(
+                    $"OfficialDepartment={group.Key}; " +
+                    $"Attempts=[{string.Join(" || ", groupDiagnostics)}]");
+
                 continue;
             }
 
@@ -788,6 +830,8 @@ public sealed class AcademicOnlineApiClient
                 profileValidationFailures,
             DepartmentsUnresolved =
                 departmentsUnresolved,
+            UnresolvedDiagnostics =
+                unresolvedDiagnostics,
             HitMaxPages = false
         };
     }
