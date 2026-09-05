@@ -46,7 +46,8 @@ SELECT
     OfficialName,
     AcademicOnlineSearchName,
     DepartmentCategory,
-    SearchPriority
+    SearchPriority,
+    COALESCE(ValidationParentName, ParentName)
 FROM academiconline.DepartmentDiscoverySeed
 WHERE ParentName = @ParentName
   AND IsActive = 1
@@ -77,7 +78,9 @@ ORDER BY
                     DepartmentCategory =
                         reader.GetString(4),
                     SearchPriority =
-                        reader.GetInt32(5)
+                        reader.GetInt32(5),
+                    ValidationParentName =
+                        reader.GetString(6)
                 });
         }
 
