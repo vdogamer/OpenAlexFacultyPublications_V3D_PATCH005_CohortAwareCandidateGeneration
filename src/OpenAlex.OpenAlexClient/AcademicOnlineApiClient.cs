@@ -595,135 +595,148 @@ public sealed class AcademicOnlineApiClient
                         seenAuthorIds.Add(authorId);
                     }
 
-                    var representativeAuthorId =
-                        authorIds.FirstOrDefault();
-
-                    if (string.IsNullOrWhiteSpace(
-                            representativeAuthorId))
+                    foreach (var authorId in authorIds)
                     {
-                        continue;
-                    }
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    using var profileDocument =
-                        await GetAuthorGeneralAsync(
-                            representativeAuthorId,
-                            cancellationToken);
-
-                    profilesFetched++;
-
-                    var affiliations =
-                        AcademicOnlineDepartmentParser
-                            .GetDepartmentAffiliations(
-                                profileDocument.RootElement);
-
-                    affiliationsObserved +=
-                        affiliations.Count;
-
-                    var allowedParentNames =
-                        new[]
+                        try
                         {
-                            normalizedParentName,
-                            seed.ValidationParentName
-                        }
-                        .Where(name =>
-                            !string.IsNullOrWhiteSpace(name))
-                        .Select(name => name!.Trim())
-                        .Distinct(
-                            StringComparer.OrdinalIgnoreCase)
-                        .ToList();
+                            using var profileDocument =
+                                await GetAuthorGeneralAsync(
+                                    authorId,
+                                    cancellationToken);
 
-                    var parentIds =
-                        affiliations
-                            .Where(item =>
-                                allowedParentNames.Any(parent =>
-                                    DepartmentNamesEquivalent(
-                                        item.Name,
-                                        parent)) &&
-                                !string.IsNullOrWhiteSpace(
-                                    item.Id))
-                            .Select(item => item.Id!)
-                            .ToHashSet(
-                                StringComparer.OrdinalIgnoreCase);
+                            profilesFetched++;
 
-                    var parentSlugs =
-                        affiliations
-                            .Where(item =>
-                                allowedParentNames.Any(parent =>
-                                    DepartmentNamesEquivalent(
-                                        item.Name,
-                                        parent)) &&
-                                !string.IsNullOrWhiteSpace(
-                                    item.Slug))
-                            .Select(item => item.Slug!)
-                            .ToHashSet(
-                                StringComparer.OrdinalIgnoreCase);
+                            var affiliations =
+                                AcademicOnlineDepartmentParser
+                                    .GetDepartmentAffiliations(
+                                        profileDocument.RootElement);
 
-                    var directChildren =
-                        affiliations
-                            .Where(item =>
-                                !allowedParentNames.Any(parent =>
-                                    DepartmentNamesEquivalent(
-                                        item.Name,
-                                        parent)) &&
-                                (
-                                    allowedParentNames.Any(parent =>
+                            affiliationsObserved +=
+                                affiliations.Count;
+
+                            var allowedParentNames =
+                                new[]
+                                {
+                                    normalizedParentName,
+                                    seed.ValidationParentName
+                                }
+                                .Where(name =>
+                                    !string.IsNullOrWhiteSpace(name))
+                                .Select(name => name!.Trim())
+                                .Distinct(
+                                    StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+
+                            var parentIds =
+                                affiliations
+                                    .Where(item =>
+                                        allowedParentNames.Any(parent =>
+                                            DepartmentNamesEquivalent(
+                                                item.Name,
+                                                parent)) &&
+                                        !string.IsNullOrWhiteSpace(
+                                            item.Id))
+                                    .Select(item => item.Id!)
+                                    .ToHashSet(
+                                        StringComparer.OrdinalIgnoreCase);
+
+                            var parentSlugs =
+                                affiliations
+                                    .Where(item =>
+                                        allowedParentNames.Any(parent =>
+                                            DepartmentNamesEquivalent(
+                                                item.Name,
+                                                parent)) &&
+                                        !string.IsNullOrWhiteSpace(
+                                            item.Slug))
+                                    .Select(item => item.Slug!)
+                                    .ToHashSet(
+                                        StringComparer.OrdinalIgnoreCase);
+
+                            var directChildren =
+                                affiliations
+                                    .Where(item =>
+                                        !allowedParentNames.Any(parent =>
+                                            DepartmentNamesEquivalent(
+                                                item.Name,
+                                                parent)) &&
+                                        (
+                                            allowedParentNames.Any(parent =>
+                                                DepartmentNamesEquivalent(
+                                                    item.ParentName,
+                                                    parent))
+                                            ||
+                                            (!string.IsNullOrWhiteSpace(
+                                                 item.ParentId) &&
+                                             parentIds.Contains(
+                                                 item.ParentId))
+                                            ||
+                                            (!string.IsNullOrWhiteSpace(
+                                                 item.ParentSlug) &&
+                                             parentSlugs.Contains(
+                                                 item.ParentSlug))
+                                        ))
+                                    .ToList();
+
+                            var match =
+                                directChildren
+                                    .FirstOrDefault(item =>
                                         DepartmentNamesEquivalent(
-                                            item.ParentName,
-                                            parent))
-                                    ||
-                                    (!string.IsNullOrWhiteSpace(
-                                         item.ParentId) &&
-                                     parentIds.Contains(
-                                         item.ParentId))
-                                    ||
-                                    (!string.IsNullOrWhiteSpace(
-                                         item.ParentSlug) &&
-                                     parentSlugs.Contains(
-                                         item.ParentSlug))
-                                ))
-                            .ToList();
+                                            item.Name,
+                                            seed.SearchName))
+                                ??
+                                directChildren
+                                    .FirstOrDefault(item =>
+                                        DepartmentNamesEquivalent(
+                                            item.Name,
+                                            group.Key));
 
-                    var match =
-                        directChildren
-                            .FirstOrDefault(item =>
-                                DepartmentNamesEquivalent(
-                                    item.Name,
-                                    seed.SearchName))
-                        ??
-                        directChildren
-                            .FirstOrDefault(item =>
-                                DepartmentNamesEquivalent(
-                                    item.Name,
-                                    group.Key));
+                            if (match is null)
+                            {
+                                continue;
+                            }
 
-                    if (match is null)
-                    {
-                        continue;
+                            resolved =
+                                new AcademicOnlineDepartmentDiscoveryItem
+                                {
+                                    AcademicOnlineDepartmentId =
+                                        match.Id,
+                                    DepartmentName =
+                                        match.Name,
+                                    Slug =
+                                        match.Slug,
+                                    ParentAcademicOnlineDepartmentId =
+                                        match.ParentId,
+                                    ParentName =
+                                        match.ParentName
+                                        ?? normalizedParentName,
+                                    ParentSlug =
+                                        match.ParentSlug,
+                                    ScholarCount =
+                                        Math.Max(
+                                            1,
+                                            authorIds.Count)
+                                };
+
+                            break;
+                        }
+                        catch (HttpRequestException)
+                        {
+                            profileValidationFailures++;
+                        }
+                        catch (TaskCanceledException)
+                            when (!cancellationToken.IsCancellationRequested)
+                        {
+                            profileValidationFailures++;
+                        }
                     }
 
-                    resolved =
-                        new AcademicOnlineDepartmentDiscoveryItem
-                        {
-                            AcademicOnlineDepartmentId =
-                                match.Id,
-                            DepartmentName =
-                                match.Name,
-                            Slug =
-                                match.Slug,
-                            ParentAcademicOnlineDepartmentId =
-                                match.ParentId,
-                            ParentName =
-                                match.ParentName
-                                ?? normalizedParentName,
-                            ParentSlug =
-                                match.ParentSlug,
-                            ScholarCount =
-                                Math.Max(
-                                    1,
-                                    authorIds.Count)
-                        };
-
-                    break;
+                    if (resolved is not null)
+                    {
+                        break;
+                    }
                 }
                 catch (HttpRequestException)
                 {
