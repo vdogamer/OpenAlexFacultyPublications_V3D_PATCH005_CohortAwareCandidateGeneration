@@ -23,6 +23,10 @@ public sealed class AcademicOnlineDepartmentDiscoveryCollection
     public int ProfilesFetched { get; init; }
     public int ProfileValidationFailures { get; init; }
     public int DepartmentsUnresolved { get; init; }
+
+    public IReadOnlyList<string> UnresolvedDiagnostics { get; init; } =
+        Array.Empty<string>();
+
     public bool HitMaxPages { get; init; }
 }
 
