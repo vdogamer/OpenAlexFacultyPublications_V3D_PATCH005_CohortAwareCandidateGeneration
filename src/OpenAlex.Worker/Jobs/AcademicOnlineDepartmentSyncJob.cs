@@ -679,6 +679,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
             cancellationToken.ThrowIfCancellationRequested();
 
             AcademicOnlineScholarSearchCandidate? resolved = null;
+            string? resolutionDiagnostic = null;
 
             if (!string.IsNullOrWhiteSpace(member.AcademicOnlineAuthorId))
             {
@@ -698,6 +699,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         cancellationToken);
 
                 resolved = resolution.Candidate;
+                resolutionDiagnostic = resolution.Diagnostic;
                 searchRequests += resolution.SearchRequests;
             }
 
@@ -710,7 +712,8 @@ public sealed class AcademicOnlineDepartmentSyncJob
                     academicOnlineAuthorId: null,
                     status: "Unresolved",
                     errorMessage:
-                        "No unique Academic Online scholar identity matched the official roster member.",
+                        resolutionDiagnostic
+                        ?? "No unique Academic Online scholar identity matched the official roster member.",
                     cancellationToken: CancellationToken.None);
 
                 continue;
@@ -752,22 +755,53 @@ public sealed class AcademicOnlineDepartmentSyncJob
         CancellationToken cancellationToken)
     {
         var searchRequests = 0;
+        var candidatesById =
+            new Dictionary<string, AcademicOnlineScholarSearchCandidate>(
+                StringComparer.OrdinalIgnoreCase);
+        var searchNotes = new List<string>();
 
-        if (!string.IsNullOrWhiteSpace(member.ExpectedEmail))
+        foreach (var searchTerm in BuildRosterSearchTerms(member))
         {
-            var expectedEmail = member.ExpectedEmail.Trim();
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var emailCandidates =
+            var candidates =
                 await _client.SearchScholarCandidatesAsync(
-                    expectedEmail,
+                    searchTerm,
                     departmentName: null,
                     rowsPerPage: 25,
                     cancellationToken: cancellationToken);
 
             searchRequests++;
+            searchNotes.Add(
+                $"Search={searchTerm};Count={candidates.Count}");
 
-            var exact =
-                emailCandidates
+            foreach (var candidate in candidates)
+            {
+                if (!string.IsNullOrWhiteSpace(candidate.AuthorId))
+                {
+                    candidatesById[candidate.AuthorId] = candidate;
+                }
+            }
+        }
+
+        if (candidatesById.Count == 0)
+        {
+            return new RosterResolution(
+                Candidate: null,
+                SearchRequests: searchRequests,
+                Diagnostic:
+                    $"No Academic Online candidates returned. {string.Join(" | ", searchNotes)}");
+        }
+
+        var expectedEmail =
+            string.IsNullOrWhiteSpace(member.ExpectedEmail)
+                ? null
+                : member.ExpectedEmail.Trim();
+
+        if (!string.IsNullOrWhiteSpace(expectedEmail))
+        {
+            var exactEmailMatches =
+                candidatesById.Values
                     .Where(candidate =>
                         string.Equals(
                             candidate.Email?.Trim(),
@@ -775,89 +809,257 @@ public sealed class AcademicOnlineDepartmentSyncJob
                             StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-            if (exact.Count == 1)
+            if (exactEmailMatches.Count == 1)
             {
-                return new RosterResolution(exact[0], searchRequests);
-            }
-
-            var atIndex = expectedEmail.IndexOf('@');
-            if (atIndex > 0)
-            {
-                var userId = expectedEmail[..atIndex];
-
-                var userIdCandidates =
-                    await _client.SearchScholarCandidatesAsync(
-                        userId,
-                        departmentName: null,
-                        rowsPerPage: 25,
-                        cancellationToken: cancellationToken);
-
-                searchRequests++;
-
-                exact =
-                    userIdCandidates
-                        .Where(candidate =>
-                            string.Equals(
-                                candidate.Email?.Trim(),
-                                expectedEmail,
-                                StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-
-                if (exact.Count == 1)
-                {
-                    return new RosterResolution(
-                        exact[0],
-                        searchRequests);
-                }
+                return new RosterResolution(
+                    exactEmailMatches[0],
+                    searchRequests,
+                    Diagnostic: "Resolved by exact UVA email.");
             }
         }
 
-        var nameCandidates =
-            await _client.SearchScholarCandidatesAsync(
-                member.DisplayName,
-                departmentName: null,
-                rowsPerPage: 25,
-                cancellationToken: cancellationToken);
-
-        searchRequests++;
-
-        var strongMatches =
-            nameCandidates
-                .Where(candidate =>
-                    PersonNameMatchesRoster(
-                        candidate.Name,
-                        member.DisplayName))
+        var candidatesToEvaluate =
+            candidatesById.Values
+                .Select(candidate =>
+                    new
+                    {
+                        Candidate = candidate,
+                        NameScore = CalculateRosterNameScore(
+                            candidate.Name,
+                            member.DisplayName)
+                    })
+                .Where(item =>
+                    item.NameScore >= 70 ||
+                    (!string.IsNullOrWhiteSpace(expectedEmail) &&
+                     string.Equals(
+                         item.Candidate.Email?.Trim(),
+                         expectedEmail,
+                         StringComparison.OrdinalIgnoreCase)))
+                .OrderByDescending(item => item.NameScore)
+                .ThenByDescending(item =>
+                    item.Candidate.RankingScore ?? 0m)
+                .Take(10)
                 .ToList();
 
-        if (strongMatches.Count == 1)
+        if (candidatesToEvaluate.Count == 0)
         {
             return new RosterResolution(
-                strongMatches[0],
-                searchRequests);
+                Candidate: null,
+                SearchRequests: searchRequests,
+                Diagnostic:
+                    $"Candidates returned, but none passed name compatibility. " +
+                    $"Roster={member.DisplayName}; " +
+                    $"Candidates={string.Join(",", candidatesById.Values.Select(item => item.Name ?? item.AuthorId))}.");
         }
 
-        var exactNameMatches =
-            strongMatches
-                .Where(candidate =>
-                    NormalizePersonName(candidate.Name) ==
-                    NormalizePersonName(member.DisplayName))
+        var evaluations = new List<RosterCandidateEvaluation>();
+
+        foreach (var item in candidatesToEvaluate)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var candidate = item.Candidate;
+
+            try
+            {
+                using var profile =
+                    await _client.GetAuthorGeneralAsync(
+                        candidate.AuthorId,
+                        cancellationToken);
+
+                var root = profile.RootElement;
+                var profileName =
+                    GetString(root, "name")
+                    ?? candidate.Name;
+                var profileEmail =
+                    GetString(root, "email")
+                    ?? candidate.Email;
+                var profileInstitution =
+                    GetString(root, "institution")
+                    ?? candidate.Institution;
+
+                var nameScore =
+                    Math.Max(
+                        item.NameScore,
+                        CalculateRosterNameScore(
+                            profileName,
+                            member.DisplayName));
+
+                var exactEmail =
+                    !string.IsNullOrWhiteSpace(expectedEmail) &&
+                    string.Equals(
+                        profileEmail?.Trim(),
+                        expectedEmail,
+                        StringComparison.OrdinalIgnoreCase);
+
+                var affiliations =
+                    AcademicOnlineDepartmentParser
+                        .GetDepartmentAffiliations(root);
+
+                var uvaEvidence =
+                    exactEmail ||
+                    IsUvaEmail(profileEmail) ||
+                    IsUvaInstitution(profileInstitution) ||
+                    affiliations.Any(IsUvaSchoolOfMedicineAffiliation);
+
+                var neurosurgeryEvidence =
+                    affiliations.Any(IsNeurosurgeryAffiliation);
+
+                var score =
+                    nameScore +
+                    (exactEmail ? 300 : 0) +
+                    (uvaEvidence ? 100 : 0) +
+                    (neurosurgeryEvidence ? 25 : 0);
+
+                evaluations.Add(
+                    new RosterCandidateEvaluation(
+                        candidate,
+                        profileName,
+                        profileEmail,
+                        profileInstitution,
+                        nameScore,
+                        exactEmail,
+                        uvaEvidence,
+                        neurosurgeryEvidence,
+                        score,
+                        BuildAffiliationEvidence(affiliations)));
+            }
+            catch (HttpRequestException ex)
+            {
+                searchNotes.Add(
+                    $"ProfileError={candidate.AuthorId}:{ex.Message}");
+            }
+            catch (TaskCanceledException ex)
+                when (!cancellationToken.IsCancellationRequested)
+            {
+                searchNotes.Add(
+                    $"ProfileTimeout={candidate.AuthorId}:{ex.Message}");
+            }
+        }
+
+        var defensible =
+            evaluations
+                .Where(item =>
+                    item.NameScore >= 70 &&
+                    item.UvaEvidence)
+                .OrderByDescending(item => item.Score)
+                .ThenByDescending(item =>
+                    item.Candidate.RankingScore ?? 0m)
                 .ToList();
 
-        return exactNameMatches.Count == 1
-            ? new RosterResolution(
-                exactNameMatches[0],
-                searchRequests)
-            : new RosterResolution(
-                Candidate: null,
-                SearchRequests: searchRequests);
+        if (defensible.Count == 1)
+        {
+            return new RosterResolution(
+                defensible[0].Candidate,
+                searchRequests,
+                Diagnostic:
+                    $"Resolved by profile-validated UVA identity. {FormatRosterEvaluation(defensible[0])}");
+        }
+
+        if (defensible.Count > 1)
+        {
+            var top = defensible[0];
+            var second = defensible[1];
+
+            if (top.ExactExpectedEmail &&
+                !second.ExactExpectedEmail)
+            {
+                return new RosterResolution(
+                    top.Candidate,
+                    searchRequests,
+                    Diagnostic:
+                        $"Resolved by profile exact-email tie-breaker. {FormatRosterEvaluation(top)}");
+            }
+
+            if (top.Score - second.Score >= 25)
+            {
+                return new RosterResolution(
+                    top.Candidate,
+                    searchRequests,
+                    Diagnostic:
+                        $"Resolved by unique profile evidence score. {FormatRosterEvaluation(top)}");
+            }
+        }
+
+        var evaluationText =
+            evaluations.Count == 0
+                ? "(no profiles evaluated)"
+                : string.Join(
+                    " || ",
+                    evaluations.Select(FormatRosterEvaluation));
+
+        return new RosterResolution(
+            Candidate: null,
+            SearchRequests: searchRequests,
+            Diagnostic:
+                $"No unique profile-validated UVA identity. " +
+                $"{string.Join(" | ", searchNotes)} | Evaluations={evaluationText}");
     }
 
-    private static bool PersonNameMatchesRoster(
+    private static IReadOnlyList<string> BuildRosterSearchTerms(
+        AcademicOnlineDepartmentRosterMember member)
+    {
+        var terms =
+            new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(member.ExpectedEmail))
+        {
+            var expectedEmail =
+                member.ExpectedEmail.Trim();
+
+            terms.Add(expectedEmail);
+
+            var atIndex =
+                expectedEmail.IndexOf('@');
+
+            if (atIndex > 0)
+            {
+                terms.Add(expectedEmail[..atIndex]);
+            }
+        }
+
+        terms.Add(member.DisplayName.Trim());
+
+        var significantTokens =
+            TokenizePersonName(member.DisplayName)
+                .Where(token => token.Length > 1)
+                .ToList();
+
+        if (significantTokens.Count >= 2)
+        {
+            terms.Add(
+                string.Join(" ", significantTokens));
+
+            terms.Add(
+                significantTokens[0] +
+                " " +
+                significantTokens[^1]);
+        }
+
+        if (significantTokens.Count >= 3)
+        {
+            terms.Add(
+                significantTokens[0] +
+                " " +
+                significantTokens[1]);
+        }
+
+        return terms
+            .Where(term =>
+                !string.IsNullOrWhiteSpace(term))
+            .Distinct(
+                StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static int CalculateRosterNameScore(
         string? candidateName,
         string rosterName)
     {
         var candidateTokens =
-            TokenizePersonName(candidateName);
+            TokenizePersonName(candidateName)
+                .Where(token => token.Length > 1)
+                .ToList();
 
         var rosterTokens =
             TokenizePersonName(rosterName)
@@ -867,23 +1069,175 @@ public sealed class AcademicOnlineDepartmentSyncJob
         if (candidateTokens.Count == 0 ||
             rosterTokens.Count < 2)
         {
+            return 0;
+        }
+
+        if (candidateTokens.SequenceEqual(rosterTokens))
+        {
+            return 100;
+        }
+
+        var firstMatches =
+            candidateTokens[0] == rosterTokens[0];
+
+        var lastMatches =
+            candidateTokens[^1] == rosterTokens[^1];
+
+        if (firstMatches && lastMatches)
+        {
+            return 90;
+        }
+
+        var candidateSubset =
+            firstMatches &&
+            candidateTokens.Count >= 2 &&
+            candidateTokens.All(token =>
+                rosterTokens.Contains(
+                    token,
+                    StringComparer.Ordinal));
+
+        var rosterSubset =
+            firstMatches &&
+            rosterTokens.Count >= 2 &&
+            rosterTokens.All(token =>
+                candidateTokens.Contains(
+                    token,
+                    StringComparer.Ordinal));
+
+        if (candidateSubset || rosterSubset)
+        {
+            return 85;
+        }
+
+        var overlap =
+            candidateTokens
+                .Intersect(
+                    rosterTokens,
+                    StringComparer.Ordinal)
+                .Count();
+
+        return firstMatches && overlap >= 2
+            ? 75
+            : 0;
+    }
+
+    private static bool IsUvaEmail(string? email)
+    {
+        return !string.IsNullOrWhiteSpace(email) &&
+               email.Trim().EndsWith(
+                   "@virginia.edu",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsUvaInstitution(string? institution)
+    {
+        if (string.IsNullOrWhiteSpace(institution))
+        {
             return false;
         }
 
-        return
-            candidateTokens.Contains(
-                rosterTokens[0],
-                StringComparer.Ordinal)
-            &&
-            candidateTokens.Contains(
-                rosterTokens[^1],
-                StringComparer.Ordinal);
+        var value = institution.Trim();
+
+        return value.Contains(
+                   "University of Virginia",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "UVA Health",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               string.Equals(
+                   value,
+                   "UVA",
+                   StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string NormalizePersonName(string? value)
+    private static bool IsUvaSchoolOfMedicineAffiliation(
+        AcademicOnlineDepartmentAffiliation affiliation)
     {
-        return string.Concat(
-            TokenizePersonName(value));
+        return string.Equals(
+                   affiliation.Name,
+                   "School of Medicine",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               string.Equals(
+                   affiliation.ParentName,
+                   "School of Medicine",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               (!string.IsNullOrWhiteSpace(affiliation.ParentSlug) &&
+                affiliation.ParentSlug.Contains(
+                    "school-of-medicine",
+                    StringComparison.OrdinalIgnoreCase))
+               ||
+               (!string.IsNullOrWhiteSpace(affiliation.Slug) &&
+                affiliation.Slug.Contains(
+                    "school-of-medicine",
+                    StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsNeurosurgeryAffiliation(
+        AcademicOnlineDepartmentAffiliation affiliation)
+    {
+        return ContainsNeurosurgeryTerm(affiliation.Name) ||
+               ContainsNeurosurgeryTerm(affiliation.ParentName) ||
+               ContainsNeurosurgeryTerm(affiliation.Slug) ||
+               ContainsNeurosurgeryTerm(affiliation.ParentSlug);
+    }
+
+    private static bool ContainsNeurosurgeryTerm(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Contains(
+                   "neurosurg",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "neurological-surg",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "neurological surg",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildAffiliationEvidence(
+        IReadOnlyList<AcademicOnlineDepartmentAffiliation> affiliations)
+    {
+        if (affiliations.Count == 0)
+        {
+            return "(none)";
+        }
+
+        return string.Join(
+            " > ",
+            affiliations
+                .Take(6)
+                .Select(item =>
+                    $"{item.Name}" +
+                    (string.IsNullOrWhiteSpace(item.ParentName)
+                        ? string.Empty
+                        : $"[{item.ParentName}]")));
+    }
+
+    private static string FormatRosterEvaluation(
+        RosterCandidateEvaluation evaluation)
+    {
+        return
+            $"AuthorId={evaluation.Candidate.AuthorId};" +
+            $"Name={evaluation.ProfileName ?? evaluation.Candidate.Name ?? "(null)"};" +
+            $"Email={evaluation.ProfileEmail ?? evaluation.Candidate.Email ?? "(null)"};" +
+            $"Institution={evaluation.ProfileInstitution ?? "(null)"};" +
+            $"NameScore={evaluation.NameScore};" +
+            $"ExactExpectedEmail={evaluation.ExactExpectedEmail};" +
+            $"UvaEvidence={evaluation.UvaEvidence};" +
+            $"NeurosurgeryEvidence={evaluation.NeurosurgeryEvidence};" +
+            $"Score={evaluation.Score};" +
+            $"Affiliations={evaluation.AffiliationEvidence}";
     }
 
     private static List<string> TokenizePersonName(string? value)
@@ -1017,7 +1371,20 @@ internal sealed class ScholarSelection
 
 internal sealed record RosterResolution(
     AcademicOnlineScholarSearchCandidate? Candidate,
-    int SearchRequests);
+    int SearchRequests,
+    string? Diagnostic);
+
+internal sealed record RosterCandidateEvaluation(
+    AcademicOnlineScholarSearchCandidate Candidate,
+    string? ProfileName,
+    string? ProfileEmail,
+    string? ProfileInstitution,
+    int NameScore,
+    bool ExactExpectedEmail,
+    bool UvaEvidence,
+    bool NeurosurgeryEvidence,
+    int Score,
+    string AffiliationEvidence);
 
 public sealed class AcademicOnlineDepartmentSyncRequest
 {
