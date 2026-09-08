@@ -58,7 +58,23 @@ SELECT
     ParentName,
     ParentSlug,
     DiscoveryScholarCount,
-    DiscoveryLastSeenAtUtc
+    DiscoveryLastSeenAtUtc,
+    SourceMode,
+    SourceModeNote,
+    SourceUnitAliasCount =
+        (
+            SELECT COUNT(*)
+            FROM academiconline.DepartmentSourceUnit u
+            WHERE u.DepartmentId = academiconline.Department.DepartmentId
+              AND u.IsActive = 1
+        ),
+    RosterMemberCount =
+        (
+            SELECT COUNT(*)
+            FROM academiconline.DepartmentRosterMember r
+            WHERE r.DepartmentId = academiconline.Department.DepartmentId
+              AND r.IsActive = 1
+        )
 FROM academiconline.Department
 ORDER BY CanonicalName;";
 
@@ -206,7 +222,8 @@ DECLARE @Claimed TABLE
     RefreshVerifiedOnly BIT,
     RefreshMaxScholars INT,
     RefreshLeaseOwner NVARCHAR(256),
-    RefreshLeaseUntilUtc DATETIME2(3)
+    RefreshLeaseUntilUtc DATETIME2(3),
+    SourceMode NVARCHAR(30)
 );
 
 ;WITH due AS
@@ -249,7 +266,8 @@ OUTPUT
     INSERTED.RefreshVerifiedOnly,
     INSERTED.RefreshMaxScholars,
     INSERTED.RefreshLeaseOwner,
-    INSERTED.RefreshLeaseUntilUtc
+    INSERTED.RefreshLeaseUntilUtc,
+    INSERTED.SourceMode
 INTO @Claimed;
 
 SELECT
@@ -262,7 +280,8 @@ SELECT
     RefreshVerifiedOnly,
     RefreshMaxScholars,
     RefreshLeaseOwner,
-    RefreshLeaseUntilUtc
+    RefreshLeaseUntilUtc,
+    SourceMode
 FROM @Claimed
 ORDER BY DepartmentId;";
 
@@ -298,7 +317,11 @@ ORDER BY DepartmentId;";
                         RefreshVerifiedOnly = reader.GetBoolean(6),
                         RefreshMaxScholars = reader.GetInt32(7),
                         LeaseOwner = reader.GetString(8),
-                        LeaseUntilUtc = reader.GetDateTime(9)
+                        LeaseUntilUtc = reader.GetDateTime(9),
+                        SourceMode =
+                            reader.IsDBNull(10)
+                                ? "DirectDepartment"
+                                : reader.GetString(10)
                     });
                 }
             }
@@ -746,7 +769,23 @@ WHERE SchedulerKey = @SchedulerKey;";
             DiscoveryScholarCount =
                 reader.IsDBNull(23) ? null : reader.GetInt32(23),
             DiscoveryLastSeenAtUtc =
-                reader.IsDBNull(24) ? null : reader.GetDateTime(24)
+                reader.IsDBNull(24) ? null : reader.GetDateTime(24),
+            SourceMode =
+                reader.IsDBNull(25)
+                    ? "DirectDepartment"
+                    : reader.GetString(25),
+            SourceModeNote =
+                reader.IsDBNull(26)
+                    ? null
+                    : reader.GetString(26),
+            SourceUnitAliasCount =
+                reader.IsDBNull(27)
+                    ? 0
+                    : reader.GetInt32(27),
+            RosterMemberCount =
+                reader.IsDBNull(28)
+                    ? 0
+                    : reader.GetInt32(28)
         };
     }
 
