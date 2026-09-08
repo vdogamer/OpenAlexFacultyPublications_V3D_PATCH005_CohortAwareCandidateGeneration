@@ -87,6 +87,81 @@ ORDER BY
         return rows;
     }
 
+    public async Task<IReadOnlyList<AcademicOnlineDepartmentDiscoveryAnchor>>
+        GetActiveAnchorsAsync(
+            string parentName,
+            CancellationToken cancellationToken = default)
+    {
+        var rows =
+            new List<AcademicOnlineDepartmentDiscoveryAnchor>();
+
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.DepartmentDiscoveryAnchor",
+                "U",
+                cancellationToken))
+        {
+            return rows;
+        }
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandText = @"
+SELECT
+    DepartmentDiscoveryAnchorId,
+    ParentName,
+    OfficialName,
+    ScholarSearchText,
+    ExpectedEmail,
+    SearchPriority
+FROM academiconline.DepartmentDiscoveryAnchor
+WHERE ParentName = @ParentName
+  AND IsActive = 1
+ORDER BY
+    OfficialName,
+    SearchPriority,
+    ScholarSearchText;";
+
+        command.Parameters.AddWithValue(
+            "@ParentName",
+            parentName.Trim());
+
+        await using var reader =
+            await command.ExecuteReaderAsync(
+                cancellationToken);
+
+        while (await reader.ReadAsync(
+            cancellationToken))
+        {
+            rows.Add(
+                new AcademicOnlineDepartmentDiscoveryAnchor
+                {
+                    AnchorId =
+                        reader.GetInt64(0),
+                    ParentName =
+                        reader.GetString(1),
+                    OfficialName =
+                        reader.GetString(2),
+                    ScholarSearchText =
+                        reader.GetString(3),
+                    ExpectedEmail =
+                        reader.IsDBNull(4)
+                            ? null
+                            : reader.GetString(4),
+                    SearchPriority =
+                        reader.GetInt32(5)
+                });
+        }
+
+        return rows;
+    }
+
     public async Task<long> QueueRequestAsync(
         string parentName,
         int rowsPerPage,
