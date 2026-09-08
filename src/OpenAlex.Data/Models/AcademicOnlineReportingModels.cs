@@ -39,3 +39,23 @@ public sealed class AcademicOnlineDepartmentPublicationRow
     public string FacultyNames { get; init; } = string.Empty;
     public DateTime LastRetrievedAtUtc { get; init; }
 }
+
+
+public sealed class AcademicOnlineDepartmentSourceUnit
+{
+    public long SourceUnitId { get; init; }
+    public long DepartmentId { get; init; }
+    public string OfficialUnitName { get; init; } = string.Empty;
+    public string AcademicOnlineSearchName { get; init; } = string.Empty;
+    public int SearchPriority { get; init; }
+}
+
+public sealed class AcademicOnlineDepartmentRosterMember
+{
+    public long RosterMemberId { get; init; }
+    public long DepartmentId { get; init; }
+    public string DisplayName { get; init; } = string.Empty;
+    public string? ExpectedEmail { get; init; }
+    public string? AcademicOnlineAuthorId { get; init; }
+    public int SearchPriority { get; init; }
+}
