@@ -715,6 +715,23 @@ public sealed class AcademicOnlineDepartmentSyncJob
             {
                 unresolvedMembers.Add(member.DisplayName);
 
+                if (string.IsNullOrWhiteSpace(
+                        member.OpenAlexAuthorId))
+                {
+                    var openAlexPreview =
+                        await PreviewOpenAlexRosterFallbackAsync(
+                            member,
+                            cancellationToken);
+
+                    await _repository
+                        .RecordRosterMemberOpenAlexFallbackAsync(
+                            member.RosterMemberId,
+                            openAlexPreview.OpenAlexAuthorId,
+                            openAlexPreview.Status,
+                            openAlexPreview.Evidence,
+                            CancellationToken.None);
+                }
+
                 await _repository.RecordRosterMemberResolutionAsync(
                     member.RosterMemberId,
                     academicOnlineAuthorId: null,
@@ -1308,6 +1325,393 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 $"Evaluations={evaluationText}");
     }
 
+    private async Task<OpenAlexFallbackPreview>
+        PreviewOpenAlexRosterFallbackAsync(
+            AcademicOnlineDepartmentRosterMember member,
+            CancellationToken cancellationToken)
+    {
+        var candidatesById =
+            new Dictionary<string, OpenAlexFallbackCandidate>(
+                StringComparer.OrdinalIgnoreCase);
+
+        var notes =
+            new List<string>();
+
+        foreach (var searchTerm in
+                 BuildOpenAlexSearchTerms(
+                     member.DisplayName))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                using var page =
+                    await _openAlexClient
+                        .GetAuthorsSearchPageAsync(
+                            searchTerm,
+                            perPage: 25,
+                            cancellationToken:
+                                cancellationToken);
+
+                notes.Add(
+                    $"Search={searchTerm};" +
+                    $"Results={page.ResultsCount}");
+
+                foreach (var item in
+                         page.ResultsElement
+                             .EnumerateArray())
+                {
+                    var id =
+                        NormalizeOpenAlexAuthorId(
+                            GetString(item, "id"));
+
+                    if (string.IsNullOrWhiteSpace(id))
+                    {
+                        continue;
+                    }
+
+                    var displayName =
+                        GetString(
+                            item,
+                            "display_name");
+
+                    var nameScore =
+                        CalculateRosterNameScore(
+                            displayName,
+                            member.DisplayName);
+
+                    var uvaEvidence =
+                        GetOpenAlexUvaEvidence(
+                            item);
+
+                    candidatesById[id] =
+                        new OpenAlexFallbackCandidate(
+                            id,
+                            displayName,
+                            GetString(item, "orcid"),
+                            nameScore,
+                            uvaEvidence.IsUva,
+                            uvaEvidence.Evidence,
+                            GetInt(item, "works_count"),
+                            GetInt(item, "cited_by_count"));
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                return new OpenAlexFallbackPreview(
+                    OpenAlexAuthorId: null,
+                    Status: "Unavailable",
+                    Evidence:
+                        $"OpenAlex author search failed. " +
+                        $"Search={searchTerm}; " +
+                        $"Error={ex.Message}");
+            }
+            catch (TaskCanceledException ex)
+                when (!cancellationToken
+                    .IsCancellationRequested)
+            {
+                return new OpenAlexFallbackPreview(
+                    OpenAlexAuthorId: null,
+                    Status: "Unavailable",
+                    Evidence:
+                        $"OpenAlex author search timed out. " +
+                        $"Search={searchTerm}; " +
+                        $"Error={ex.Message}");
+            }
+        }
+
+        var defensible =
+            candidatesById.Values
+                .Where(candidate =>
+                    candidate.NameScore >= 85 &&
+                    candidate.HasUvaAffiliation)
+                .OrderByDescending(candidate =>
+                    candidate.NameScore)
+                .ThenByDescending(candidate =>
+                    candidate.WorksCount ?? 0)
+                .ToList();
+
+        if (defensible.Count == 1)
+        {
+            var candidate =
+                defensible[0];
+
+            return new OpenAlexFallbackPreview(
+                candidate.OpenAlexAuthorId,
+                "ProposedUnique",
+                $"OpenAlex preview only; not used for publication sync. " +
+                $"Roster={member.DisplayName}; " +
+                $"{FormatOpenAlexFallbackCandidate(candidate)}; " +
+                $"{string.Join(" | ", notes)}");
+        }
+
+        if (defensible.Count > 1)
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "Ambiguous",
+                Evidence:
+                    $"Multiple UVA-affiliated OpenAlex author candidates passed the conservative threshold. " +
+                    $"Roster={member.DisplayName}; " +
+                    $"Candidates={string.Join(" || ", defensible.Take(5).Select(FormatOpenAlexFallbackCandidate))}; " +
+                    $"{string.Join(" | ", notes)}");
+        }
+
+        var strongest =
+            candidatesById.Values
+                .OrderByDescending(candidate =>
+                    candidate.NameScore)
+                .ThenByDescending(candidate =>
+                    candidate.HasUvaAffiliation)
+                .ThenByDescending(candidate =>
+                    candidate.WorksCount ?? 0)
+                .Take(5)
+                .ToList();
+
+        return new OpenAlexFallbackPreview(
+            OpenAlexAuthorId: null,
+            Status: "NoMatch",
+            Evidence:
+                $"No unique UVA-affiliated OpenAlex author passed the conservative identity threshold. " +
+                $"Roster={member.DisplayName}; " +
+                $"Candidates={(strongest.Count == 0 ? "(none)" : string.Join(" || ", strongest.Select(FormatOpenAlexFallbackCandidate)))}; " +
+                $"{string.Join(" | ", notes)}");
+    }
+
+    private static IReadOnlyList<string>
+        BuildOpenAlexSearchTerms(
+            string displayName)
+    {
+        var tokens =
+            TokenizePersonName(displayName)
+                .Where(token =>
+                    token.Length > 1)
+                .ToList();
+
+        var terms =
+            new List<string>
+            {
+                displayName.Trim()
+            };
+
+        if (tokens.Count >= 2)
+        {
+            terms.Add(
+                tokens[0] +
+                " " +
+                tokens[^1]);
+        }
+
+        if (tokens.Count >= 3)
+        {
+            terms.Add(
+                tokens[0] +
+                " " +
+                tokens[1]);
+
+            terms.Add(
+                tokens[1] +
+                " " +
+                tokens[^1]);
+        }
+
+        return terms
+            .Where(term =>
+                !string.IsNullOrWhiteSpace(term))
+            .Distinct(
+                StringComparer.OrdinalIgnoreCase)
+            .Take(4)
+            .ToList();
+    }
+
+    private OpenAlexUvaEvidence
+        GetOpenAlexUvaEvidence(
+            JsonElement author)
+    {
+        var configuredIds =
+            _openAlexOptions.InstitutionIds
+                .Select(NormalizeOpenAlexInstitutionId)
+                .Where(id =>
+                    !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(
+                    StringComparer.OrdinalIgnoreCase);
+
+        var evidence =
+            new List<string>();
+
+        if (author.TryGetProperty(
+                "last_known_institutions",
+                out var lastKnown) &&
+            lastKnown.ValueKind ==
+                JsonValueKind.Array)
+        {
+            foreach (var institution in
+                     lastKnown.EnumerateArray())
+            {
+                var institutionId =
+                    NormalizeOpenAlexInstitutionId(
+                        GetString(
+                            institution,
+                            "id"));
+
+                var institutionName =
+                    GetString(
+                        institution,
+                        "display_name");
+
+                if (IsConfiguredUvaInstitution(
+                        institutionId,
+                        institutionName,
+                        configuredIds))
+                {
+                    evidence.Add(
+                        $"LastKnown={institutionName ?? institutionId}");
+                }
+            }
+        }
+
+        if (author.TryGetProperty(
+                "affiliations",
+                out var affiliations) &&
+            affiliations.ValueKind ==
+                JsonValueKind.Array)
+        {
+            foreach (var affiliation in
+                     affiliations.EnumerateArray())
+            {
+                if (!affiliation.TryGetProperty(
+                        "institution",
+                        out var institution) ||
+                    institution.ValueKind !=
+                        JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                var institutionId =
+                    NormalizeOpenAlexInstitutionId(
+                        GetString(
+                            institution,
+                            "id"));
+
+                var institutionName =
+                    GetString(
+                        institution,
+                        "display_name");
+
+                if (IsConfiguredUvaInstitution(
+                        institutionId,
+                        institutionName,
+                        configuredIds))
+                {
+                    evidence.Add(
+                        $"Affiliation={institutionName ?? institutionId}");
+                }
+            }
+        }
+
+        return new OpenAlexUvaEvidence(
+            evidence.Count > 0,
+            evidence.Count == 0
+                ? "(none)"
+                : string.Join(
+                    ";",
+                    evidence.Distinct(
+                        StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private static bool IsConfiguredUvaInstitution(
+        string? institutionId,
+        string? institutionName,
+        IReadOnlySet<string> configuredIds)
+    {
+        if (!string.IsNullOrWhiteSpace(
+                institutionId) &&
+            configuredIds.Contains(
+                institutionId))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                institutionName))
+        {
+            return false;
+        }
+
+        return institutionName.Contains(
+                   "University of Virginia",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               institutionName.Contains(
+                   "UVA Health",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string?
+        NormalizeOpenAlexInstitutionId(
+            string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed =
+            value.Trim().TrimEnd('/');
+
+        var slashIndex =
+            trimmed.LastIndexOf('/');
+
+        return (
+            slashIndex >= 0
+                ? trimmed[(slashIndex + 1)..]
+                : trimmed)
+            .ToUpperInvariant();
+    }
+
+    private static string?
+        NormalizeOpenAlexAuthorId(
+            string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed =
+            value.Trim().TrimEnd('/');
+
+        var slashIndex =
+            trimmed.LastIndexOf('/');
+
+        var id =
+            slashIndex >= 0
+                ? trimmed[(slashIndex + 1)..]
+                : trimmed;
+
+        return id.StartsWith(
+                "A",
+                StringComparison.OrdinalIgnoreCase)
+            ? id.ToUpperInvariant()
+            : null;
+    }
+
+    private static string
+        FormatOpenAlexFallbackCandidate(
+            OpenAlexFallbackCandidate candidate)
+    {
+        return
+            $"OpenAlexAuthorId={candidate.OpenAlexAuthorId};" +
+            $"Name={candidate.DisplayName ?? "(null)"};" +
+            $"Orcid={candidate.Orcid ?? "(null)"};" +
+            $"NameScore={candidate.NameScore};" +
+            $"UvaAffiliation={candidate.HasUvaAffiliation};" +
+            $"UvaEvidence={candidate.UvaEvidence};" +
+            $"Works={candidate.WorksCount?.ToString() ?? "(null)"};" +
+            $"Citations={candidate.CitedByCount?.ToString() ?? "(null)"}";
+    }
+
     private static IReadOnlyList<string>
         BuildRosterSearchTerms(
             AcademicOnlineDepartmentRosterMember member)
@@ -1769,6 +2173,25 @@ internal sealed record RosterResolution(
 internal sealed record CoauthorTokenPair(
     string Token1,
     string Token2);
+
+internal sealed record OpenAlexFallbackPreview(
+    string? OpenAlexAuthorId,
+    string Status,
+    string Evidence);
+
+internal sealed record OpenAlexFallbackCandidate(
+    string OpenAlexAuthorId,
+    string? DisplayName,
+    string? Orcid,
+    int NameScore,
+    bool HasUvaAffiliation,
+    string UvaEvidence,
+    int? WorksCount,
+    int? CitedByCount);
+
+internal sealed record OpenAlexUvaEvidence(
+    bool IsUva,
+    string Evidence);
 
 internal sealed record RosterCandidateEvaluation(
     AcademicOnlineScholarSearchCandidate Candidate,
