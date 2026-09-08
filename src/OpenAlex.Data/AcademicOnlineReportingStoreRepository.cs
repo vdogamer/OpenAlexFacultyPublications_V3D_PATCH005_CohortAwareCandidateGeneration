@@ -959,6 +959,214 @@ ORDER BY
         return rows;
     }
 
+    public async Task<IReadOnlyList<AcademicOnlineDepartmentSourceUnit>>
+        GetDepartmentSourceUnitsAsync(
+            long departmentId,
+            CancellationToken cancellationToken = default)
+    {
+        var rows = new List<AcademicOnlineDepartmentSourceUnit>();
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.DepartmentSourceUnit",
+                "U",
+                cancellationToken))
+        {
+            return rows;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT
+    DepartmentSourceUnitId,
+    DepartmentId,
+    OfficialUnitName,
+    AcademicOnlineSearchName,
+    SearchPriority
+FROM academiconline.DepartmentSourceUnit
+WHERE DepartmentId = @DepartmentId
+  AND IsActive = 1
+ORDER BY
+    OfficialUnitName,
+    SearchPriority,
+    AcademicOnlineSearchName;";
+
+        command.Parameters.AddWithValue(
+            "@DepartmentId",
+            departmentId);
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(
+                new AcademicOnlineDepartmentSourceUnit
+                {
+                    SourceUnitId = reader.GetInt64(0),
+                    DepartmentId = reader.GetInt64(1),
+                    OfficialUnitName = reader.GetString(2),
+                    AcademicOnlineSearchName = reader.GetString(3),
+                    SearchPriority = reader.GetInt32(4)
+                });
+        }
+
+        return rows;
+    }
+
+    public async Task RecordSourceUnitAttemptAsync(
+        long sourceUnitId,
+        string status,
+        int scholarCount,
+        string? errorMessage,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.DepartmentSourceUnit
+SET
+    LastAttemptAtUtc = SYSUTCDATETIME(),
+    LastAttemptStatus = @Status,
+    LastScholarCount = @ScholarCount,
+    LastError = @ErrorMessage,
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE DepartmentSourceUnitId = @SourceUnitId;";
+
+        command.Parameters.AddWithValue(
+            "@SourceUnitId",
+            sourceUnitId);
+        command.Parameters.AddWithValue(
+            "@Status",
+            status);
+        command.Parameters.AddWithValue(
+            "@ScholarCount",
+            Math.Max(0, scholarCount));
+        AddNullable(
+            command,
+            "@ErrorMessage",
+            SqlDbType.NVarChar,
+            -1,
+            errorMessage);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AcademicOnlineDepartmentRosterMember>>
+        GetDepartmentRosterMembersAsync(
+            long departmentId,
+            CancellationToken cancellationToken = default)
+    {
+        var rows =
+            new List<AcademicOnlineDepartmentRosterMember>();
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.DepartmentRosterMember",
+                "U",
+                cancellationToken))
+        {
+            return rows;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT
+    DepartmentRosterMemberId,
+    DepartmentId,
+    DisplayName,
+    ExpectedEmail,
+    AcademicOnlineAuthorId,
+    SearchPriority
+FROM academiconline.DepartmentRosterMember
+WHERE DepartmentId = @DepartmentId
+  AND IsActive = 1
+ORDER BY
+    SearchPriority,
+    DisplayName;";
+
+        command.Parameters.AddWithValue(
+            "@DepartmentId",
+            departmentId);
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(
+                new AcademicOnlineDepartmentRosterMember
+                {
+                    RosterMemberId = reader.GetInt64(0),
+                    DepartmentId = reader.GetInt64(1),
+                    DisplayName = reader.GetString(2),
+                    ExpectedEmail =
+                        reader.IsDBNull(3)
+                            ? null
+                            : reader.GetString(3),
+                    AcademicOnlineAuthorId =
+                        reader.IsDBNull(4)
+                            ? null
+                            : reader.GetString(4),
+                    SearchPriority = reader.GetInt32(5)
+                });
+        }
+
+        return rows;
+    }
+
+    public async Task RecordRosterMemberResolutionAsync(
+        long rosterMemberId,
+        string? academicOnlineAuthorId,
+        string status,
+        string? errorMessage,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+UPDATE academiconline.DepartmentRosterMember
+SET
+    AcademicOnlineAuthorId =
+        COALESCE(@AcademicOnlineAuthorId, AcademicOnlineAuthorId),
+    LastResolvedAtUtc = SYSUTCDATETIME(),
+    ResolutionStatus = @Status,
+    ResolutionError = @ErrorMessage,
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE DepartmentRosterMemberId = @RosterMemberId;";
+
+        command.Parameters.AddWithValue(
+            "@RosterMemberId",
+            rosterMemberId);
+        AddNullable(
+            command,
+            "@AcademicOnlineAuthorId",
+            SqlDbType.NVarChar,
+            128,
+            academicOnlineAuthorId);
+        command.Parameters.AddWithValue(
+            "@Status",
+            status);
+        AddNullable(
+            command,
+            "@ErrorMessage",
+            SqlDbType.NVarChar,
+            -1,
+            errorMessage);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private async Task UpdateRunAsync(
         long runId,
         string status,
