@@ -29,6 +29,11 @@ public sealed class AcademicOnlineDepartmentRefreshCatalogItem
     public int? DiscoveryScholarCount { get; init; }
     public DateTime? DiscoveryLastSeenAtUtc { get; init; }
 
+    public string SourceMode { get; init; } = "DirectDepartment";
+    public string? SourceModeNote { get; init; }
+    public int SourceUnitAliasCount { get; init; }
+    public int RosterMemberCount { get; init; }
+
     public bool DueNow =>
         IsActive &&
         RefreshEnabled &&
@@ -62,6 +67,7 @@ public sealed class AcademicOnlineDepartmentRefreshClaim
     public int RefreshMaxScholars { get; init; }
     public string LeaseOwner { get; init; } = string.Empty;
     public DateTime LeaseUntilUtc { get; init; }
+    public string SourceMode { get; init; } = "DirectDepartment";
 }
 
 
