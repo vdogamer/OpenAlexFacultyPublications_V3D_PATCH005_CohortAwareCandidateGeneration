@@ -60,3 +60,14 @@ public sealed class AcademicOnlineDepartmentDiscoverySeed
     public int SearchPriority { get; init; }
     public string ValidationParentName { get; init; } = string.Empty;
 }
+
+
+public sealed class AcademicOnlineDepartmentDiscoveryAnchor
+{
+    public long AnchorId { get; init; }
+    public string ParentName { get; init; } = string.Empty;
+    public string OfficialName { get; init; } = string.Empty;
+    public string ScholarSearchText { get; init; } = string.Empty;
+    public string? ExpectedEmail { get; init; }
+    public int SearchPriority { get; init; }
+}
