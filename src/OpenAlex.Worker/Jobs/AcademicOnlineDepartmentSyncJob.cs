@@ -10,20 +10,26 @@ namespace OpenAlex.Worker.Jobs;
 public sealed class AcademicOnlineDepartmentSyncJob
 {
     private readonly AcademicOnlineApiClient _client;
+    private readonly OpenAlexApiClient _openAlexClient;
     private readonly AcademicOnlineReportingStoreRepository _repository;
     private readonly IOperationalLogger _logger;
     private readonly AcademicOnlineDepartmentSyncOptions _options;
+    private readonly OpenAlexOptions _openAlexOptions;
 
     public AcademicOnlineDepartmentSyncJob(
         AcademicOnlineApiClient client,
+        OpenAlexApiClient openAlexClient,
         AcademicOnlineReportingStoreRepository repository,
         IOperationalLogger logger,
-        IOptions<AcademicOnlineDepartmentSyncOptions> options)
+        IOptions<AcademicOnlineDepartmentSyncOptions> options,
+        IOptions<OpenAlexOptions> openAlexOptions)
     {
         _client = client;
+        _openAlexClient = openAlexClient;
         _repository = repository;
         _logger = logger;
         _options = options.Value;
+        _openAlexOptions = openAlexOptions.Value;
     }
 
     public async Task ExecuteAsync(CancellationToken cancellationToken)
