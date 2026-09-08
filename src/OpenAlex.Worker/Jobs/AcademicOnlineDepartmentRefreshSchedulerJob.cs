@@ -125,7 +125,9 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
                     outcome = await _syncJob.ExecuteDepartmentAsync(
                         new AcademicOnlineDepartmentSyncRequest
                         {
+                            DepartmentId = claim.DepartmentId,
                             DepartmentName = claim.DepartmentName,
+                            SourceMode = claim.SourceMode,
                             FromYear = claim.RefreshFromYear,
                             ToYear = claim.RefreshToYear,
                             VerifiedOnly = claim.RefreshVerifiedOnly,
@@ -175,6 +177,7 @@ public sealed class AcademicOnlineDepartmentRefreshSchedulerJob
                     "AcademicOnlineDepartmentRefreshScheduler",
                     "DepartmentRefreshFinished",
                     $"Department={claim.DepartmentName}; " +
+                    $"SourceMode={claim.SourceMode}; " +
                     $"Status={status}; " +
                     $"RunId={outcome.RunId?.ToString() ?? "(none)"}; " +
                     $"Scholars={outcome.ScholarsProcessed}/{outcome.ScholarsDiscovered}; " +
