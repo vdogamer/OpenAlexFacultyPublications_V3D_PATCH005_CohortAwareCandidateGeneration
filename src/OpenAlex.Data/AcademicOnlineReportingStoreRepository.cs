@@ -1085,6 +1085,7 @@ SELECT
     DisplayName,
     ExpectedEmail,
     AcademicOnlineAuthorId,
+    OpenAlexAuthorId,
     SearchPriority
 FROM academiconline.DepartmentRosterMember
 WHERE DepartmentId = @DepartmentId
@@ -1116,7 +1117,11 @@ ORDER BY
                         reader.IsDBNull(4)
                             ? null
                             : reader.GetString(4),
-                    SearchPriority = reader.GetInt32(5)
+                    OpenAlexAuthorId =
+                        reader.IsDBNull(5)
+                            ? null
+                            : reader.GetString(5),
+                    SearchPriority = reader.GetInt32(6)
                 });
         }
 
@@ -1213,6 +1218,58 @@ ORDER BY
         }
 
         return rows;
+    }
+
+    public async Task RecordRosterMemberOpenAlexFallbackAsync(
+        long rosterMemberId,
+        string? openAlexAuthorId,
+        string status,
+        string? evidence,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandText = @"
+UPDATE academiconline.DepartmentRosterMember
+SET
+    OpenAlexAuthorId =
+        COALESCE(@OpenAlexAuthorId, OpenAlexAuthorId),
+    OpenAlexResolutionStatus = @Status,
+    OpenAlexResolutionEvidence = @Evidence,
+    OpenAlexLastResolvedAtUtc = SYSUTCDATETIME(),
+    UpdatedAtUtc = SYSUTCDATETIME()
+WHERE DepartmentRosterMemberId = @RosterMemberId;";
+
+        command.Parameters.AddWithValue(
+            "@RosterMemberId",
+            rosterMemberId);
+
+        AddNullable(
+            command,
+            "@OpenAlexAuthorId",
+            SqlDbType.NVarChar,
+            128,
+            openAlexAuthorId);
+
+        command.Parameters.AddWithValue(
+            "@Status",
+            status);
+
+        AddNullable(
+            command,
+            "@Evidence",
+            SqlDbType.NVarChar,
+            -1,
+            evidence);
+
+        await command.ExecuteNonQueryAsync(
+            cancellationToken);
     }
 
     public async Task RecordRosterMemberResolutionAsync(
