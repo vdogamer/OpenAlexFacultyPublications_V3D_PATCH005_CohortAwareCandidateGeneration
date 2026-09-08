@@ -153,6 +153,23 @@ END;
 
 DECLARE @DefaultFromYear INT = YEAR(SYSUTCDATETIME()) - 1;
 
+/* Retire exact placeholder rows left by the early PATCH019 smoke test. */
+UPDATE academiconline.Department
+SET
+    IsActive = 0,
+    RefreshEnabled = 0,
+    NextRefreshDueAtUtc = NULL,
+    SourceModeNote =
+        COALESCE(
+            SourceModeNote,
+            N'Retired PATCH019 smoke-test placeholder.')
+WHERE SourceName IN
+(
+    N'PASTE EXACT DEPARTMENT NAME HERE',
+    N'ACTUAL DEPARTMENT NAME'
+);
+
+
 IF NOT EXISTS
 (
     SELECT 1
@@ -304,14 +321,16 @@ VALUES
 (N'Gastroenterology & Hepatology', N'Division of Gastroenterology and Hepatology', 1),
 (N'Gastroenterology & Hepatology', N'Gastroenterology & Hepatology', 2),
 
-(N'General, Geriatric & Palliative Medicine', N'Division of General, Geriatric and Palliative Medicine', 1),
-(N'General, Geriatric & Palliative Medicine', N'General, Geriatric & Palliative Medicine', 2),
+(N'General, Geriatric & Palliative Medicine', N'Division of General, Geriatric, Palliative and Hospital Medicine', 1),
+(N'General, Geriatric & Palliative Medicine', N'Division of General, Geriatric and Palliative Medicine', 2),
+(N'General, Geriatric & Palliative Medicine', N'General, Geriatric & Palliative Medicine', 3),
 
 (N'Hematology & Oncology', N'Division of Hematology and Oncology', 1),
 (N'Hematology & Oncology', N'Hematology & Oncology', 2),
 
-(N'Hospital Medicine', N'Division of Hospital Medicine', 1),
-(N'Hospital Medicine', N'Hospital Medicine', 2),
+(N'Hospital Medicine', N'Division of General, Geriatric, Palliative and Hospital Medicine', 1),
+(N'Hospital Medicine', N'Division of Hospital Medicine', 2),
+(N'Hospital Medicine', N'Hospital Medicine', 3),
 
 (N'Infectious Diseases & International Health', N'Division of Infectious Diseases and International Health', 1),
 (N'Infectious Diseases & International Health', N'Infectious Diseases & International Health', 2),
