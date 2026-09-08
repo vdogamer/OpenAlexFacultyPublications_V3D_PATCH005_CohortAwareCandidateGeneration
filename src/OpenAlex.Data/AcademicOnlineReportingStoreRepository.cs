@@ -1123,11 +1123,105 @@ ORDER BY
         return rows;
     }
 
+    public async Task<IReadOnlyList<AcademicOnlineCoauthorIdentityCandidate>>
+        FindCoauthorIdentityCandidatesAsync(
+            string token1,
+            string token2,
+            CancellationToken cancellationToken = default)
+    {
+        var rows =
+            new List<AcademicOnlineCoauthorIdentityCandidate>();
+
+        if (string.IsNullOrWhiteSpace(token1) ||
+            string.IsNullOrWhiteSpace(token2))
+        {
+            return rows;
+        }
+
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandText = @"
+SELECT
+    j.[id] AS AcademicOnlineAuthorId,
+    CoauthorName = MIN(j.[name]),
+    EvidencePublicationCount =
+        COUNT(DISTINCT p.PublicationKey),
+    EarliestPublicationYear =
+        MIN(p.PublicationYear),
+    LatestPublicationYear =
+        MAX(p.PublicationYear)
+FROM academiconline.Publication p
+CROSS APPLY OPENJSON(p.CoauthorsJson)
+WITH
+(
+    [name] NVARCHAR(512) '$.name',
+    [id]   NVARCHAR(128) '$.id'
+) j
+WHERE p.CoauthorsJson IS NOT NULL
+  AND ISJSON(p.CoauthorsJson) = 1
+  AND j.[id] IS NOT NULL
+  AND LTRIM(RTRIM(j.[id])) <> N''
+  AND LOWER(j.[name]) LIKE @Token1
+  AND LOWER(j.[name]) LIKE @Token2
+GROUP BY j.[id]
+ORDER BY
+    COUNT(DISTINCT p.PublicationKey) DESC,
+    MIN(j.[name]),
+    j.[id];";
+
+        command.Parameters.AddWithValue(
+            "@Token1",
+            "%" + token1.Trim().ToLowerInvariant() + "%");
+
+        command.Parameters.AddWithValue(
+            "@Token2",
+            "%" + token2.Trim().ToLowerInvariant() + "%");
+
+        await using var reader =
+            await command.ExecuteReaderAsync(
+                cancellationToken);
+
+        while (await reader.ReadAsync(
+            cancellationToken))
+        {
+            rows.Add(
+                new AcademicOnlineCoauthorIdentityCandidate
+                {
+                    AcademicOnlineAuthorId =
+                        reader.GetString(0),
+                    CoauthorName =
+                        reader.IsDBNull(1)
+                            ? string.Empty
+                            : reader.GetString(1),
+                    EvidencePublicationCount =
+                        reader.GetInt32(2),
+                    EarliestPublicationYear =
+                        reader.IsDBNull(3)
+                            ? null
+                            : reader.GetInt32(3),
+                    LatestPublicationYear =
+                        reader.IsDBNull(4)
+                            ? null
+                            : reader.GetInt32(4)
+                });
+        }
+
+        return rows;
+    }
+
     public async Task RecordRosterMemberResolutionAsync(
         long rosterMemberId,
         string? academicOnlineAuthorId,
         string status,
         string? errorMessage,
+        string? resolutionMethod = null,
+        string? resolutionEvidence = null,
         CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();
@@ -1142,6 +1236,8 @@ SET
     LastResolvedAtUtc = SYSUTCDATETIME(),
     ResolutionStatus = @Status,
     ResolutionError = @ErrorMessage,
+    ResolutionMethod = @ResolutionMethod,
+    ResolutionEvidence = @ResolutionEvidence,
     UpdatedAtUtc = SYSUTCDATETIME()
 WHERE DepartmentRosterMemberId = @RosterMemberId;";
 
@@ -1163,6 +1259,18 @@ WHERE DepartmentRosterMemberId = @RosterMemberId;";
             SqlDbType.NVarChar,
             -1,
             errorMessage);
+        AddNullable(
+            command,
+            "@ResolutionMethod",
+            SqlDbType.NVarChar,
+            50,
+            resolutionMethod);
+        AddNullable(
+            command,
+            "@ResolutionEvidence",
+            SqlDbType.NVarChar,
+            -1,
+            resolutionEvidence);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
