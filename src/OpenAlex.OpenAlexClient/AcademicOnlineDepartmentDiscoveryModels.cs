@@ -38,3 +38,12 @@ public sealed class AcademicOnlineDepartmentSeedCandidate
     public int SearchPriority { get; init; }
     public string? ValidationParentName { get; init; }
 }
+
+
+public sealed class AcademicOnlineDepartmentAnchorCandidate
+{
+    public string OfficialName { get; init; } = string.Empty;
+    public string ScholarSearchText { get; init; } = string.Empty;
+    public string? ExpectedEmail { get; init; }
+    public int SearchPriority { get; init; }
+}
