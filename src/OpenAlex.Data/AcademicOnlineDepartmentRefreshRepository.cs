@@ -65,18 +65,18 @@ SELECT
         (
             SELECT COUNT(*)
             FROM academiconline.DepartmentSourceUnit u
-            WHERE u.DepartmentId = academiconline.Department.DepartmentId
+            WHERE u.DepartmentId = d.DepartmentId
               AND u.IsActive = 1
         ),
     RosterMemberCount =
         (
             SELECT COUNT(*)
             FROM academiconline.DepartmentRosterMember r
-            WHERE r.DepartmentId = academiconline.Department.DepartmentId
+            WHERE r.DepartmentId = d.DepartmentId
               AND r.IsActive = 1
         )
-FROM academiconline.Department
-ORDER BY CanonicalName;";
+FROM academiconline.Department d
+ORDER BY d.CanonicalName;";
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
