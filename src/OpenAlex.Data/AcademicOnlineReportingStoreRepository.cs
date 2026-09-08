@@ -641,6 +641,87 @@ END;";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task TouchDepartmentRosterPublicationAsync(
+        long runId,
+        long departmentId,
+        long rosterMemberId,
+        long publicationKey,
+        string sourceProvider,
+        string sourceAuthorId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandText = @"
+UPDATE academiconline.DepartmentRosterPublication
+SET
+    SourceAuthorId = @SourceAuthorId,
+    LastSeenAtUtc = SYSUTCDATETIME(),
+    LastSyncRunId = @RunId
+WHERE DepartmentId = @DepartmentId
+  AND DepartmentRosterMemberId = @RosterMemberId
+  AND PublicationKey = @PublicationKey
+  AND SourceProvider = @SourceProvider;
+
+IF @@ROWCOUNT = 0
+BEGIN
+    INSERT INTO academiconline.DepartmentRosterPublication
+    (
+        DepartmentId,
+        DepartmentRosterMemberId,
+        PublicationKey,
+        SourceProvider,
+        SourceAuthorId,
+        IsCurrent,
+        FirstSeenAtUtc,
+        LastSeenAtUtc,
+        LastSyncRunId,
+        CurrentSnapshotRunId
+    )
+    VALUES
+    (
+        @DepartmentId,
+        @RosterMemberId,
+        @PublicationKey,
+        @SourceProvider,
+        @SourceAuthorId,
+        0,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME(),
+        @RunId,
+        NULL
+    );
+END;";
+
+        command.Parameters.AddWithValue(
+            "@RunId",
+            runId);
+        command.Parameters.AddWithValue(
+            "@DepartmentId",
+            departmentId);
+        command.Parameters.AddWithValue(
+            "@RosterMemberId",
+            rosterMemberId);
+        command.Parameters.AddWithValue(
+            "@PublicationKey",
+            publicationKey);
+        command.Parameters.AddWithValue(
+            "@SourceProvider",
+            sourceProvider.Trim());
+        command.Parameters.AddWithValue(
+            "@SourceAuthorId",
+            sourceAuthorId.Trim());
+
+        await command.ExecuteNonQueryAsync(
+            cancellationToken);
+    }
+
     public async Task PromoteDepartmentSnapshotAsync(
         long runId,
         long departmentId,
@@ -693,6 +774,16 @@ SET
 WHERE DepartmentId = @DepartmentId;
 
 UPDATE academiconline.DepartmentScholarPublication
+SET
+    IsCurrent =
+        CASE
+            WHEN LastSyncRunId = @RunId THEN 1
+            ELSE 0
+        END,
+    CurrentSnapshotRunId = @RunId
+WHERE DepartmentId = @DepartmentId;
+
+UPDATE academiconline.DepartmentRosterPublication
 SET
     IsCurrent =
         CASE
@@ -1086,6 +1177,7 @@ SELECT
     ExpectedEmail,
     AcademicOnlineAuthorId,
     OpenAlexAuthorId,
+    OpenAlexResolutionStatus,
     SearchPriority
 FROM academiconline.DepartmentRosterMember
 WHERE DepartmentId = @DepartmentId
@@ -1121,7 +1213,11 @@ ORDER BY
                         reader.IsDBNull(5)
                             ? null
                             : reader.GetString(5),
-                    SearchPriority = reader.GetInt32(6)
+                    OpenAlexResolutionStatus =
+                        reader.IsDBNull(6)
+                            ? null
+                            : reader.GetString(6),
+                    SearchPriority = reader.GetInt32(7)
                 });
         }
 
