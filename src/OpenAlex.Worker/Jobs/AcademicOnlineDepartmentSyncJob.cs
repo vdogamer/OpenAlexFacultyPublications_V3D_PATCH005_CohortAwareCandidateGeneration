@@ -137,12 +137,17 @@ public sealed class AcademicOnlineDepartmentSyncJob
             }
 
             var departmentId =
-                request.DepartmentId > 0
-                    ? request.DepartmentId
-                    : await _repository.UpsertDepartmentAsync(
-                        runId,
-                        departmentName,
-                        cancellationToken);
+                await _repository.UpsertDepartmentAsync(
+                    runId,
+                    departmentName,
+                    cancellationToken);
+
+            if (request.DepartmentId > 0 &&
+                departmentId != request.DepartmentId)
+            {
+                throw new InvalidOperationException(
+                    $"Scheduled department ID {request.DepartmentId} did not match the reporting-store department ID {departmentId} for '{departmentName}'.");
+            }
 
             var scholars = selection.Scholars
                 .Take(maxScholars)
