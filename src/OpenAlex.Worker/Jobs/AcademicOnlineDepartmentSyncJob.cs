@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using OpenAlex.Data;
+using OpenAlex.Data.Models;
 using OpenAlex.OpenAlexClient;
 using OpenAlex.OperationalLogging;
 
@@ -481,7 +482,24 @@ public sealed class AcademicOnlineDepartmentSyncJob
                             "NoScholars",
                             0,
                             errorMessage: null,
+                            cancellationToken: cancellationToken);
+                        continue;
+                    }
+
+                    var aliasValidated =
+                        await ValidateAggregateAliasAsync(
+                            alias,
+                            result.Scholars,
                             cancellationToken);
+
+                    if (!aliasValidated)
+                    {
+                        await _repository.RecordSourceUnitAttemptAsync(
+                            alias.SourceUnitId,
+                            "Rejected",
+                            result.Scholars.Count,
+                            "Returned scholars did not expose the configured division in sampled Academic Online profiles.",
+                            cancellationToken: CancellationToken.None);
                         continue;
                     }
 
@@ -495,7 +513,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         result.HitMaxPages ? "Partial" : "Resolved",
                         result.Scholars.Count,
                         errorMessage: null,
-                        cancellationToken);
+                        cancellationToken: cancellationToken);
 
                     unitResolved = true;
                     resolvedUnits++;
@@ -539,6 +557,88 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 $"Aggregate units resolved={resolvedUnits}/{configuredUnits.Select(item => item.OfficialUnitName).Distinct(StringComparer.OrdinalIgnoreCase).Count()}; " +
                 $"Unresolved={string.Join(",", unresolvedUnits)}."
         };
+    }
+
+    private async Task<bool> ValidateAggregateAliasAsync(
+        AcademicOnlineDepartmentSourceUnit alias,
+        IReadOnlyList<AcademicOnlineScholarSearchCandidate> scholars,
+        CancellationToken cancellationToken)
+    {
+        foreach (var candidate in scholars.Take(5))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var profile =
+                await _client.GetAuthorGeneralAsync(
+                    candidate.AuthorId,
+                    cancellationToken);
+
+            var affiliations =
+                AcademicOnlineDepartmentParser
+                    .GetDepartmentAffiliations(
+                        profile.RootElement);
+
+            if (affiliations.Any(item =>
+                    SourceUnitNamesEquivalent(
+                        item.Name,
+                        alias.AcademicOnlineSearchName)
+                    ||
+                    SourceUnitNamesEquivalent(
+                        item.Name,
+                        alias.OfficialUnitName)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool SourceUnitNamesEquivalent(
+        string? left,
+        string? right)
+    {
+        return string.Equals(
+            NormalizeSourceUnitName(left),
+            NormalizeSourceUnitName(right),
+            StringComparison.Ordinal);
+    }
+
+    private static string NormalizeSourceUnitName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized =
+            value.Trim().ToLowerInvariant();
+
+        foreach (var prefix in new[]
+                 {
+                     "division of ",
+                     "department of "
+                 })
+        {
+            if (normalized.StartsWith(
+                    prefix,
+                    StringComparison.Ordinal))
+            {
+                normalized = normalized[prefix.Length..];
+                break;
+            }
+        }
+
+        normalized =
+            normalized.Replace(
+                "&",
+                "and",
+                StringComparison.Ordinal);
+
+        return new string(
+            normalized
+                .Where(char.IsLetterOrDigit)
+                .ToArray());
     }
 
     private async Task<ScholarSelection> ResolveFacultyRosterScholarsAsync(
@@ -743,8 +843,8 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 exactNameMatches[0],
                 searchRequests)
             : new RosterResolution(
-                candidate: null,
-                searchRequests);
+                Candidate: null,
+                SearchRequests: searchRequests);
     }
 
     private static bool PersonNameMatchesRoster(
