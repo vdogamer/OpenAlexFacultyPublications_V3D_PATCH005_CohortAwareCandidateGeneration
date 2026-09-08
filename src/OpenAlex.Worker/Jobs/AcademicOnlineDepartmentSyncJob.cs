@@ -155,9 +155,27 @@ public sealed class AcademicOnlineDepartmentSyncJob
                     $"Scheduled department ID {request.DepartmentId} did not match the reporting-store department ID {departmentId} for '{departmentName}'.");
             }
 
-            var scholars = selection.Scholars
-                .Take(maxScholars)
-                .ToList();
+            var scholars =
+                selection.Scholars
+                    .Take(maxScholars)
+                    .ToList();
+
+            var rosterAcademicOnlineSources =
+                selection.RosterPublicationSources
+                    .Where(item =>
+                        string.Equals(
+                            item.SourceProvider,
+                            "AcademicOnline",
+                            StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(
+                        item => item.SourceAuthorId,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        group => group.Key,
+                        group =>
+                            (IReadOnlyList<RosterPublicationSource>)
+                            group.ToList(),
+                        StringComparer.OrdinalIgnoreCase);
 
             foreach (var candidate in scholars)
             {
@@ -168,27 +186,38 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         candidate.AuthorId,
                         cancellationToken);
 
-                var general = generalDocument.RootElement;
+                var general =
+                    generalDocument.RootElement;
 
                 var displayName =
-                    GetString(general, "name")
+                    GetString(
+                        general,
+                        "name")
                     ?? candidate.Name
                     ?? candidate.AuthorId;
 
                 var email =
-                    GetString(general, "email")
+                    GetString(
+                        general,
+                        "email")
                     ?? candidate.Email;
 
                 var position =
-                    GetString(general, "position")
+                    GetString(
+                        general,
+                        "position")
                     ?? candidate.Position;
 
                 var institution =
-                    GetString(general, "institution")
+                    GetString(
+                        general,
+                        "institution")
                     ?? candidate.Institution;
 
                 var orcidUrl =
-                    GetString(general, "orcid_url")
+                    GetString(
+                        general,
+                        "orcid_url")
                     ?? candidate.OrcidUrl;
 
                 await _repository.UpsertScholarAsync(
@@ -199,42 +228,61 @@ public sealed class AcademicOnlineDepartmentSyncJob
                     position,
                     institution,
                     orcidUrl,
-                    GetInt(general, "publication_count"),
-                    GetBool(general, "has_publications"),
-                    GetBool(general, "has_verified_publications"),
+                    GetInt(
+                        general,
+                        "publication_count"),
+                    GetBool(
+                        general,
+                        "has_publications"),
+                    GetBool(
+                        general,
+                        "has_verified_publications"),
                     general.GetRawText(),
                     cancellationToken);
 
-                await _repository.TouchScholarDepartmentAsync(
-                    runId,
-                    candidate.AuthorId,
-                    departmentId,
-                    cancellationToken);
+                await _repository
+                    .TouchScholarDepartmentAsync(
+                        runId,
+                        candidate.AuthorId,
+                        departmentId,
+                        cancellationToken);
 
                 var publications =
-                    await _client.GetAllAuthorPublicationsAsync(
-                        candidate.AuthorId,
-                        request.VerifiedOnly,
-                        rowsPerPage: Math.Clamp(
-                            _options.PublicationRowsPerPage,
-                            1,
-                            100),
-                        maxPages: Math.Clamp(
-                            _options.MaxPublicationPages,
-                            1,
-                            1000),
-                        fromYear: request.FromYear,
-                        toYear: request.ToYear,
-                        cancellationToken: cancellationToken);
+                    await _client
+                        .GetAllAuthorPublicationsAsync(
+                            candidate.AuthorId,
+                            request.VerifiedOnly,
+                            rowsPerPage:
+                                Math.Clamp(
+                                    _options.PublicationRowsPerPage,
+                                    1,
+                                    100),
+                            maxPages:
+                                Math.Clamp(
+                                    _options.MaxPublicationPages,
+                                    1,
+                                    1000),
+                            fromYear:
+                                request.FromYear,
+                            toYear:
+                                request.ToYear,
+                            cancellationToken:
+                                cancellationToken);
 
-                publicationPagesFetched += publications.PagesFetched;
+                publicationPagesFetched +=
+                    publications.PagesFetched;
 
                 if (publications.HitMaxPages)
                 {
                     publicationPaginationSafeguardHitCount++;
                 }
 
-                foreach (var publication in publications.Publications)
+                rosterAcademicOnlineSources.TryGetValue(
+                    candidate.AuthorId,
+                    out var matchingRosterSources);
+
+                foreach (var publication in
+                         publications.Publications)
                 {
                     var publicationKey =
                         await _repository.UpsertPublicationAsync(
@@ -254,26 +302,89 @@ public sealed class AcademicOnlineDepartmentSyncJob
                             publication.RawJson,
                             cancellationToken);
 
-                    await _repository.TouchScholarPublicationAsync(
-                        runId,
-                        candidate.AuthorId,
-                        publicationKey,
-                        cancellationToken);
+                    await _repository
+                        .TouchScholarPublicationAsync(
+                            runId,
+                            candidate.AuthorId,
+                            publicationKey,
+                            cancellationToken);
 
-                    await _repository.TouchDepartmentPublicationAsync(
-                        runId,
-                        departmentId,
-                        publicationKey,
-                        cancellationToken);
+                    await _repository
+                        .TouchDepartmentPublicationAsync(
+                            runId,
+                            departmentId,
+                            publicationKey,
+                            cancellationToken);
 
-                    await _repository.TouchDepartmentScholarPublicationAsync(
-                        runId,
-                        departmentId,
-                        candidate.AuthorId,
-                        publicationKey,
-                        cancellationToken);
+                    await _repository
+                        .TouchDepartmentScholarPublicationAsync(
+                            runId,
+                            departmentId,
+                            candidate.AuthorId,
+                            publicationKey,
+                            cancellationToken);
+
+                    if (matchingRosterSources is not null)
+                    {
+                        foreach (var rosterSource in
+                                 matchingRosterSources)
+                        {
+                            await _repository
+                                .TouchDepartmentRosterPublicationAsync(
+                                    runId,
+                                    departmentId,
+                                    rosterSource.RosterMemberId,
+                                    publicationKey,
+                                    "AcademicOnline",
+                                    candidate.AuthorId,
+                                    cancellationToken);
+                        }
+                    }
 
                     publicationRowsProcessed++;
+                }
+
+                scholarsProcessed++;
+            }
+
+            var openAlexRosterSources =
+                selection.RosterPublicationSources
+                    .Where(item =>
+                        string.Equals(
+                            item.SourceProvider,
+                            "OpenAlex",
+                            StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(item =>
+                        item.DisplayName,
+                        StringComparer.OrdinalIgnoreCase)
+                    .Take(
+                        Math.Max(
+                            0,
+                            maxScholars - scholarsProcessed))
+                    .ToList();
+
+            foreach (var rosterSource in
+                     openAlexRosterSources)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var fallbackResult =
+                    await ProcessOpenAlexRosterFallbackAsync(
+                        runId,
+                        departmentId,
+                        rosterSource,
+                        request,
+                        cancellationToken);
+
+                publicationRowsProcessed +=
+                    fallbackResult.PublicationsProcessed;
+
+                publicationPagesFetched +=
+                    fallbackResult.PagesFetched;
+
+                if (fallbackResult.HitMaxPages)
+                {
+                    publicationPaginationSafeguardHitCount++;
                 }
 
                 scholarsProcessed++;
