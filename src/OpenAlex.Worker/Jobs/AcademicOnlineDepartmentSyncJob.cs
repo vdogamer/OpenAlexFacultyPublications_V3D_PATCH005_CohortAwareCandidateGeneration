@@ -2388,26 +2388,33 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
                 var publicationKey =
                     await _repository.UpsertPublicationAsync(
-                        runId,
+                        runId: runId,
                         academicOnlinePublicationId: null,
-                        openAlexId,
-                        doi,
-                        title,
-                        venue,
-                        publicationYear?.ToString(),
-                        publicationYear,
-                        GetInt(
-                            work,
-                            "cited_by_count"),
+                        openAlexId: openAlexId,
+                        doi: doi,
+                        title: title,
+                        venue: venue,
+                        yearText:
+                            publicationYear?.ToString(),
+                        publicationYear:
+                            publicationYear,
+                        citationCount:
+                            GetInt(
+                                work,
+                                "cited_by_count"),
                         verified: null,
-                        link,
-                        BuildOpenAlexCoauthorsJson(
-                            work),
-                        GetRawJsonProperty(
-                            work,
-                            "keywords"),
-                        work.GetRawText(),
-                        cancellationToken);
+                        link: link,
+                        coauthorsJson:
+                            BuildOpenAlexCoauthorsJson(
+                                work),
+                        keywordsJson:
+                            GetRawJsonProperty(
+                                work,
+                                "keywords"),
+                        rawJson:
+                            work.GetRawText(),
+                        cancellationToken:
+                            cancellationToken);
 
                 await _repository
                     .TouchDepartmentPublicationAsync(
