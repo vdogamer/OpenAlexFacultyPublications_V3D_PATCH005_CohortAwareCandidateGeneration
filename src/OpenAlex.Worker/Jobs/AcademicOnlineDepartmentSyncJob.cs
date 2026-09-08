@@ -119,34 +119,31 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
         try
         {
-            var departmentScholars =
-                await _client.GetDepartmentScholarsAsync(
+            var selection =
+                await ResolveScholarSelectionAsync(
+                    request,
                     departmentName,
-                    rowsPerPage: Math.Clamp(
-                        _options.ScholarRowsPerPage,
-                        1,
-                        100),
-                    maxPages: Math.Clamp(
-                        _options.MaxScholarPages,
-                        1,
-                        1000),
-                    cancellationToken: cancellationToken);
+                    cancellationToken);
 
-            scholarPagesFetched = departmentScholars.PagesFetched;
+            scholarPagesFetched =
+                selection.ScholarPagesFetched;
 
-            if (departmentScholars.Scholars.Count == 0)
+            if (selection.Scholars.Count == 0)
             {
                 throw new InvalidOperationException(
-                    $"Academic Online returned no scholars for department '{departmentName}'. " +
-                    "Verify the exact Academic Online department name before retrying.");
+                    $"Academic Online returned no usable scholars for department '{departmentName}' " +
+                    $"using source mode '{selection.SourceMode}'.");
             }
 
-            var departmentId = await _repository.UpsertDepartmentAsync(
-                runId,
-                departmentName,
-                cancellationToken);
+            var departmentId =
+                request.DepartmentId > 0
+                    ? request.DepartmentId
+                    : await _repository.UpsertDepartmentAsync(
+                        runId,
+                        departmentName,
+                        cancellationToken);
 
-            var scholars = departmentScholars.Scholars
+            var scholars = selection.Scholars
                 .Take(maxScholars)
                 .ToList();
 
@@ -271,16 +268,20 @@ public sealed class AcademicOnlineDepartmentSyncJob
             }
 
             var scholarsDiscovered =
-                departmentScholars.Scholars.Count;
+                selection.ScholarsDiscovered;
 
             var isCacheComplete =
-                !departmentScholars.HitMaxPages &&
+                selection.SourceMembershipComplete &&
+                !selection.ScholarPaginationSafeguardHit &&
                 scholarsProcessed == scholarsDiscovered &&
                 publicationPaginationSafeguardHitCount == 0;
 
             var summary =
                 $"Academic Online department sync completed. " +
                 $"Department={departmentName}; " +
+                $"SourceMode={selection.SourceMode}; " +
+                $"SourceMembershipComplete={selection.SourceMembershipComplete}; " +
+                $"SourceDetail={selection.SourceDetail}; " +
                 $"ScholarsDiscovered={scholarsDiscovered}; " +
                 $"ScholarsProcessed={scholarsProcessed}; " +
                 $"MaxScholarsToProcess={maxScholars}; " +
@@ -290,7 +291,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 $"FromYear={request.FromYear?.ToString() ?? "(all)"}; " +
                 $"ToYear={request.ToYear?.ToString() ?? "(current)"}; " +
                 $"VerifiedOnly={request.VerifiedOnly}; " +
-                $"ScholarPaginationSafeguardHit={departmentScholars.HitMaxPages}; " +
+                $"ScholarPaginationSafeguardHit={selection.ScholarPaginationSafeguardHit}; " +
                 $"PublicationPaginationSafeguardHitCount={publicationPaginationSafeguardHitCount}; " +
                 $"CacheComplete={isCacheComplete}.";
 
@@ -301,7 +302,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 publicationRowsProcessed,
                 scholarPagesFetched,
                 publicationPagesFetched,
-                departmentScholars.HitMaxPages,
+                selection.ScholarPaginationSafeguardHit,
                 publicationPaginationSafeguardHitCount,
                 isCacheComplete,
                 summary,
@@ -349,6 +350,459 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 runId,
                 ex.Message);
         }
+    }
+
+    private async Task<ScholarSelection> ResolveScholarSelectionAsync(
+        AcademicOnlineDepartmentSyncRequest request,
+        string departmentName,
+        CancellationToken cancellationToken)
+    {
+        var sourceMode =
+            string.IsNullOrWhiteSpace(request.SourceMode)
+                ? "DirectDepartment"
+                : request.SourceMode.Trim();
+
+        return sourceMode switch
+        {
+            "AggregateUnits" =>
+                await ResolveAggregateUnitScholarsAsync(
+                    request.DepartmentId,
+                    cancellationToken),
+
+            "FacultyRoster" =>
+                await ResolveFacultyRosterScholarsAsync(
+                    request.DepartmentId,
+                    cancellationToken),
+
+            _ =>
+                await ResolveDirectDepartmentScholarsAsync(
+                    departmentName,
+                    cancellationToken)
+        };
+    }
+
+    private async Task<ScholarSelection> ResolveDirectDepartmentScholarsAsync(
+        string departmentName,
+        CancellationToken cancellationToken)
+    {
+        var departmentScholars =
+            await _client.GetDepartmentScholarsAsync(
+                departmentName,
+                rowsPerPage: Math.Clamp(
+                    _options.ScholarRowsPerPage,
+                    1,
+                    100),
+                maxPages: Math.Clamp(
+                    _options.MaxScholarPages,
+                    1,
+                    1000),
+                cancellationToken: cancellationToken);
+
+        return new ScholarSelection
+        {
+            SourceMode = "DirectDepartment",
+            Scholars = departmentScholars.Scholars,
+            ScholarsDiscovered = departmentScholars.Scholars.Count,
+            ScholarPagesFetched = departmentScholars.PagesFetched,
+            ScholarPaginationSafeguardHit = departmentScholars.HitMaxPages,
+            SourceMembershipComplete = !departmentScholars.HitMaxPages,
+            SourceDetail =
+                $"Direct department query; RowsPerPage={departmentScholars.RowsPerPage}; " +
+                $"PagesFetched={departmentScholars.PagesFetched}."
+        };
+    }
+
+    private async Task<ScholarSelection> ResolveAggregateUnitScholarsAsync(
+        long departmentId,
+        CancellationToken cancellationToken)
+    {
+        if (departmentId <= 0)
+        {
+            throw new InvalidOperationException(
+                "AggregateUnits source mode requires a persisted department ID.");
+        }
+
+        var configuredUnits =
+            await _repository.GetDepartmentSourceUnitsAsync(
+                departmentId,
+                cancellationToken);
+
+        if (configuredUnits.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "AggregateUnits source mode has no configured source units.");
+        }
+
+        var scholarsById =
+            new Dictionary<string, AcademicOnlineScholarSearchCandidate>(
+                StringComparer.OrdinalIgnoreCase);
+
+        var pagesFetched = 0;
+        var paginationSafeguardHit = false;
+        var unresolvedUnits = new List<string>();
+        var resolvedUnits = 0;
+
+        foreach (var group in configuredUnits
+            .GroupBy(
+                item => item.OfficialUnitName,
+                StringComparer.OrdinalIgnoreCase)
+            .OrderBy(
+                item => item.Key,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            var unitResolved = false;
+
+            foreach (var alias in group.OrderBy(item => item.SearchPriority))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var result =
+                        await _client.GetDepartmentScholarsAsync(
+                            alias.AcademicOnlineSearchName,
+                            rowsPerPage: Math.Clamp(
+                                _options.ScholarRowsPerPage,
+                                1,
+                                100),
+                            maxPages: Math.Clamp(
+                                _options.MaxScholarPages,
+                                1,
+                                1000),
+                            cancellationToken: cancellationToken);
+
+                    pagesFetched += result.PagesFetched;
+                    paginationSafeguardHit |= result.HitMaxPages;
+
+                    if (result.Scholars.Count == 0)
+                    {
+                        await _repository.RecordSourceUnitAttemptAsync(
+                            alias.SourceUnitId,
+                            "NoScholars",
+                            0,
+                            errorMessage: null,
+                            cancellationToken);
+                        continue;
+                    }
+
+                    foreach (var scholar in result.Scholars)
+                    {
+                        scholarsById[scholar.AuthorId] = scholar;
+                    }
+
+                    await _repository.RecordSourceUnitAttemptAsync(
+                        alias.SourceUnitId,
+                        result.HitMaxPages ? "Partial" : "Resolved",
+                        result.Scholars.Count,
+                        errorMessage: null,
+                        cancellationToken);
+
+                    unitResolved = true;
+                    resolvedUnits++;
+                    break;
+                }
+                catch (Exception ex)
+                    when (ex is HttpRequestException ||
+                          ex is TaskCanceledException)
+                {
+                    await _repository.RecordSourceUnitAttemptAsync(
+                        alias.SourceUnitId,
+                        "Failed",
+                        0,
+                        ex.Message,
+                        CancellationToken.None);
+                }
+            }
+
+            if (!unitResolved)
+            {
+                unresolvedUnits.Add(group.Key);
+            }
+        }
+
+        return new ScholarSelection
+        {
+            SourceMode = "AggregateUnits",
+            Scholars =
+                scholarsById.Values
+                    .OrderBy(
+                        item => item.Name ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+            ScholarsDiscovered = scholarsById.Count,
+            ScholarPagesFetched = pagesFetched,
+            ScholarPaginationSafeguardHit = paginationSafeguardHit,
+            SourceMembershipComplete =
+                unresolvedUnits.Count == 0 &&
+                !paginationSafeguardHit,
+            SourceDetail =
+                $"Aggregate units resolved={resolvedUnits}/{configuredUnits.Select(item => item.OfficialUnitName).Distinct(StringComparer.OrdinalIgnoreCase).Count()}; " +
+                $"Unresolved={string.Join(",", unresolvedUnits)}."
+        };
+    }
+
+    private async Task<ScholarSelection> ResolveFacultyRosterScholarsAsync(
+        long departmentId,
+        CancellationToken cancellationToken)
+    {
+        if (departmentId <= 0)
+        {
+            throw new InvalidOperationException(
+                "FacultyRoster source mode requires a persisted department ID.");
+        }
+
+        var roster =
+            await _repository.GetDepartmentRosterMembersAsync(
+                departmentId,
+                cancellationToken);
+
+        if (roster.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "FacultyRoster source mode has no active roster members.");
+        }
+
+        var scholarsById =
+            new Dictionary<string, AcademicOnlineScholarSearchCandidate>(
+                StringComparer.OrdinalIgnoreCase);
+
+        var searchRequests = 0;
+        var unresolvedMembers = new List<string>();
+
+        foreach (var member in roster)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            AcademicOnlineScholarSearchCandidate? resolved = null;
+
+            if (!string.IsNullOrWhiteSpace(member.AcademicOnlineAuthorId))
+            {
+                resolved =
+                    new AcademicOnlineScholarSearchCandidate
+                    {
+                        AuthorId = member.AcademicOnlineAuthorId.Trim(),
+                        Name = member.DisplayName,
+                        Email = member.ExpectedEmail
+                    };
+            }
+            else
+            {
+                var resolution =
+                    await ResolveRosterMemberAsync(
+                        member,
+                        cancellationToken);
+
+                resolved = resolution.Candidate;
+                searchRequests += resolution.SearchRequests;
+            }
+
+            if (resolved is null)
+            {
+                unresolvedMembers.Add(member.DisplayName);
+
+                await _repository.RecordRosterMemberResolutionAsync(
+                    member.RosterMemberId,
+                    academicOnlineAuthorId: null,
+                    status: "Unresolved",
+                    errorMessage:
+                        "No unique Academic Online scholar identity matched the official roster member.",
+                    cancellationToken: CancellationToken.None);
+
+                continue;
+            }
+
+            scholarsById[resolved.AuthorId] = resolved;
+
+            await _repository.RecordRosterMemberResolutionAsync(
+                member.RosterMemberId,
+                resolved.AuthorId,
+                status: "Resolved",
+                errorMessage: null,
+                cancellationToken: CancellationToken.None);
+        }
+
+        return new ScholarSelection
+        {
+            SourceMode = "FacultyRoster",
+            Scholars =
+                scholarsById.Values
+                    .OrderBy(
+                        item => item.Name ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+            ScholarsDiscovered = roster.Count,
+            ScholarPagesFetched = searchRequests,
+            ScholarPaginationSafeguardHit = false,
+            SourceMembershipComplete =
+                unresolvedMembers.Count == 0 &&
+                scholarsById.Count == roster.Count,
+            SourceDetail =
+                $"Roster resolved={scholarsById.Count}/{roster.Count}; " +
+                $"Unresolved={string.Join(",", unresolvedMembers)}."
+        };
+    }
+
+    private async Task<RosterResolution> ResolveRosterMemberAsync(
+        AcademicOnlineDepartmentRosterMember member,
+        CancellationToken cancellationToken)
+    {
+        var searchRequests = 0;
+
+        if (!string.IsNullOrWhiteSpace(member.ExpectedEmail))
+        {
+            var expectedEmail = member.ExpectedEmail.Trim();
+
+            var emailCandidates =
+                await _client.SearchScholarCandidatesAsync(
+                    expectedEmail,
+                    departmentName: null,
+                    rowsPerPage: 25,
+                    cancellationToken: cancellationToken);
+
+            searchRequests++;
+
+            var exact =
+                emailCandidates
+                    .Where(candidate =>
+                        string.Equals(
+                            candidate.Email?.Trim(),
+                            expectedEmail,
+                            StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            if (exact.Count == 1)
+            {
+                return new RosterResolution(exact[0], searchRequests);
+            }
+
+            var atIndex = expectedEmail.IndexOf('@');
+            if (atIndex > 0)
+            {
+                var userId = expectedEmail[..atIndex];
+
+                var userIdCandidates =
+                    await _client.SearchScholarCandidatesAsync(
+                        userId,
+                        departmentName: null,
+                        rowsPerPage: 25,
+                        cancellationToken: cancellationToken);
+
+                searchRequests++;
+
+                exact =
+                    userIdCandidates
+                        .Where(candidate =>
+                            string.Equals(
+                                candidate.Email?.Trim(),
+                                expectedEmail,
+                                StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                if (exact.Count == 1)
+                {
+                    return new RosterResolution(
+                        exact[0],
+                        searchRequests);
+                }
+            }
+        }
+
+        var nameCandidates =
+            await _client.SearchScholarCandidatesAsync(
+                member.DisplayName,
+                departmentName: null,
+                rowsPerPage: 25,
+                cancellationToken: cancellationToken);
+
+        searchRequests++;
+
+        var strongMatches =
+            nameCandidates
+                .Where(candidate =>
+                    PersonNameMatchesRoster(
+                        candidate.Name,
+                        member.DisplayName))
+                .ToList();
+
+        if (strongMatches.Count == 1)
+        {
+            return new RosterResolution(
+                strongMatches[0],
+                searchRequests);
+        }
+
+        var exactNameMatches =
+            strongMatches
+                .Where(candidate =>
+                    NormalizePersonName(candidate.Name) ==
+                    NormalizePersonName(member.DisplayName))
+                .ToList();
+
+        return exactNameMatches.Count == 1
+            ? new RosterResolution(
+                exactNameMatches[0],
+                searchRequests)
+            : new RosterResolution(
+                candidate: null,
+                searchRequests);
+    }
+
+    private static bool PersonNameMatchesRoster(
+        string? candidateName,
+        string rosterName)
+    {
+        var candidateTokens =
+            TokenizePersonName(candidateName);
+
+        var rosterTokens =
+            TokenizePersonName(rosterName)
+                .Where(token => token.Length > 1)
+                .ToList();
+
+        if (candidateTokens.Count == 0 ||
+            rosterTokens.Count < 2)
+        {
+            return false;
+        }
+
+        return
+            candidateTokens.Contains(
+                rosterTokens[0],
+                StringComparer.Ordinal)
+            &&
+            candidateTokens.Contains(
+                rosterTokens[^1],
+                StringComparer.Ordinal);
+    }
+
+    private static string NormalizePersonName(string? value)
+    {
+        return string.Concat(
+            TokenizePersonName(value));
+    }
+
+    private static List<string> TokenizePersonName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return new List<string>();
+        }
+
+        var normalized =
+            new string(
+                value
+                    .ToLowerInvariant()
+                    .Select(character =>
+                        char.IsLetterOrDigit(character)
+                            ? character
+                            : ' ')
+                    .ToArray());
+
+        return normalized
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
     }
 
     private static void ValidateYearRange(
@@ -444,9 +898,27 @@ public sealed class AcademicOnlineDepartmentSyncJob
     }
 }
 
+internal sealed class ScholarSelection
+{
+    public string SourceMode { get; init; } = "DirectDepartment";
+    public IReadOnlyList<AcademicOnlineScholarSearchCandidate> Scholars { get; init; } =
+        Array.Empty<AcademicOnlineScholarSearchCandidate>();
+    public int ScholarsDiscovered { get; init; }
+    public int ScholarPagesFetched { get; init; }
+    public bool ScholarPaginationSafeguardHit { get; init; }
+    public bool SourceMembershipComplete { get; init; }
+    public string SourceDetail { get; init; } = string.Empty;
+}
+
+internal sealed record RosterResolution(
+    AcademicOnlineScholarSearchCandidate? Candidate,
+    int SearchRequests);
+
 public sealed class AcademicOnlineDepartmentSyncRequest
 {
+    public long DepartmentId { get; init; }
     public string DepartmentName { get; init; } = string.Empty;
+    public string SourceMode { get; init; } = "DirectDepartment";
     public int? FromYear { get; init; }
     public int? ToYear { get; init; }
     public bool VerifiedOnly { get; init; }
