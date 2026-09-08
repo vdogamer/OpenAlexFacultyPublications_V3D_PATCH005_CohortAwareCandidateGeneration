@@ -179,7 +179,13 @@ SET
     PublicationCount = @PublicationCount,
     HasPublications = @HasPublications,
     HasVerifiedPublications = @HasVerifiedPublications,
-    RawJson = @RawJson,
+    RawJson =
+        CASE
+            WHEN AcademicOnlinePublicationId IS NOT NULL
+             AND @AcademicOnlinePublicationId IS NULL
+                THEN RawJson
+            ELSE @RawJson
+        END,
     LastRetrievedAtUtc = SYSUTCDATETIME(),
     LastSyncRunId = @RunId
 WHERE AcademicOnlineAuthorId = @AuthorId;
@@ -893,7 +899,18 @@ WHERE AcademicOnlineSyncRunId = @RunId;";
 SELECT
     d.DepartmentId,
     d.CanonicalName,
-    ScholarCount = COUNT(DISTINCT sd.AcademicOnlineAuthorId),
+    ScholarCount =
+        CASE
+            WHEN d.SourceMode = N'FacultyRoster'
+            THEN
+            (
+                SELECT COUNT(*)
+                FROM academiconline.DepartmentRosterMember rm
+                WHERE rm.DepartmentId = d.DepartmentId
+                  AND rm.IsActive = 1
+            )
+            ELSE COUNT(DISTINCT sd.AcademicOnlineAuthorId)
+        END,
     PublicationCount = COUNT(DISTINCT dp.PublicationKey),
     LastRetrievedAtUtc =
         COALESCE(d.CurrentSnapshotAtUtc, d.LastRetrievedAtUtc),
@@ -926,6 +943,7 @@ GROUP BY
     d.LastRetrievedAtUtc,
     d.CurrentSnapshotRunId,
     d.CurrentSnapshotAtUtc,
+    d.SourceMode,
     snapshot.ScholarsDiscovered,
     snapshot.ScholarsProcessed,
     snapshot.MaxScholarsToProcess,
