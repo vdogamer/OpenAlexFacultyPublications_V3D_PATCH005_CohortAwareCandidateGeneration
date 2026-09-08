@@ -384,6 +384,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
             "FacultyRoster" =>
                 await ResolveFacultyRosterScholarsAsync(
                     request.DepartmentId,
+                    request.VerifiedOnly,
                     cancellationToken),
 
             _ =>
@@ -654,6 +655,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
     private async Task<ScholarSelection> ResolveFacultyRosterScholarsAsync(
         long departmentId,
+        bool verifiedOnly,
         CancellationToken cancellationToken)
     {
         if (departmentId <= 0)
@@ -677,6 +679,9 @@ public sealed class AcademicOnlineDepartmentSyncJob
             new Dictionary<string, AcademicOnlineScholarSearchCandidate>(
                 StringComparer.OrdinalIgnoreCase);
 
+        var rosterSources =
+            new List<RosterPublicationSource>();
+
         var searchRequests = 0;
         var unresolvedMembers = new List<string>();
 
@@ -688,12 +693,14 @@ public sealed class AcademicOnlineDepartmentSyncJob
             string? resolutionMethod = null;
             string? resolutionDiagnostic = null;
 
-            if (!string.IsNullOrWhiteSpace(member.AcademicOnlineAuthorId))
+            if (!string.IsNullOrWhiteSpace(
+                    member.AcademicOnlineAuthorId))
             {
                 resolved =
                     new AcademicOnlineScholarSearchCandidate
                     {
-                        AuthorId = member.AcademicOnlineAuthorId.Trim(),
+                        AuthorId =
+                            member.AcademicOnlineAuthorId.Trim(),
                         Name = member.DisplayName,
                         Email = member.ExpectedEmail
                     };
@@ -706,63 +713,160 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         cancellationToken);
 
                 resolved = resolution.Candidate;
-                resolutionMethod = resolution.ResolutionMethod;
-                resolutionDiagnostic = resolution.Diagnostic;
-                searchRequests += resolution.SearchRequests;
+                resolutionMethod =
+                    resolution.ResolutionMethod;
+                resolutionDiagnostic =
+                    resolution.Diagnostic;
+                searchRequests +=
+                    resolution.SearchRequests;
             }
 
-            if (resolved is null)
+            if (resolved is not null)
             {
-                unresolvedMembers.Add(member.DisplayName);
+                scholarsById[
+                    resolved.AuthorId] =
+                    resolved;
 
-                if (string.IsNullOrWhiteSpace(
-                        member.OpenAlexAuthorId))
+                rosterSources.Add(
+                    new RosterPublicationSource(
+                        member.RosterMemberId,
+                        member.DisplayName,
+                        "AcademicOnline",
+                        resolved.AuthorId));
+
+                await _repository
+                    .RecordRosterMemberResolutionAsync(
+                        member.RosterMemberId,
+                        resolved.AuthorId,
+                        status: "Resolved",
+                        errorMessage: null,
+                        resolutionMethod:
+                            resolutionMethod,
+                        resolutionEvidence:
+                            resolutionDiagnostic,
+                        cancellationToken:
+                            CancellationToken.None);
+
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    member.OpenAlexAuthorId))
+            {
+                var openAlexPreview =
+                    await PreviewOpenAlexRosterFallbackAsync(
+                        member,
+                        cancellationToken);
+
+                await _repository
+                    .RecordRosterMemberOpenAlexFallbackAsync(
+                        member.RosterMemberId,
+                        openAlexPreview.OpenAlexAuthorId,
+                        openAlexPreview.Status,
+                        openAlexPreview.Evidence,
+                        CancellationToken.None);
+
+                if (string.Equals(
+                        openAlexPreview.Status,
+                        "ProposedUnique",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(
+                        openAlexPreview.OpenAlexAuthorId) &&
+                    !verifiedOnly)
                 {
-                    var openAlexPreview =
-                        await PreviewOpenAlexRosterFallbackAsync(
-                            member,
-                            cancellationToken);
+                    rosterSources.Add(
+                        new RosterPublicationSource(
+                            member.RosterMemberId,
+                            member.DisplayName,
+                            "OpenAlex",
+                            openAlexPreview.OpenAlexAuthorId));
 
                     await _repository
-                        .RecordRosterMemberOpenAlexFallbackAsync(
+                        .RecordRosterMemberResolutionAsync(
                             member.RosterMemberId,
-                            openAlexPreview.OpenAlexAuthorId,
-                            openAlexPreview.Status,
-                            openAlexPreview.Evidence,
-                            CancellationToken.None);
-                }
+                            academicOnlineAuthorId: null,
+                            status: "Unresolved",
+                            errorMessage:
+                                resolutionDiagnostic
+                                ?? "Academic Online identity unresolved; OpenAlex fallback proposed.",
+                            resolutionMethod:
+                                resolutionMethod,
+                            resolutionEvidence:
+                                resolutionDiagnostic,
+                            cancellationToken:
+                                CancellationToken.None);
 
-                await _repository.RecordRosterMemberResolutionAsync(
+                    continue;
+                }
+            }
+            else if (
+                string.Equals(
+                    member.OpenAlexResolutionStatus,
+                    "ProposedUnique",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !verifiedOnly)
+            {
+                rosterSources.Add(
+                    new RosterPublicationSource(
+                        member.RosterMemberId,
+                        member.DisplayName,
+                        "OpenAlex",
+                        member.OpenAlexAuthorId.Trim()));
+
+                await _repository
+                    .RecordRosterMemberResolutionAsync(
+                        member.RosterMemberId,
+                        academicOnlineAuthorId: null,
+                        status: "Unresolved",
+                        errorMessage:
+                            resolutionDiagnostic
+                            ?? "Academic Online identity unresolved; using previously validated OpenAlex fallback.",
+                        resolutionMethod:
+                            resolutionMethod,
+                        resolutionEvidence:
+                            resolutionDiagnostic,
+                        cancellationToken:
+                            CancellationToken.None);
+
+                continue;
+            }
+
+            unresolvedMembers.Add(
+                member.DisplayName);
+
+            await _repository
+                .RecordRosterMemberResolutionAsync(
                     member.RosterMemberId,
                     academicOnlineAuthorId: null,
                     status: "Unresolved",
                     errorMessage:
-                        resolutionDiagnostic
-                        ?? "No unique Academic Online scholar identity matched the official roster member.",
+                        verifiedOnly &&
+                        !string.IsNullOrWhiteSpace(
+                            member.OpenAlexAuthorId)
+                            ? "OpenAlex fallback cannot satisfy Academic Online VerifiedOnly policy."
+                            : resolutionDiagnostic
+                              ?? "No unique publication-source identity matched the official roster member.",
                     resolutionMethod:
                         resolutionMethod,
                     resolutionEvidence:
                         resolutionDiagnostic,
                     cancellationToken:
                         CancellationToken.None);
-
-                continue;
-            }
-
-            scholarsById[resolved.AuthorId] = resolved;
-
-            await _repository.RecordRosterMemberResolutionAsync(
-                member.RosterMemberId,
-                resolved.AuthorId,
-                status: "Resolved",
-                errorMessage: null,
-                resolutionMethod:
-                    resolutionMethod,
-                resolutionEvidence:
-                    resolutionDiagnostic,
-                cancellationToken:
-                    CancellationToken.None);
         }
+
+        var openAlexFallbackCount =
+            rosterSources.Count(item =>
+                string.Equals(
+                    item.SourceProvider,
+                    "OpenAlex",
+                    StringComparison.OrdinalIgnoreCase));
+
+        var academicOnlineCount =
+            rosterSources.Count(item =>
+                string.Equals(
+                    item.SourceProvider,
+                    "AcademicOnline",
+                    StringComparison.OrdinalIgnoreCase));
 
         return new ScholarSelection
         {
@@ -770,17 +874,31 @@ public sealed class AcademicOnlineDepartmentSyncJob
             Scholars =
                 scholarsById.Values
                     .OrderBy(
-                        item => item.Name ?? string.Empty,
+                        item =>
+                            item.Name
+                            ?? string.Empty,
                         StringComparer.OrdinalIgnoreCase)
                     .ToList(),
-            ScholarsDiscovered = roster.Count,
-            ScholarPagesFetched = searchRequests,
-            ScholarPaginationSafeguardHit = false,
+            RosterPublicationSources =
+                rosterSources,
+            ScholarsDiscovered =
+                roster.Count,
+            ScholarPagesFetched =
+                searchRequests,
+            ScholarPaginationSafeguardHit =
+                false,
             SourceMembershipComplete =
-                unresolvedMembers.Count == 0 &&
-                scholarsById.Count == roster.Count,
+                rosterSources
+                    .Select(item =>
+                        item.RosterMemberId)
+                    .Distinct()
+                    .Count() ==
+                roster.Count,
             SourceDetail =
-                $"Roster resolved={scholarsById.Count}/{roster.Count}; " +
+                $"Roster sources={rosterSources.Select(item => item.RosterMemberId).Distinct().Count()}/{roster.Count}; " +
+                $"AcademicOnline={academicOnlineCount}; " +
+                $"OpenAlexFallback={openAlexFallbackCount}; " +
+                $"VerifiedOnly={verifiedOnly}; " +
                 $"Unresolved={string.Join(",", unresolvedMembers)}."
         };
     }
