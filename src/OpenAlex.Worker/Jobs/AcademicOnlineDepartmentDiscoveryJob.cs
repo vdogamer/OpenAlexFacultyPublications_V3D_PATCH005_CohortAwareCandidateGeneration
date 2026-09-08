@@ -44,6 +44,11 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                     claim.ParentName,
                     cancellationToken);
 
+            var anchors =
+                await _repository.GetActiveAnchorsAsync(
+                    claim.ParentName,
+                    cancellationToken);
+
             if (seeds.Count > 0)
             {
                 discovery =
@@ -62,6 +67,20 @@ public sealed class AcademicOnlineDepartmentDiscoveryJob
                                             seed.SearchPriority,
                                         ValidationParentName =
                                             seed.ValidationParentName
+                                    })
+                                .ToList(),
+                            anchors
+                                .Select(anchor =>
+                                    new AcademicOnlineDepartmentAnchorCandidate
+                                    {
+                                        OfficialName =
+                                            anchor.OfficialName,
+                                        ScholarSearchText =
+                                            anchor.ScholarSearchText,
+                                        ExpectedEmail =
+                                            anchor.ExpectedEmail,
+                                        SearchPriority =
+                                            anchor.SearchPriority
                                     })
                                 .ToList(),
                             cancellationToken);
