@@ -59,3 +59,13 @@ public sealed class AcademicOnlineDepartmentRosterMember
     public string? AcademicOnlineAuthorId { get; init; }
     public int SearchPriority { get; init; }
 }
+
+
+public sealed class AcademicOnlineCoauthorIdentityCandidate
+{
+    public string AcademicOnlineAuthorId { get; init; } = string.Empty;
+    public string CoauthorName { get; init; } = string.Empty;
+    public int EvidencePublicationCount { get; init; }
+    public int? EarliestPublicationYear { get; init; }
+    public int? LatestPublicationYear { get; init; }
+}
