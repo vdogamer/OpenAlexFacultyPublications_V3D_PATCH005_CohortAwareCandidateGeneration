@@ -503,6 +503,7 @@ public sealed class AcademicOnlineApiClient
         DiscoverDepartmentsFromSeedsAsync(
             string parentName,
             IReadOnlyList<AcademicOnlineDepartmentSeedCandidate> seeds,
+            IReadOnlyList<AcademicOnlineDepartmentAnchorCandidate> anchors,
             CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(parentName))
@@ -783,6 +784,240 @@ public sealed class AcademicOnlineApiClient
                     when (!cancellationToken.IsCancellationRequested)
                 {
                     profileValidationFailures++;
+                }
+            }
+
+            if (resolved is null)
+            {
+                var departmentAnchors =
+                    anchors
+                        .Where(anchor =>
+                            string.Equals(
+                                anchor.OfficialName,
+                                group.Key,
+                                StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(anchor =>
+                            anchor.SearchPriority)
+                        .ToList();
+
+                foreach (var anchor in departmentAnchors)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        var anchorSearchText =
+                            !string.IsNullOrWhiteSpace(
+                                anchor.ExpectedEmail)
+                                ? anchor.ExpectedEmail!
+                                : anchor.ScholarSearchText;
+
+                        var anchorCandidates =
+                            await SearchScholarCandidatesAsync(
+                                anchorSearchText,
+                                departmentName:
+                                    null,
+                                rowsPerPage:
+                                    10,
+                                cancellationToken:
+                                    cancellationToken);
+
+                        searchRequests++;
+
+                        var identityCandidates =
+                            anchorCandidates
+                                .Where(candidate =>
+                                    !string.IsNullOrWhiteSpace(
+                                        anchor.ExpectedEmail)
+                                        ? string.Equals(
+                                            candidate.Email?.Trim(),
+                                            anchor.ExpectedEmail.Trim(),
+                                            StringComparison.OrdinalIgnoreCase)
+                                        : PersonNameMatchesAnchor(
+                                            candidate.Name,
+                                            anchor.ScholarSearchText))
+                                .Take(5)
+                                .ToList();
+
+                        groupDiagnostics.Add(
+                            $"Anchor={anchor.ScholarSearchText}; " +
+                            $"ExpectedEmail={anchor.ExpectedEmail ?? "(none)"}; " +
+                            $"Candidates={string.Join(",", identityCandidates.Select(item => item.AuthorId))}");
+
+                        foreach (var candidate in
+                            identityCandidates)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            seenAuthorIds.Add(
+                                candidate.AuthorId);
+
+                            try
+                            {
+                                using var profileDocument =
+                                    await GetAuthorGeneralAsync(
+                                        candidate.AuthorId,
+                                        cancellationToken);
+
+                                profilesFetched++;
+
+                                var affiliations =
+                                    AcademicOnlineDepartmentParser
+                                        .GetDepartmentAffiliations(
+                                            profileDocument.RootElement);
+
+                                affiliationsObserved +=
+                                    affiliations.Count;
+
+                                var affiliationSummary =
+                                    affiliations.Count == 0
+                                        ? "(none)"
+                                        : string.Join(
+                                            " | ",
+                                            affiliations.Select(item =>
+                                                $"Name={item.Name};" +
+                                                $"ParentName={item.ParentName ?? "(null)"};" +
+                                                $"Slug={item.Slug ?? "(null)"};" +
+                                                $"ParentSlug={item.ParentSlug ?? "(null)"}"));
+
+                                groupDiagnostics.Add(
+                                    $"Anchor={anchor.ScholarSearchText}; " +
+                                    $"AuthorId={candidate.AuthorId}; " +
+                                    $"Affiliations={affiliationSummary}");
+
+                                var parentIds =
+                                    affiliations
+                                        .Where(item =>
+                                            DepartmentNamesEquivalent(
+                                                item.Name,
+                                                normalizedParentName) &&
+                                            !string.IsNullOrWhiteSpace(
+                                                item.Id))
+                                        .Select(item => item.Id!)
+                                        .ToHashSet(
+                                            StringComparer.OrdinalIgnoreCase);
+
+                                var parentSlugs =
+                                    affiliations
+                                        .Where(item =>
+                                            DepartmentNamesEquivalent(
+                                                item.Name,
+                                                normalizedParentName) &&
+                                            !string.IsNullOrWhiteSpace(
+                                                item.Slug))
+                                        .Select(item => item.Slug!)
+                                        .ToHashSet(
+                                            StringComparer.OrdinalIgnoreCase);
+
+                                var directChildren =
+                                    affiliations
+                                        .Where(item =>
+                                            !DepartmentNamesEquivalent(
+                                                item.Name,
+                                                normalizedParentName) &&
+                                            (
+                                                DepartmentNamesEquivalent(
+                                                    item.ParentName,
+                                                    normalizedParentName)
+                                                ||
+                                                (!string.IsNullOrWhiteSpace(
+                                                     item.ParentId) &&
+                                                 parentIds.Contains(
+                                                     item.ParentId))
+                                                ||
+                                                (!string.IsNullOrWhiteSpace(
+                                                     item.ParentSlug) &&
+                                                 parentSlugs.Contains(
+                                                     item.ParentSlug))
+                                            ))
+                                        .ToList();
+
+                                var anchorMatch =
+                                    directChildren
+                                        .FirstOrDefault(item =>
+                                            group.Any(seed =>
+                                                DepartmentNamesEquivalent(
+                                                    item.Name,
+                                                    seed.SearchName)))
+                                    ??
+                                    directChildren
+                                        .FirstOrDefault(item =>
+                                            DepartmentNamesEquivalent(
+                                                item.Name,
+                                                group.Key));
+
+                                if (anchorMatch is null)
+                                {
+                                    continue;
+                                }
+
+                                resolved =
+                                    new AcademicOnlineDepartmentDiscoveryItem
+                                    {
+                                        AcademicOnlineDepartmentId =
+                                            anchorMatch.Id,
+                                        DepartmentName =
+                                            anchorMatch.Name,
+                                        Slug =
+                                            anchorMatch.Slug,
+                                        ParentAcademicOnlineDepartmentId =
+                                            anchorMatch.ParentId,
+                                        ParentName =
+                                            anchorMatch.ParentName
+                                            ?? normalizedParentName,
+                                        ParentSlug =
+                                            anchorMatch.ParentSlug,
+                                        ScholarCount =
+                                            Math.Max(
+                                                1,
+                                                identityCandidates.Count)
+                                    };
+
+                                break;
+                            }
+                            catch (HttpRequestException ex)
+                            {
+                                profileValidationFailures++;
+
+                                groupDiagnostics.Add(
+                                    $"Anchor={anchor.ScholarSearchText}; " +
+                                    $"AuthorId={candidate.AuthorId}; " +
+                                    $"ProfileError={ex.Message}");
+                            }
+                            catch (TaskCanceledException ex)
+                                when (!cancellationToken.IsCancellationRequested)
+                            {
+                                profileValidationFailures++;
+
+                                groupDiagnostics.Add(
+                                    $"Anchor={anchor.ScholarSearchText}; " +
+                                    $"AuthorId={candidate.AuthorId}; " +
+                                    $"ProfileTimeout={ex.Message}");
+                            }
+                        }
+
+                        if (resolved is not null)
+                        {
+                            break;
+                        }
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        profileValidationFailures++;
+
+                        groupDiagnostics.Add(
+                            $"Anchor={anchor.ScholarSearchText}; " +
+                            $"SearchError={ex.Message}");
+                    }
+                    catch (TaskCanceledException ex)
+                        when (!cancellationToken.IsCancellationRequested)
+                    {
+                        profileValidationFailures++;
+
+                        groupDiagnostics.Add(
+                            $"Anchor={anchor.ScholarSearchText}; " +
+                            $"SearchTimeout={ex.Message}");
+                    }
                 }
             }
 
@@ -1126,6 +1361,67 @@ public sealed class AcademicOnlineApiClient
         }
 
         return $"page-ordinal:{page}:{ordinal}";
+    }
+
+    private static bool PersonNameMatchesAnchor(
+        string? candidateName,
+        string? anchorName)
+    {
+        var candidateTokens =
+            TokenizePersonName(candidateName);
+
+        var anchorTokens =
+            TokenizePersonName(anchorName)
+                .Where(token =>
+                    token.Length > 1)
+                .ToList();
+
+        if (candidateTokens.Count == 0 ||
+            anchorTokens.Count == 0)
+        {
+            return false;
+        }
+
+        if (anchorTokens.Count == 1)
+        {
+            return candidateTokens.Contains(
+                anchorTokens[0],
+                StringComparer.Ordinal);
+        }
+
+        return
+            candidateTokens.Contains(
+                anchorTokens[0],
+                StringComparer.Ordinal)
+            &&
+            candidateTokens.Contains(
+                anchorTokens[^1],
+                StringComparer.Ordinal);
+    }
+
+    private static List<string> TokenizePersonName(
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return new List<string>();
+        }
+
+        var normalized =
+            new string(
+                value
+                    .ToLowerInvariant()
+                    .Select(character =>
+                        char.IsLetterOrDigit(character)
+                            ? character
+                            : ' ')
+                    .ToArray());
+
+        return normalized
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
     }
 
     private static bool DepartmentNamesEquivalent(
