@@ -58,6 +58,7 @@ public sealed class AcademicOnlineDepartmentRosterMember
     public string? ExpectedEmail { get; init; }
     public string? AcademicOnlineAuthorId { get; init; }
     public string? OpenAlexAuthorId { get; init; }
+    public string? OpenAlexResolutionStatus { get; init; }
     public int SearchPriority { get; init; }
 }
 
