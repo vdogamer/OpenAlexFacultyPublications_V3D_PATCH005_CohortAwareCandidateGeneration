@@ -2288,6 +2288,338 @@ public sealed class AcademicOnlineDepartmentSyncJob
             .ToList();
     }
 
+    private async Task<OpenAlexFallbackProcessResult>
+        ProcessOpenAlexRosterFallbackAsync(
+            long runId,
+            long departmentId,
+            RosterPublicationSource rosterSource,
+            AcademicOnlineDepartmentSyncRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (request.VerifiedOnly)
+        {
+            throw new InvalidOperationException(
+                "OpenAlex fallback publications cannot satisfy Academic Online VerifiedOnly policy.");
+        }
+
+        var filter =
+            BuildOpenAlexAuthorWorksFilter(
+                rosterSource.SourceAuthorId,
+                request.FromYear,
+                request.ToYear);
+
+        var cursor = "*";
+        var pagesFetched = 0;
+        var publicationsProcessed = 0;
+        var hitMaxPages = false;
+        var maxPages =
+            Math.Clamp(
+                _options.MaxPublicationPages,
+                1,
+                1000);
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            using var page =
+                await _openAlexClient.GetWorksPageAsync(
+                    filter,
+                    cursor,
+                    cancellationToken);
+
+            pagesFetched++;
+
+            foreach (var work in
+                     page.ResultsElement
+                         .EnumerateArray())
+            {
+                var publicationYear =
+                    GetInt(
+                        work,
+                        "publication_year");
+
+                if (request.FromYear.HasValue &&
+                    publicationYear.HasValue &&
+                    publicationYear.Value <
+                    request.FromYear.Value)
+                {
+                    continue;
+                }
+
+                if (request.ToYear.HasValue &&
+                    publicationYear.HasValue &&
+                    publicationYear.Value >
+                    request.ToYear.Value)
+                {
+                    continue;
+                }
+
+                var openAlexId =
+                    GetString(
+                        work,
+                        "id");
+
+                var doi =
+                    GetString(
+                        work,
+                        "doi");
+
+                var title =
+                    GetString(
+                        work,
+                        "title")
+                    ?? GetString(
+                        work,
+                        "display_name");
+
+                var venue =
+                    GetNestedString(
+                        work,
+                        "primary_location",
+                        "source",
+                        "display_name");
+
+                var link =
+                    GetNestedString(
+                        work,
+                        "primary_location",
+                        "landing_page_url")
+                    ?? doi
+                    ?? openAlexId;
+
+                var publicationKey =
+                    await _repository.UpsertPublicationAsync(
+                        runId,
+                        academicOnlinePublicationId: null,
+                        openAlexId,
+                        doi,
+                        title,
+                        venue,
+                        publicationYear?.ToString(),
+                        publicationYear,
+                        GetInt(
+                            work,
+                            "cited_by_count"),
+                        verified: null,
+                        link,
+                        BuildOpenAlexCoauthorsJson(
+                            work),
+                        GetRawJsonProperty(
+                            work,
+                            "keywords"),
+                        work.GetRawText(),
+                        cancellationToken);
+
+                await _repository
+                    .TouchDepartmentPublicationAsync(
+                        runId,
+                        departmentId,
+                        publicationKey,
+                        cancellationToken);
+
+                await _repository
+                    .TouchDepartmentRosterPublicationAsync(
+                        runId,
+                        departmentId,
+                        rosterSource.RosterMemberId,
+                        publicationKey,
+                        "OpenAlex",
+                        rosterSource.SourceAuthorId,
+                        cancellationToken);
+
+                publicationsProcessed++;
+            }
+
+            var nextCursor =
+                page.NextCursor;
+
+            if (pagesFetched >= maxPages)
+            {
+                hitMaxPages =
+                    !string.IsNullOrWhiteSpace(
+                        nextCursor) &&
+                    !string.Equals(
+                        nextCursor,
+                        cursor,
+                        StringComparison.Ordinal);
+                break;
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    nextCursor) ||
+                string.Equals(
+                    nextCursor,
+                    cursor,
+                    StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            cursor = nextCursor;
+        }
+
+        return new OpenAlexFallbackProcessResult(
+            PublicationsProcessed:
+                publicationsProcessed,
+            PagesFetched:
+                pagesFetched,
+            HitMaxPages:
+                hitMaxPages);
+    }
+
+    private static string
+        BuildOpenAlexAuthorWorksFilter(
+            string openAlexAuthorId,
+            int? fromYear,
+            int? toYear)
+    {
+        var normalizedAuthorId =
+            NormalizeOpenAlexAuthorId(
+                openAlexAuthorId)
+            ?? throw new InvalidOperationException(
+                $"Invalid OpenAlex author ID '{openAlexAuthorId}'.");
+
+        var filters =
+            new List<string>
+            {
+                $"authorships.author.id:{normalizedAuthorId}"
+            };
+
+        if (fromYear.HasValue)
+        {
+            filters.Add(
+                $"from_publication_date:{fromYear.Value:D4}-01-01");
+        }
+
+        if (toYear.HasValue)
+        {
+            filters.Add(
+                $"to_publication_date:{toYear.Value:D4}-12-31");
+        }
+
+        return string.Join(
+            ",",
+            filters);
+    }
+
+    private static string?
+        GetNestedString(
+            JsonElement element,
+            params string[] path)
+    {
+        var current = element;
+
+        foreach (var segment in path)
+        {
+            if (current.ValueKind !=
+                    JsonValueKind.Object ||
+                !current.TryGetProperty(
+                    segment,
+                    out current))
+            {
+                return null;
+            }
+        }
+
+        if (current.ValueKind ==
+            JsonValueKind.Null ||
+            current.ValueKind ==
+            JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return current.ValueKind ==
+            JsonValueKind.String
+                ? current.GetString()
+                : current.ToString();
+    }
+
+    private static string?
+        GetRawJsonProperty(
+            JsonElement element,
+            string propertyName)
+    {
+        if (element.ValueKind !=
+                JsonValueKind.Object ||
+            !element.TryGetProperty(
+                propertyName,
+                out var value) ||
+            value.ValueKind ==
+                JsonValueKind.Null ||
+            value.ValueKind ==
+                JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return value.GetRawText();
+    }
+
+    private static string?
+        BuildOpenAlexCoauthorsJson(
+            JsonElement work)
+    {
+        if (work.ValueKind !=
+                JsonValueKind.Object ||
+            !work.TryGetProperty(
+                "authorships",
+                out var authorships) ||
+            authorships.ValueKind !=
+                JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var rows =
+            new List<Dictionary<string, string?>>();
+
+        foreach (var authorship in
+                 authorships.EnumerateArray())
+        {
+            if (authorship.ValueKind !=
+                    JsonValueKind.Object ||
+                !authorship.TryGetProperty(
+                    "author",
+                    out var author) ||
+                author.ValueKind !=
+                    JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var name =
+                GetString(
+                    author,
+                    "display_name");
+
+            var authorId =
+                NormalizeOpenAlexAuthorId(
+                    GetString(
+                        author,
+                        "id"));
+
+            if (string.IsNullOrWhiteSpace(
+                    name) &&
+                string.IsNullOrWhiteSpace(
+                    authorId))
+            {
+                continue;
+            }
+
+            rows.Add(
+                new Dictionary<string, string?>
+                {
+                    ["name"] = name,
+                    ["openalex_id"] =
+                        authorId
+                });
+        }
+
+        return rows.Count == 0
+            ? null
+            : JsonSerializer.Serialize(rows);
+    }
+
     private static void ValidateYearRange(
         int? fromYear,
         int? toYear)
@@ -2386,6 +2718,8 @@ internal sealed class ScholarSelection
     public string SourceMode { get; init; } = "DirectDepartment";
     public IReadOnlyList<AcademicOnlineScholarSearchCandidate> Scholars { get; init; } =
         Array.Empty<AcademicOnlineScholarSearchCandidate>();
+    public IReadOnlyList<RosterPublicationSource> RosterPublicationSources { get; init; } =
+        Array.Empty<RosterPublicationSource>();
     public int ScholarsDiscovered { get; init; }
     public int ScholarPagesFetched { get; init; }
     public bool ScholarPaginationSafeguardHit { get; init; }
@@ -2421,6 +2755,17 @@ internal sealed record OpenAlexFallbackCandidate(
 internal sealed record OpenAlexUvaEvidence(
     bool IsUva,
     string Evidence);
+
+internal sealed record RosterPublicationSource(
+    long RosterMemberId,
+    string DisplayName,
+    string SourceProvider,
+    string SourceAuthorId);
+
+internal sealed record OpenAlexFallbackProcessResult(
+    int PublicationsProcessed,
+    int PagesFetched,
+    bool HitMaxPages);
 
 internal sealed record RosterCandidateEvaluation(
     AcademicOnlineScholarSearchCandidate Candidate,
