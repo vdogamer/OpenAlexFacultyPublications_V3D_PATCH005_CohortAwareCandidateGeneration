@@ -107,6 +107,9 @@ BEGIN
         DiscoveryFirstSeenAtUtc DATETIME2(3) NULL,
         DiscoveryLastSeenAtUtc DATETIME2(3) NULL,
         LastDiscoveryRunId BIGINT NULL,
+        SourceMode NVARCHAR(30) NOT NULL
+            CONSTRAINT DF_academiconline_Department_SourceMode DEFAULT (N'DirectDepartment'),
+        SourceModeNote NVARCHAR(1000) NULL,
         CONSTRAINT UQ_academiconline_Department_SourceName UNIQUE (SourceName)
     );
 END;
