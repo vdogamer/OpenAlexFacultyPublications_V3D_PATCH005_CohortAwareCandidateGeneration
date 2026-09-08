@@ -57,6 +57,7 @@ public sealed class AcademicOnlineDepartmentRosterMember
     public string DisplayName { get; init; } = string.Empty;
     public string? ExpectedEmail { get; init; }
     public string? AcademicOnlineAuthorId { get; init; }
+    public string? OpenAlexAuthorId { get; init; }
     public int SearchPriority { get; init; }
 }
 
