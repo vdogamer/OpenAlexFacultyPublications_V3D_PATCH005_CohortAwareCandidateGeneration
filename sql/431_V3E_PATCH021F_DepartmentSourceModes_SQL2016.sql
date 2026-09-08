@@ -221,7 +221,6 @@ BEGIN
         SourceMode = N'AggregateUnits',
         SourceModeNote =
             N'Official UVA Department of Medicine umbrella department; membership is assembled from its Academic Online division units.',
-        RefreshEnabled = 0,
         RefreshMaxScholars =
             CASE WHEN RefreshMaxScholars < 1000 THEN 1000 ELSE RefreshMaxScholars END
     WHERE SourceName = N'Department of Medicine';
@@ -277,8 +276,7 @@ BEGIN
         IsActive = 1,
         SourceMode = N'FacultyRoster',
         SourceModeNote =
-            N'Academic Online does not expose a usable Neurosurgery department node; membership is driven by the official UVA Neurosurgery faculty roster.',
-        RefreshEnabled = 0
+            N'Academic Online does not expose a usable Neurosurgery department node; membership is driven by the official UVA Neurosurgery faculty roster.'
     WHERE SourceName = N'Department of Neurosurgery';
 END;
 
