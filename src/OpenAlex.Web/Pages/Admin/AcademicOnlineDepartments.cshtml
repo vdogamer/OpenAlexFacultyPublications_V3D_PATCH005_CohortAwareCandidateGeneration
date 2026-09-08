@@ -194,6 +194,26 @@ else
         <section class="card">
             <h2>@department.DepartmentName</h2>
 
+            <p class="small">
+                <strong>Source mode:</strong>
+                @department.SourceMode
+                @if (department.SourceMode == "AggregateUnits")
+                {
+                    <span> · @department.SourceUnitAliasCount configured unit alias(es)</span>
+                }
+                else if (department.SourceMode == "FacultyRoster")
+                {
+                    <span> · @department.RosterMemberCount active roster member(s)</span>
+                }
+            </p>
+
+            @if (!string.IsNullOrWhiteSpace(department.SourceModeNote))
+            {
+                <p class="small">
+                    @department.SourceModeNote
+                </p>
+            }
+
             @if (department.DiscoveryLastSeenAtUtc.HasValue)
             {
                 <p class="small">
