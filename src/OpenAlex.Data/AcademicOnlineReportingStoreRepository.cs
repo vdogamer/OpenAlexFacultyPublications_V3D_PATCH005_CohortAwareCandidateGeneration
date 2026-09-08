@@ -1236,8 +1236,10 @@ SET
     LastResolvedAtUtc = SYSUTCDATETIME(),
     ResolutionStatus = @Status,
     ResolutionError = @ErrorMessage,
-    ResolutionMethod = @ResolutionMethod,
-    ResolutionEvidence = @ResolutionEvidence,
+    ResolutionMethod =
+        COALESCE(@ResolutionMethod, ResolutionMethod),
+    ResolutionEvidence =
+        COALESCE(@ResolutionEvidence, ResolutionEvidence),
     UpdatedAtUtc = SYSUTCDATETIME()
 WHERE DepartmentRosterMemberId = @RosterMemberId;";
 
