@@ -928,6 +928,9 @@ public sealed class AcademicOnlineDepartmentSyncJob
         var evaluations =
             new List<RosterCandidateEvaluation>();
 
+        var evaluationNotes =
+            searchNotes.ToList();
+
         foreach (var item in candidatesToEvaluate)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -954,18 +957,14 @@ public sealed class AcademicOnlineDepartmentSyncJob
             }
             catch (HttpRequestException ex)
             {
-                searchNotes
-                    .ToList()
-                    .Add(
-                        $"ProfileError={candidate.AuthorId}:{ex.Message}");
+                evaluationNotes.Add(
+                    $"ProfileError={candidate.AuthorId}:{ex.Message}");
             }
             catch (TaskCanceledException ex)
                 when (!cancellationToken.IsCancellationRequested)
             {
-                searchNotes
-                    .ToList()
-                    .Add(
-                        $"ProfileTimeout={candidate.AuthorId}:{ex.Message}");
+                evaluationNotes.Add(
+                    $"ProfileTimeout={candidate.AuthorId}:{ex.Message}");
             }
         }
 
@@ -973,7 +972,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
             evaluations,
             searchRequests,
             "ScholarSearchProfile",
-            $"Scholar search evidence. {string.Join(" | ", searchNotes)}");
+            $"Scholar search evidence. {string.Join(" | ", evaluationNotes)}");
     }
 
     private async Task<RosterResolution>
