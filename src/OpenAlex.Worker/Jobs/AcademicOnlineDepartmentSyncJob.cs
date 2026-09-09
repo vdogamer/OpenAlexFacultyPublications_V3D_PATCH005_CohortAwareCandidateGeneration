@@ -1567,6 +1567,369 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 $"Evaluations={evaluationText}");
     }
 
+    private static bool IsUsableOpenAlexFallbackStatus(
+        string? status)
+    {
+        return string.Equals(
+                   status,
+                   "ProposedUnique",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               string.Equals(
+                   status,
+                   "DoiSeedConverged",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<OpenAlexFallbackPreview>
+        ResolveOpenAlexRosterIdentityFromSeedsAsync(
+            AcademicOnlineDepartmentRosterMember member,
+            CancellationToken cancellationToken)
+    {
+        var seeds =
+            await _repository.GetRosterIdentitySeedsAsync(
+                member.RosterMemberId,
+                cancellationToken);
+
+        var doiSeeds =
+            seeds
+                .Where(seed =>
+                    string.Equals(
+                        seed.SeedType,
+                        "DOI",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(
+                        seed.SeedValue) &&
+                    !string.IsNullOrWhiteSpace(
+                        seed.OpenAlexWorkId))
+                .ToList();
+
+        if (doiSeeds.Count < 2)
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "NoSeeds",
+                Evidence:
+                    $"DOI-seeded recovery requires at least two active DOI/OpenAlex-work seeds. " +
+                    $"Roster={member.DisplayName}; SeedCount={doiSeeds.Count}.");
+        }
+
+        var evidence =
+            new List<OpenAlexSeedAuthorEvidence>();
+
+        var notes =
+            new List<string>();
+
+        foreach (var seed in doiSeeds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var workResponse =
+                await _openAlexClient.GetWorkByIdAsync(
+                    seed.OpenAlexWorkId!,
+                    cancellationToken);
+
+            if (!workResponse.IsSuccessStatusCode ||
+                workResponse.RawDocument is null)
+            {
+                notes.Add(
+                    $"Seed={seed.SeedValue};" +
+                    $"Work={seed.OpenAlexWorkId};" +
+                    $"Status=WorkLookupFailed;" +
+                    $"Http={workResponse.HttpStatusCode}");
+
+                continue;
+            }
+
+            var work =
+                workResponse.RawDocument.RootElement;
+
+            var expectedDoi =
+                NormalizeDoiSeed(
+                    seed.SeedValue);
+
+            var actualDoi =
+                NormalizeDoiSeed(
+                    GetString(
+                        work,
+                        "doi"));
+
+            if (!string.Equals(
+                    expectedDoi,
+                    actualDoi,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                notes.Add(
+                    $"Seed={seed.SeedValue};" +
+                    $"Work={seed.OpenAlexWorkId};" +
+                    $"Status=DoiMismatch;" +
+                    $"ActualDoi={actualDoi ?? "(null)"}");
+
+                continue;
+            }
+
+            if (!work.TryGetProperty(
+                    "authorships",
+                    out var authorships) ||
+                authorships.ValueKind !=
+                    JsonValueKind.Array)
+            {
+                notes.Add(
+                    $"Seed={seed.SeedValue};" +
+                    $"Work={seed.OpenAlexWorkId};" +
+                    "Status=NoAuthorships");
+
+                continue;
+            }
+
+            var matches =
+                new List<OpenAlexSeedAuthorEvidence>();
+
+            foreach (var authorship in
+                     authorships.EnumerateArray())
+            {
+                if (authorship.ValueKind !=
+                        JsonValueKind.Object ||
+                    !authorship.TryGetProperty(
+                        "author",
+                        out var author) ||
+                    author.ValueKind !=
+                        JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                var authorId =
+                    NormalizeOpenAlexAuthorId(
+                        GetString(
+                            author,
+                            "id"));
+
+                var authorName =
+                    GetString(
+                        author,
+                        "display_name");
+
+                var nameScore =
+                    CalculateRosterNameScore(
+                        authorName,
+                        member.DisplayName);
+
+                if (string.IsNullOrWhiteSpace(
+                        authorId) ||
+                    nameScore < 85)
+                {
+                    continue;
+                }
+
+                matches.Add(
+                    new OpenAlexSeedAuthorEvidence(
+                        seed.IdentitySeedId,
+                        seed.SeedValue,
+                        seed.OpenAlexWorkId!,
+                        authorId,
+                        authorName,
+                        nameScore,
+                        seed.SourceReference));
+            }
+
+            if (matches.Count == 1)
+            {
+                evidence.Add(
+                    matches[0]);
+
+                notes.Add(
+                    $"Seed={seed.SeedValue};" +
+                    $"Work={seed.OpenAlexWorkId};" +
+                    $"MatchedAuthor={matches[0].OpenAlexAuthorId};" +
+                    $"MatchedName={matches[0].AuthorName ?? "(null)"};" +
+                    $"NameScore={matches[0].NameScore}");
+            }
+            else
+            {
+                notes.Add(
+                    $"Seed={seed.SeedValue};" +
+                    $"Work={seed.OpenAlexWorkId};" +
+                    $"Status={(matches.Count == 0 ? "NoStrongAuthorMatch" : "AmbiguousAuthorMatch")};" +
+                    $"MatchCount={matches.Count}");
+            }
+        }
+
+        if (evidence.Count < 2)
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "InsufficientSeedEvidence",
+                Evidence:
+                    $"DOI-seeded recovery did not produce at least two independently matching works. " +
+                    $"Roster={member.DisplayName}; " +
+                    $"MatchedSeeds={evidence.Count}/{doiSeeds.Count}; " +
+                    $"{string.Join(" | ", notes)}");
+        }
+
+        var byAuthor =
+            evidence
+                .GroupBy(
+                    item =>
+                        item.OpenAlexAuthorId,
+                    StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(
+                    group =>
+                        group.Count())
+                .ToList();
+
+        if (byAuthor.Count != 1)
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "AmbiguousSeedEvidence",
+                Evidence:
+                    $"DOI seeds resolved to more than one OpenAlex author ID. " +
+                    $"Roster={member.DisplayName}; " +
+                    $"Authors={string.Join(",", byAuthor.Select(group => $"{group.Key}:{group.Count()}"))}; " +
+                    $"{string.Join(" | ", notes)}");
+        }
+
+        var winning =
+            byAuthor[0].ToList();
+
+        var candidateAuthorId =
+            winning[0].OpenAlexAuthorId;
+
+        if (winning.Count < 2)
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "InsufficientSeedEvidence",
+                Evidence:
+                    $"Only one DOI seed supported OpenAlex author {candidateAuthorId}. " +
+                    $"{string.Join(" | ", notes)}");
+        }
+
+        using var authorResponse =
+            await _openAlexClient.GetAuthorByIdAsync(
+                candidateAuthorId,
+                cancellationToken);
+
+        if (!authorResponse.IsSuccessStatusCode ||
+            authorResponse.RawDocument is null)
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "SeedAuthorValidationUnavailable",
+                Evidence:
+                    $"DOI seeds converged on {candidateAuthorId}, but direct OpenAlex author validation failed. " +
+                    $"Http={authorResponse.HttpStatusCode}; " +
+                    $"{string.Join(" | ", notes)}");
+        }
+
+        var author =
+            authorResponse.RawDocument.RootElement;
+
+        var profileName =
+            GetString(
+                author,
+                "display_name");
+
+        var profileNameScore =
+            CalculateRosterNameScore(
+                profileName,
+                member.DisplayName);
+
+        if (profileNameScore < 85)
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "SeedAuthorNameMismatch",
+                Evidence:
+                    $"DOI seeds converged on {candidateAuthorId}, but the direct author profile name was not compatible. " +
+                    $"Roster={member.DisplayName}; ProfileName={profileName ?? "(null)"}; " +
+                    $"NameScore={profileNameScore}; " +
+                    $"{string.Join(" | ", notes)}");
+        }
+
+        var uvaEvidence =
+            GetOpenAlexUvaEvidence(
+                author);
+
+        var acceptanceBasis =
+            uvaEvidence.IsUva
+                ? "Multi-work DOI convergence + direct OpenAlex author name + UVA affiliation."
+                : winning.Count >= 3
+                    ? "Three independent DOI seeds + direct OpenAlex author name; current UVA membership is supplied by the official roster."
+                    : string.Empty;
+
+        if (string.IsNullOrWhiteSpace(
+                acceptanceBasis))
+        {
+            return new OpenAlexFallbackPreview(
+                OpenAlexAuthorId: null,
+                Status: "SeedConvergedNoCurrentUvaEvidence",
+                Evidence:
+                    $"Two DOI seeds converged on {candidateAuthorId}, but the OpenAlex author entity did not provide current UVA affiliation evidence. " +
+                    $"Roster={member.DisplayName}; ProfileName={profileName}; " +
+                    $"NameScore={profileNameScore}; " +
+                    $"UvaEvidence={uvaEvidence.Evidence}; " +
+                    $"{string.Join(" | ", notes)}");
+        }
+
+        return new OpenAlexFallbackPreview(
+            OpenAlexAuthorId:
+                candidateAuthorId,
+            Status:
+                "DoiSeedConverged",
+            Evidence:
+                $"DOI-seeded identity recovery succeeded. " +
+                $"Roster={member.DisplayName}; " +
+                $"OpenAlexAuthorId={candidateAuthorId}; " +
+                $"ProfileName={profileName}; " +
+                $"ProfileNameScore={profileNameScore}; " +
+                $"SupportingSeeds={winning.Count}/{doiSeeds.Count}; " +
+                $"UvaAffiliation={uvaEvidence.IsUva}; " +
+                $"UvaEvidence={uvaEvidence.Evidence}; " +
+                $"AcceptanceBasis={acceptanceBasis} " +
+                $"{string.Join(" | ", notes)}");
+    }
+
+    private static string? NormalizeDoiSeed(
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(
+                value))
+        {
+            return null;
+        }
+
+        var normalized =
+            value.Trim();
+
+        normalized =
+            normalized
+                .Replace(
+                    "https://doi.org/",
+                    string.Empty,
+                    StringComparison.OrdinalIgnoreCase)
+                .Replace(
+                    "http://doi.org/",
+                    string.Empty,
+                    StringComparison.OrdinalIgnoreCase);
+
+        if (normalized.StartsWith(
+                "doi:",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            normalized =
+                normalized[4..];
+        }
+
+        normalized =
+            normalized.Trim();
+
+        return normalized.Length == 0
+            ? null
+            : normalized.ToLowerInvariant();
+    }
+
     private async Task<OpenAlexFallbackPreview>
         PreviewOpenAlexRosterFallbackAsync(
             AcademicOnlineDepartmentRosterMember member,
