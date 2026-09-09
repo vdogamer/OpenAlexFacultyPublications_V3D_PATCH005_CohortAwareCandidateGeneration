@@ -3120,6 +3120,15 @@ internal sealed record CoauthorTokenPair(
     string Token1,
     string Token2);
 
+internal sealed record OpenAlexSeedAuthorEvidence(
+    long IdentitySeedId,
+    string Doi,
+    string OpenAlexWorkId,
+    string OpenAlexAuthorId,
+    string? AuthorName,
+    int NameScore,
+    string? SourceReference);
+
 internal sealed record OpenAlexFallbackPreview(
     string? OpenAlexAuthorId,
     string Status,
