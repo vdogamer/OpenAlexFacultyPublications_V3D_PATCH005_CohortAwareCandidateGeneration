@@ -1,0 +1,19 @@
+# V3E repository hygiene — generated .NET build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / test output
+.vs/
+TestResults/
+artifacts/
+publish/
+
+# User-specific IDE/MSBuild files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local logs / temporary files
+*.log
+*.tmp
