@@ -861,8 +861,19 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 continue;
             }
 
+            string? openAlexAuthorId =
+                string.IsNullOrWhiteSpace(
+                    member.OpenAlexAuthorId)
+                    ? null
+                    : member.OpenAlexAuthorId.Trim();
+
+            var openAlexStatus =
+                member.OpenAlexResolutionStatus;
+
             if (string.IsNullOrWhiteSpace(
-                    member.OpenAlexAuthorId))
+                    openAlexAuthorId) ||
+                !IsUsableOpenAlexFallbackStatus(
+                    openAlexStatus))
             {
                 var openAlexPreview =
                     await PreviewOpenAlexRosterFallbackAsync(
@@ -877,44 +888,46 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         openAlexPreview.Evidence,
                         CancellationToken.None);
 
-                if (string.Equals(
-                        openAlexPreview.Status,
-                        "ProposedUnique",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrWhiteSpace(
-                        openAlexPreview.OpenAlexAuthorId) &&
-                    !verifiedOnly)
-                {
-                    rosterSources.Add(
-                        new RosterPublicationSource(
-                            member.RosterMemberId,
-                            member.DisplayName,
-                            "OpenAlex",
-                            openAlexPreview.OpenAlexAuthorId));
+                openAlexAuthorId =
+                    openAlexPreview.OpenAlexAuthorId;
+                openAlexStatus =
+                    openAlexPreview.Status;
 
-                    await _repository
-                        .RecordRosterMemberResolutionAsync(
-                            member.RosterMemberId,
-                            academicOnlineAuthorId: null,
-                            status: "Unresolved",
-                            errorMessage:
-                                resolutionDiagnostic
-                                ?? "Academic Online identity unresolved; OpenAlex fallback proposed.",
-                            resolutionMethod:
-                                resolutionMethod,
-                            resolutionEvidence:
-                                resolutionDiagnostic,
-                            cancellationToken:
+                if (!IsUsableOpenAlexFallbackStatus(
+                        openAlexStatus) ||
+                    string.IsNullOrWhiteSpace(
+                        openAlexAuthorId))
+                {
+                    var seedResolution =
+                        await ResolveOpenAlexRosterIdentityFromSeedsAsync(
+                            member,
+                            cancellationToken);
+
+                    if (!string.Equals(
+                            seedResolution.Status,
+                            "NoSeeds",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        await _repository
+                            .RecordRosterMemberOpenAlexFallbackAsync(
+                                member.RosterMemberId,
+                                seedResolution.OpenAlexAuthorId,
+                                seedResolution.Status,
+                                seedResolution.Evidence,
                                 CancellationToken.None);
 
-                    continue;
+                        openAlexAuthorId =
+                            seedResolution.OpenAlexAuthorId;
+                        openAlexStatus =
+                            seedResolution.Status;
+                    }
                 }
             }
-            else if (
-                string.Equals(
-                    member.OpenAlexResolutionStatus,
-                    "ProposedUnique",
-                    StringComparison.OrdinalIgnoreCase) &&
+
+            if (IsUsableOpenAlexFallbackStatus(
+                    openAlexStatus) &&
+                !string.IsNullOrWhiteSpace(
+                    openAlexAuthorId) &&
                 !verifiedOnly)
             {
                 rosterSources.Add(
@@ -922,7 +935,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         member.RosterMemberId,
                         member.DisplayName,
                         "OpenAlex",
-                        member.OpenAlexAuthorId.Trim()));
+                        openAlexAuthorId));
 
                 await _repository
                     .RecordRosterMemberResolutionAsync(
@@ -931,7 +944,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         status: "Unresolved",
                         errorMessage:
                             resolutionDiagnostic
-                            ?? "Academic Online identity unresolved; using previously validated OpenAlex fallback.",
+                            ?? "Academic Online identity unresolved; using validated OpenAlex fallback.",
                         resolutionMethod:
                             resolutionMethod,
                         resolutionEvidence:
@@ -953,7 +966,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                     errorMessage:
                         verifiedOnly &&
                         !string.IsNullOrWhiteSpace(
-                            member.OpenAlexAuthorId)
+                            openAlexAuthorId)
                             ? "OpenAlex fallback cannot satisfy Academic Online VerifiedOnly policy."
                             : resolutionDiagnostic
                               ?? "No unique publication-source identity matched the official roster member.",
