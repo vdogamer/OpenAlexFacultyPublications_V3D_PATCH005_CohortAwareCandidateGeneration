@@ -24,6 +24,21 @@ DECLARE @CurrentSnapshotRunId BIGINT =
     WHERE DepartmentId = @DepartmentId
 );
 
+DECLARE @RefreshFromYear INT =
+(
+    SELECT RefreshFromYear
+    FROM academiconline.Department
+    WHERE DepartmentId = @DepartmentId
+);
+
+DECLARE @RefreshToYear INT =
+(
+    SELECT RefreshToYear
+    FROM academiconline.Department
+    WHERE DepartmentId = @DepartmentId
+);
+
+
 SELECT
     d.DepartmentId,
     d.CanonicalName,
@@ -89,37 +104,20 @@ SELECT
         SUM
         (
             CASE
-                WHEN PublicationYear IS NULL
-                    THEN 1
                 WHEN
                     (
-                        SELECT RefreshFromYear
-                        FROM academiconline.Department
-                        WHERE DepartmentId =
-                              @DepartmentId
-                    ) IS NOT NULL
+                        @RefreshFromYear IS NOT NULL
+                        OR @RefreshToYear IS NOT NULL
+                    )
+                 AND PublicationYear IS NULL
+                    THEN 1
+                WHEN @RefreshFromYear IS NOT NULL
                  AND PublicationYear <
-                    (
-                        SELECT RefreshFromYear
-                        FROM academiconline.Department
-                        WHERE DepartmentId =
-                              @DepartmentId
-                    )
+                     @RefreshFromYear
                     THEN 1
-                WHEN
-                    (
-                        SELECT RefreshToYear
-                        FROM academiconline.Department
-                        WHERE DepartmentId =
-                              @DepartmentId
-                    ) IS NOT NULL
+                WHEN @RefreshToYear IS NOT NULL
                  AND PublicationYear >
-                    (
-                        SELECT RefreshToYear
-                        FROM academiconline.Department
-                        WHERE DepartmentId =
-                              @DepartmentId
-                    )
+                     @RefreshToYear
                     THEN 1
                 ELSE 0
             END
