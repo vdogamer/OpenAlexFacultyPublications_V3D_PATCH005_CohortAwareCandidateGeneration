@@ -1377,7 +1377,10 @@ public sealed class AcademicOnlineApiClient
                            "Academic Online returned an empty JSON document.");
             }
             catch (HttpRequestException ex)
-                when (attempt < maxAttempts)
+                when (attempt < maxAttempts &&
+                      (!ex.StatusCode.HasValue ||
+                       IsTransientStatusCode(
+                           ex.StatusCode.Value)))
             {
                 lastTransportException = ex;
 
