@@ -303,9 +303,13 @@ END;";
         var normalizedAcademicOnlineId = NormalizeOptional(academicOnlinePublicationId);
         var normalizedOpenAlexId = NormalizeOpenAlexId(openAlexId);
         var normalizedDoi = NormalizeDoi(doi);
+        var normalizedPublicationYear =
+            NormalizePublicationYear(publicationYear);
+        var normalizedCitationCount =
+            NormalizeNonNegativeInt(citationCount);
         var titleYearFingerprint = BuildTitleYearFingerprint(
             title,
-            publicationYear,
+            normalizedPublicationYear,
             yearText);
 
         await using var connection = _connectionFactory.CreateConnection();
@@ -417,8 +421,8 @@ WHERE PublicationKey = @PublicationKey;";
                 titleYearFingerprint,
                 venue,
                 yearText,
-                publicationYear,
-                citationCount,
+                normalizedPublicationYear,
+                normalizedCitationCount,
                 verified,
                 link,
                 coauthorsJson,
@@ -487,8 +491,8 @@ VALUES
             titleYearFingerprint,
             venue,
             yearText,
-            publicationYear,
-            citationCount,
+            normalizedPublicationYear,
+            normalizedCitationCount,
             verified,
             link,
             coauthorsJson,
@@ -1658,6 +1662,24 @@ WHERE AcademicOnlineSyncRunId = @RunId;";
             -1,
             keywordsJson);
         AddNullable(command, "@RawJson", SqlDbType.NVarChar, -1, rawJson);
+    }
+
+    private static int? NormalizePublicationYear(
+        int? publicationYear)
+    {
+        return publicationYear.HasValue &&
+               publicationYear.Value is >= 1000 and <= 2100
+            ? publicationYear
+            : null;
+    }
+
+    private static int? NormalizeNonNegativeInt(
+        int? value)
+    {
+        return value.HasValue &&
+               value.Value >= 0
+            ? value
+            : null;
     }
 
     private static string? NormalizeOptional(string? value)
