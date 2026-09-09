@@ -1316,6 +1316,7 @@ public sealed class AcademicOnlineApiClient
     private static AcademicOnlinePublicationItem ParsePublication(JsonElement publication)
     {
         var yearText = GetString(publication, "year");
+        var publicationYear = ParsePublicationYear(yearText);
 
         return new AcademicOnlinePublicationItem
         {
@@ -1323,8 +1324,9 @@ public sealed class AcademicOnlineApiClient
             Title = GetString(publication, "title"),
             Venue = GetString(publication, "venue"),
             YearText = yearText,
-            PublicationYear = int.TryParse(yearText, out var year) ? year : null,
-            CitationCount = GetInt(publication, "num_citations"),
+            PublicationYear = publicationYear,
+            CitationCount = NormalizeNonNegativeInt(
+                GetInt(publication, "num_citations")),
             Doi = GetString(publication, "doi"),
             OpenAlexId = GetString(publication, "openalex_id"),
             Verified = GetBool(publication, "verified"),
@@ -1333,6 +1335,28 @@ public sealed class AcademicOnlineApiClient
             KeywordsJson = GetRawJson(publication, "keywords"),
             RawJson = publication.GetRawText()
         };
+    }
+
+    private static int? ParsePublicationYear(string? yearText)
+    {
+        if (!int.TryParse(
+                yearText,
+                out var year))
+        {
+            return null;
+        }
+
+        return year is >= 1000 and <= 2100
+            ? year
+            : null;
+    }
+
+    private static int? NormalizeNonNegativeInt(int? value)
+    {
+        return value.HasValue &&
+               value.Value >= 0
+            ? value
+            : null;
     }
 
     private static string BuildPublicationDeduplicationKey(
