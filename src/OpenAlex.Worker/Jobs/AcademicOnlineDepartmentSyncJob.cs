@@ -120,6 +120,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
         var scholarsProcessed = 0;
         var publicationRowsProcessed = 0;
+        var publicationRowsExcludedByYearPolicy = 0;
         var scholarPagesFetched = 0;
         var publicationPagesFetched = 0;
         var publicationPaginationSafeguardHitCount = 0;
@@ -309,6 +310,15 @@ public sealed class AcademicOnlineDepartmentSyncJob
                             publicationKey,
                             cancellationToken);
 
+                    if (!PublicationMatchesYearPolicy(
+                            publication.PublicationYear,
+                            request.FromYear,
+                            request.ToYear))
+                    {
+                        publicationRowsExcludedByYearPolicy++;
+                        continue;
+                    }
+
                     await _repository
                         .TouchDepartmentPublicationAsync(
                             runId,
@@ -379,6 +389,9 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 publicationRowsProcessed +=
                     fallbackResult.PublicationsProcessed;
 
+                publicationRowsExcludedByYearPolicy +=
+                    fallbackResult.PublicationsExcludedByYearPolicy;
+
                 publicationPagesFetched +=
                     fallbackResult.PagesFetched;
 
@@ -409,6 +422,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 $"ScholarsProcessed={scholarsProcessed}; " +
                 $"MaxScholarsToProcess={maxScholars}; " +
                 $"PublicationRowsProcessed={publicationRowsProcessed}; " +
+                $"PublicationRowsExcludedByYearPolicy={publicationRowsExcludedByYearPolicy}; " +
                 $"ScholarPagesFetched={scholarPagesFetched}; " +
                 $"PublicationPagesFetched={publicationPagesFetched}; " +
                 $"FromYear={request.FromYear?.ToString() ?? "(all)"}; " +
@@ -2687,6 +2701,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
         var cursor = "*";
         var pagesFetched = 0;
         var publicationsProcessed = 0;
+        var publicationsExcludedByYearPolicy = 0;
         var hitMaxPages = false;
         var maxPages =
             Math.Clamp(
@@ -2712,22 +2727,6 @@ public sealed class AcademicOnlineDepartmentSyncJob
                     GetInt(
                         work,
                         "publication_year");
-
-                if (request.FromYear.HasValue &&
-                    publicationYear.HasValue &&
-                    publicationYear.Value <
-                    request.FromYear.Value)
-                {
-                    continue;
-                }
-
-                if (request.ToYear.HasValue &&
-                    publicationYear.HasValue &&
-                    publicationYear.Value >
-                    request.ToYear.Value)
-                {
-                    continue;
-                }
 
                 var openAlexId =
                     GetString(
@@ -2792,6 +2791,15 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         cancellationToken:
                             cancellationToken);
 
+                if (!PublicationMatchesYearPolicy(
+                        publicationYear,
+                        request.FromYear,
+                        request.ToYear))
+                {
+                    publicationsExcludedByYearPolicy++;
+                    continue;
+                }
+
                 await _repository
                     .TouchDepartmentPublicationAsync(
                         runId,
@@ -2843,10 +2851,47 @@ public sealed class AcademicOnlineDepartmentSyncJob
         return new OpenAlexFallbackProcessResult(
             PublicationsProcessed:
                 publicationsProcessed,
+            PublicationsExcludedByYearPolicy:
+                publicationsExcludedByYearPolicy,
             PagesFetched:
                 pagesFetched,
             HitMaxPages:
                 hitMaxPages);
+    }
+
+    private static bool PublicationMatchesYearPolicy(
+        int? publicationYear,
+        int? fromYear,
+        int? toYear)
+    {
+        if (!fromYear.HasValue &&
+            !toYear.HasValue)
+        {
+            return true;
+        }
+
+        if (!publicationYear.HasValue ||
+            publicationYear.Value < 1000 ||
+            publicationYear.Value > 2100)
+        {
+            return false;
+        }
+
+        if (fromYear.HasValue &&
+            publicationYear.Value <
+            fromYear.Value)
+        {
+            return false;
+        }
+
+        if (toYear.HasValue &&
+            publicationYear.Value >
+            toYear.Value)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static string
@@ -3156,6 +3201,7 @@ internal sealed record RosterPublicationSource(
 
 internal sealed record OpenAlexFallbackProcessResult(
     int PublicationsProcessed,
+    int PublicationsExcludedByYearPolicy,
     int PagesFetched,
     bool HitMaxPages);
 
