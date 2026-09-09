@@ -99,6 +99,72 @@ public sealed class OpenAlexApiClient
         };
     }
 
+    public async Task<OpenAlexEntityResponse> GetAuthorByIdAsync(
+        string openAlexId,
+        CancellationToken cancellationToken = default)
+    {
+        var shortId =
+            NormalizeOpenAlexEntityId(
+                openAlexId,
+                "A");
+
+        var uri =
+            BuildRequestUri(
+                "authors/" +
+                Uri.EscapeDataString(shortId),
+                new Dictionary<string, string?>());
+
+        using var response =
+            await _httpClient.GetAsync(
+                uri,
+                cancellationToken);
+
+        var responseContentLength =
+            response.Content.Headers.ContentLength;
+
+        var content =
+            await response.Content.ReadAsStringAsync(
+                cancellationToken);
+
+        JsonDocument? document = null;
+        string? errorContent = null;
+
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            try
+            {
+                document =
+                    JsonDocument.Parse(content);
+            }
+            catch (JsonException)
+            {
+                errorContent = content;
+            }
+        }
+
+        if (!response.IsSuccessStatusCode &&
+            errorContent is null)
+        {
+            errorContent = content;
+        }
+
+        return new OpenAlexEntityResponse
+        {
+            RequestUri =
+                OpenAlexRequestUriRedactor.Redact(uri),
+            HttpStatusCode =
+                (int)response.StatusCode,
+            IsSuccessStatusCode =
+                response.IsSuccessStatusCode,
+            ResponseContentLength =
+                responseContentLength,
+            RawDocument =
+                document,
+            ErrorContent =
+                errorContent
+        };
+    }
+
     public string BuildInstitutionIdFilter(string fieldName = "id")
     {
         if (_options.InstitutionIds.Count == 0)
