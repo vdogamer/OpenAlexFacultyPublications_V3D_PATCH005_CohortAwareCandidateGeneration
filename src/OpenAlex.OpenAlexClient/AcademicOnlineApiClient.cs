@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -1286,31 +1287,176 @@ public sealed class AcademicOnlineApiClient
         };
     }
 
-    private async Task<JsonDocument> GetJsonDocumentAsync(string relativeUri, CancellationToken cancellationToken)
+    private async Task<JsonDocument> GetJsonDocumentAsync(
+        string relativeUri,
+        CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, relativeUri);
-        AddAuthorization(request);
+        return await SendJsonWithTransientRetryAsync(
+            attempt =>
+            {
+                var request =
+                    new HttpRequestMessage(
+                        HttpMethod.Get,
+                        relativeUri);
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+                AddAuthorization(request);
 
-        return await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken)
-            ?? throw new InvalidOperationException("Academic Online returned an empty JSON document.");
+                return request;
+            },
+            cancellationToken);
     }
 
-    private async Task<JsonDocument> PostJsonDocumentAsync(string relativeUri, object body, CancellationToken cancellationToken)
+    private async Task<JsonDocument> PostJsonDocumentAsync(
+        string relativeUri,
+        object body,
+        CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, relativeUri)
+        return await SendJsonWithTransientRetryAsync(
+            attempt =>
+            {
+                var request =
+                    new HttpRequestMessage(
+                        HttpMethod.Post,
+                        relativeUri)
+                    {
+                        Content =
+                            JsonContent.Create(body)
+                    };
+
+                AddAuthorization(request);
+
+                return request;
+            },
+            cancellationToken);
+    }
+
+    private async Task<JsonDocument> SendJsonWithTransientRetryAsync(
+        Func<int, HttpRequestMessage> requestFactory,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 4;
+
+        Exception? lastTransportException = null;
+
+        for (var attempt = 1;
+             attempt <= maxAttempts;
+             attempt++)
         {
-            Content = JsonContent.Create(body)
-        };
-        AddAuthorization(request);
+            cancellationToken.ThrowIfCancellationRequested();
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+            try
+            {
+                using var request =
+                    requestFactory(attempt);
 
-        return await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken)
-            ?? throw new InvalidOperationException("Academic Online returned an empty JSON document.");
+                using var response =
+                    await _httpClient.SendAsync(
+                        request,
+                        HttpCompletionOption.ResponseHeadersRead,
+                        cancellationToken);
+
+                if (IsTransientStatusCode(
+                        response.StatusCode) &&
+                    attempt < maxAttempts)
+                {
+                    await DelayForTransientRetryAsync(
+                        attempt,
+                        response,
+                        cancellationToken);
+
+                    continue;
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content
+                           .ReadFromJsonAsync<JsonDocument>(
+                               cancellationToken:
+                                   cancellationToken)
+                       ?? throw new InvalidOperationException(
+                           "Academic Online returned an empty JSON document.");
+            }
+            catch (HttpRequestException ex)
+                when (attempt < maxAttempts)
+            {
+                lastTransportException = ex;
+
+                await DelayForTransientRetryAsync(
+                    attempt,
+                    response: null,
+                    cancellationToken);
+            }
+            catch (TaskCanceledException ex)
+                when (!cancellationToken.IsCancellationRequested &&
+                      attempt < maxAttempts)
+            {
+                lastTransportException = ex;
+
+                await DelayForTransientRetryAsync(
+                    attempt,
+                    response: null,
+                    cancellationToken);
+            }
+        }
+
+        throw lastTransportException
+              ?? new HttpRequestException(
+                  "Academic Online request exhausted transient retry attempts.");
+    }
+
+    private static bool IsTransientStatusCode(
+        HttpStatusCode statusCode)
+    {
+        return statusCode ==
+                   HttpStatusCode.RequestTimeout
+               ||
+               statusCode ==
+                   (HttpStatusCode)429
+               ||
+               statusCode ==
+                   HttpStatusCode.InternalServerError
+               ||
+               statusCode ==
+                   HttpStatusCode.BadGateway
+               ||
+               statusCode ==
+                   HttpStatusCode.ServiceUnavailable
+               ||
+               statusCode ==
+                   HttpStatusCode.GatewayTimeout;
+    }
+
+    private static async Task DelayForTransientRetryAsync(
+        int attempt,
+        HttpResponseMessage? response,
+        CancellationToken cancellationToken)
+    {
+        var retryAfter =
+            response?
+                .Headers
+                .RetryAfter?
+                .Delta;
+
+        var exponentialSeconds =
+            Math.Min(
+                8,
+                1 << Math.Max(
+                    0,
+                    attempt - 1));
+
+        var delay =
+            retryAfter.HasValue &&
+            retryAfter.Value > TimeSpan.Zero
+                ? TimeSpan.FromSeconds(
+                    Math.Min(
+                        30,
+                        retryAfter.Value.TotalSeconds))
+                : TimeSpan.FromSeconds(
+                    exponentialSeconds);
+
+        await Task.Delay(
+            delay,
+            cancellationToken);
     }
 
     private static AcademicOnlinePublicationItem ParsePublication(JsonElement publication)
