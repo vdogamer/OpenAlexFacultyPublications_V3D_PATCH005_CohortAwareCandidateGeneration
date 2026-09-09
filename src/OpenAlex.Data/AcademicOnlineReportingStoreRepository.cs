@@ -179,13 +179,7 @@ SET
     PublicationCount = @PublicationCount,
     HasPublications = @HasPublications,
     HasVerifiedPublications = @HasVerifiedPublications,
-    RawJson =
-        CASE
-            WHEN AcademicOnlinePublicationId IS NOT NULL
-             AND @AcademicOnlinePublicationId IS NULL
-                THEN RawJson
-            ELSE @RawJson
-        END,
+    RawJson = @RawJson,
     LastRetrievedAtUtc = SYSUTCDATETIME(),
     LastSyncRunId = @RunId
 WHERE AcademicOnlineAuthorId = @AuthorId;
@@ -400,7 +394,13 @@ SET
     Link = COALESCE(@Link, Link),
     CoauthorsJson = COALESCE(@CoauthorsJson, CoauthorsJson),
     KeywordsJson = COALESCE(@KeywordsJson, KeywordsJson),
-    RawJson = @RawJson,
+    RawJson =
+        CASE
+            WHEN AcademicOnlinePublicationId IS NOT NULL
+             AND @AcademicOnlinePublicationId IS NULL
+                THEN RawJson
+            ELSE @RawJson
+        END,
     LastRetrievedAtUtc = SYSUTCDATETIME(),
     LastSyncRunId = @RunId
 WHERE PublicationKey = @PublicationKey;";
