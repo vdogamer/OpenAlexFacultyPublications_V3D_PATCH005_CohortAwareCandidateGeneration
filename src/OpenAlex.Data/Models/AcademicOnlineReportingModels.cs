@@ -71,3 +71,15 @@ public sealed class AcademicOnlineCoauthorIdentityCandidate
     public int? EarliestPublicationYear { get; init; }
     public int? LatestPublicationYear { get; init; }
 }
+
+
+public sealed class AcademicOnlineRosterIdentitySeed
+{
+    public long IdentitySeedId { get; init; }
+    public long RosterMemberId { get; init; }
+    public string SeedType { get; init; } = string.Empty;
+    public string SeedValue { get; init; } = string.Empty;
+    public string? OpenAlexWorkId { get; init; }
+    public string? SourceReference { get; init; }
+    public string? SourceNote { get; init; }
+}
