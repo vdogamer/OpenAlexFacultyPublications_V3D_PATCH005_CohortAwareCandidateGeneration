@@ -1242,6 +1242,89 @@ ORDER BY
         return rows;
     }
 
+    public async Task<IReadOnlyList<AcademicOnlineRosterIdentitySeed>>
+        GetRosterIdentitySeedsAsync(
+            long rosterMemberId,
+            CancellationToken cancellationToken = default)
+    {
+        var rows =
+            new List<AcademicOnlineRosterIdentitySeed>();
+
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync(
+            cancellationToken);
+
+        if (!await ObjectExistsAsync(
+                connection,
+                "academiconline.DepartmentRosterIdentitySeed",
+                "U",
+                cancellationToken))
+        {
+            return rows;
+        }
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandText = @"
+SELECT
+    DepartmentRosterIdentitySeedId,
+    DepartmentRosterMemberId,
+    SeedType,
+    SeedValue,
+    OpenAlexWorkId,
+    SourceReference,
+    SourceNote
+FROM academiconline.DepartmentRosterIdentitySeed
+WHERE DepartmentRosterMemberId =
+      @RosterMemberId
+  AND IsActive = 1
+ORDER BY
+    SeedPriority,
+    DepartmentRosterIdentitySeedId;";
+
+        command.Parameters.AddWithValue(
+            "@RosterMemberId",
+            rosterMemberId);
+
+        await using var reader =
+            await command.ExecuteReaderAsync(
+                cancellationToken);
+
+        while (await reader.ReadAsync(
+            cancellationToken))
+        {
+            rows.Add(
+                new AcademicOnlineRosterIdentitySeed
+                {
+                    IdentitySeedId =
+                        reader.GetInt64(0),
+                    RosterMemberId =
+                        reader.GetInt64(1),
+                    SeedType =
+                        reader.GetString(2),
+                    SeedValue =
+                        reader.GetString(3),
+                    OpenAlexWorkId =
+                        reader.IsDBNull(4)
+                            ? null
+                            : reader.GetString(4),
+                    SourceReference =
+                        reader.IsDBNull(5)
+                            ? null
+                            : reader.GetString(5),
+                    SourceNote =
+                        reader.IsDBNull(6)
+                            ? null
+                            : reader.GetString(6)
+                });
+        }
+
+        return rows;
+    }
+
     public async Task<IReadOnlyList<AcademicOnlineCoauthorIdentityCandidate>>
         FindCoauthorIdentityCandidatesAsync(
             string token1,
