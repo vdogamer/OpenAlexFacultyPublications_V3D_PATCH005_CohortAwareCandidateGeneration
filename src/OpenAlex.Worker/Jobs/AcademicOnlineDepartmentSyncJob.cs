@@ -1692,8 +1692,8 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         JsonValueKind.Object ||
                     !authorship.TryGetProperty(
                         "author",
-                        out var author) ||
-                    author.ValueKind !=
+                        out var authorshipAuthor) ||
+                    authorshipAuthor.ValueKind !=
                         JsonValueKind.Object)
                 {
                     continue;
@@ -1702,12 +1702,12 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 var authorId =
                     NormalizeOpenAlexAuthorId(
                         GetString(
-                            author,
+                            authorshipAuthor,
                             "id"));
 
                 var authorName =
                     GetString(
-                        author,
+                        authorshipAuthor,
                         "display_name");
 
                 var nameScore =
