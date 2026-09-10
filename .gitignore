@@ -1,8 +1,8 @@
-# V3E repository hygiene — generated .NET build output
+# .NET build output
 [Bb]in/
 [Oo]bj/
 
-# Visual Studio / test output
+# Visual Studio / test / publish output
 .vs/
 TestResults/
 artifacts/
@@ -14,6 +14,18 @@ publish/
 *.userosscache
 *.sln.docstates
 
-# Local logs / temporary files
+# Local configuration
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+
+# Local databases, logs, archives, temp files
+*.db
 *.log
 *.tmp
+*.zip
+
+# Generated/local exports
+/export/
+exports/
+logs/

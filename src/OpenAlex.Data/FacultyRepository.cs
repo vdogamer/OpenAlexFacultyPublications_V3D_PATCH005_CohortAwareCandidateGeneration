@@ -12,90 +12,132 @@ public sealed class FacultyRepository
         _connectionFactory = connectionFactory;
     }
 
-    public async Task<IReadOnlyList<FacultyListItem>> GetFacultyAsync(string? search = null, int top = 100, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<FacultyListItem>> GetFacultyAsync(
+    string? search = null,
+    int top = 100,
+    CancellationToken cancellationToken = default)
+{
+    var rows =
+        new List<FacultyListItem>();
+
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(
+        cancellationToken);
+
+    if (!await ObjectExistsAsync(
+            connection,
+            "academiconline.vw_FacultyPublicationSearch",
+            "V",
+            cancellationToken))
     {
-        var rows = new List<FacultyListItem>();
-
-        await using var connection = _connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        if (!await ObjectExistsAsync(connection, "openalex.Faculty", "U", cancellationToken))
-        {
-            return rows;
-        }
-
-        var columns = await GetColumnsAsync(connection, cancellationToken);
-        var displayColumn = PickFirstExisting(columns, "DisplayName", "FacultyDisplayName", "FullName", "Name");
-        var emailColumn = PickFirstExisting(columns, "PrimaryEmail", "Email");
-        var departmentColumn = PickFirstExisting(columns, "DepartmentName", "Department");
-        var divisionColumn = PickFirstExisting(columns, "DivisionName", "Division");
-        var titleColumn = PickFirstExisting(columns, "AppointmentTitle", "Title");
-        var orcidColumn = PickFirstExisting(columns, "Orcid", "ORCID");
-        var openAlexColumn = PickFirstExisting(columns, "ClaimedOpenAlexAuthorId", "OpenAlexAuthorId", "AuthorOpenAlexId");
-        var activeColumn = PickFirstExisting(columns, "IsActive", "Active");
-
-        if (displayColumn is null)
-        {
-            throw new InvalidOperationException("openalex.Faculty does not have a recognizable display-name column. Expected one of: DisplayName, FacultyDisplayName, FullName, Name.");
-        }
-
-        var selectParts = new[]
-        {
-            "FacultyId",
-            $"{Bracket(displayColumn)} AS DisplayName",
-            emailColumn is null ? "CAST(NULL AS NVARCHAR(320)) AS PrimaryEmail" : $"{Bracket(emailColumn)} AS PrimaryEmail",
-            departmentColumn is null ? "CAST(NULL AS NVARCHAR(512)) AS DepartmentName" : $"{Bracket(departmentColumn)} AS DepartmentName",
-            divisionColumn is null ? "CAST(NULL AS NVARCHAR(512)) AS DivisionName" : $"{Bracket(divisionColumn)} AS DivisionName",
-            titleColumn is null ? "CAST(NULL AS NVARCHAR(512)) AS AppointmentTitle" : $"{Bracket(titleColumn)} AS AppointmentTitle",
-            orcidColumn is null ? "CAST(NULL AS NVARCHAR(256)) AS Orcid" : $"{Bracket(orcidColumn)} AS Orcid",
-            openAlexColumn is null ? "CAST(NULL AS NVARCHAR(64)) AS ClaimedOpenAlexAuthorId" : $"{Bracket(openAlexColumn)} AS ClaimedOpenAlexAuthorId",
-            activeColumn is null ? "CAST(1 AS BIT) AS IsActive" : $"{Bracket(activeColumn)} AS IsActive"
-        };
-
-        var where = string.IsNullOrWhiteSpace(search)
-            ? string.Empty
-            : $"WHERE {Bracket(displayColumn)} LIKE '%' + @Search + '%'";
-
-        if (!string.IsNullOrWhiteSpace(search) && emailColumn is not null)
-        {
-            where += $" OR {Bracket(emailColumn)} LIKE '%' + @Search + '%'";
-        }
-
-        if (!string.IsNullOrWhiteSpace(search) && departmentColumn is not null)
-        {
-            where += $" OR {Bracket(departmentColumn)} LIKE '%' + @Search + '%'";
-        }
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = $@"
-SELECT TOP ({Math.Clamp(top, 1, 500)})
-    {string.Join(",\n    ", selectParts)}
-FROM openalex.Faculty
-{where}
-ORDER BY {Bracket(displayColumn)};";
-
-        command.Parameters.AddWithValue("@Search", string.IsNullOrWhiteSpace(search) ? DBNull.Value : search);
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            rows.Add(new FacultyListItem
-            {
-                FacultyId = reader.GetInt64(0),
-                DisplayName = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
-                PrimaryEmail = reader.IsDBNull(2) ? null : reader.GetString(2),
-                DepartmentName = reader.IsDBNull(3) ? null : reader.GetString(3),
-                DivisionName = reader.IsDBNull(4) ? null : reader.GetString(4),
-                AppointmentTitle = reader.IsDBNull(5) ? null : reader.GetString(5),
-                Orcid = reader.IsDBNull(6) ? null : reader.GetString(6),
-                ClaimedOpenAlexAuthorId = reader.IsDBNull(7) ? null : reader.GetString(7),
-                IsActive = !reader.IsDBNull(8) && reader.GetBoolean(8)
-            });
-        }
-
         return rows;
     }
+
+    var trimmedSearch =
+        string.IsNullOrWhiteSpace(search)
+            ? null
+            : search.Trim();
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = $@"
+SELECT TOP ({Math.Clamp(top, 1, 500)})
+    FacultyKey,
+    UvaUserId,
+    DisplayName,
+    Email,
+    DepartmentName,
+    DivisionName,
+    Position,
+    DepartmentDataComplete
+FROM academiconline.vw_FacultyPublicationSearch
+WHERE
+    @Search IS NULL
+
+    OR DisplayName LIKE
+        N'%' + @Search + N'%'
+
+    OR UvaUserId LIKE
+        N'%' + @Search + N'%'
+
+    OR Email LIKE
+        N'%' + @Search + N'%'
+
+    OR DepartmentName LIKE
+        N'%' + @Search + N'%'
+
+    OR DivisionName LIKE
+        N'%' + @Search + N'%'
+
+ORDER BY
+    DisplayName,
+    DepartmentName,
+    DivisionName;";
+
+    command.Parameters.AddWithValue(
+        "@Search",
+        trimmedSearch is null
+            ? DBNull.Value
+            : trimmedSearch);
+
+    await using var reader =
+        await command.ExecuteReaderAsync(
+            cancellationToken);
+
+    while (await reader.ReadAsync(
+        cancellationToken))
+    {
+        rows.Add(
+            new FacultyListItem
+            {
+                FacultyKey =
+                    reader.IsDBNull(0)
+                        ? string.Empty
+                        : reader.GetString(0),
+
+                UvaUserId =
+                    reader.IsDBNull(1)
+                        ? null
+                        : reader.GetString(1),
+
+                DisplayName =
+                    reader.IsDBNull(2)
+                        ? string.Empty
+                        : reader.GetString(2),
+
+                PrimaryEmail =
+                    reader.IsDBNull(3)
+                        ? null
+                        : reader.GetString(3),
+
+                DepartmentName =
+                    reader.IsDBNull(4)
+                        ? null
+                        : reader.GetString(4),
+
+                DivisionName =
+                    reader.IsDBNull(5)
+                        ? null
+                        : reader.GetString(5),
+
+                AppointmentTitle =
+                    reader.IsDBNull(6)
+                        ? null
+                        : reader.GetString(6),
+
+                DepartmentDataComplete =
+                    !reader.IsDBNull(7) &&
+                    reader.GetBoolean(7),
+
+                IsActive = true
+            });
+    }
+
+    return rows;
+}
 
     public async Task<long> AddFacultyAsync(ManualFacultyInput input, CancellationToken cancellationToken = default)
     {

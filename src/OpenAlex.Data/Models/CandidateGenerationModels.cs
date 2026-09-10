@@ -12,6 +12,13 @@ public sealed class FacultyCandidateSource
     public string? AppointmentTitle { get; set; }
 }
 
+public sealed class PilotCohortFacultySnapshot
+{
+    public string CohortName { get; set; } = string.Empty;
+    public int EnabledActiveFacultyCount { get; set; }
+    public IReadOnlyList<long> EnabledActiveFacultyIds { get; set; } = Array.Empty<long>();
+}
+
 public sealed class AuthorCandidateSource
 {
     public long AuthorId { get; set; }

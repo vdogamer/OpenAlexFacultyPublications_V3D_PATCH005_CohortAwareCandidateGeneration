@@ -1,0 +1,209 @@
+@page
+@model OpenAlex.Web.Pages.Faculty.PublicationsModel
+
+@{
+    ViewData["Title"] =
+        Model.Faculty is null
+            ? "Faculty Publications"
+            : $"{Model.Faculty.DisplayName} - Publications";
+}
+
+<p>
+    <a href="/Faculty">
+        ← Back to Faculty Search
+    </a>
+</p>
+
+@if (Model.Faculty is not null)
+{
+    <section class="card">
+        <h1 style="margin-bottom:0.35rem;">
+            @Model.Faculty.DisplayName
+        </h1>
+
+        @if (!string.IsNullOrWhiteSpace(
+            Model.Faculty.Position))
+        {
+            <p style="margin-top:0;">
+                @Model.Faculty.Position
+            </p>
+        }
+
+        <p>
+            <strong>Department:</strong>
+            @Model.Faculty.DepartmentName
+
+            @if (!string.IsNullOrWhiteSpace(
+                Model.Faculty.DivisionName))
+            {
+                <br />
+                <strong>Division:</strong>
+                @Model.Faculty.DivisionName
+            }
+
+            @if (!string.IsNullOrWhiteSpace(
+                Model.Faculty.UvaUserId))
+            {
+                <br />
+                <strong>UVA Computing ID:</strong>
+                @Model.Faculty.UvaUserId
+            }
+
+            @if (!string.IsNullOrWhiteSpace(
+                Model.Faculty.Email))
+            {
+                <br />
+                <strong>Email:</strong>
+                <a href="mailto:@Model.Faculty.Email">
+                    @Model.Faculty.Email
+                </a>
+            }
+        </p>
+    </section>
+
+
+    @if (!Model.Faculty.DepartmentDataComplete)
+    {
+        <div class="card"
+             style="margin-top:1rem;">
+            <strong>
+                Publication data is still being completed
+                for this department.
+            </strong>
+
+            <p style="margin-bottom:0;">
+                The publications below reflect the latest
+                successfully processed refresh and may not
+                yet represent the department's complete
+                publication set.
+            </p>
+        </div>
+    }
+
+
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:end;
+        gap:1rem;
+        margin-top:1.5rem;
+        margin-bottom:0.75rem;">
+
+        <div>
+            <h2 style="margin-bottom:0.2rem;">
+                Publications
+            </h2>
+
+            <span class="small">
+                @Model.Publications.Count publication@(Model.Publications.Count == 1 ? "" : "s")
+            </span>
+        </div>
+    </div>
+
+
+    @if (Model.Publications.Count == 0)
+    {
+        <div class="card">
+            <strong>
+                No publications are available for the
+                selected reporting period.
+            </strong>
+        </div>
+    }
+    else
+    {
+        <div>
+            @foreach (var publication in
+                Model.Publications)
+            {
+                <article class="card"
+                         style="margin-bottom:1rem;">
+
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:1rem;
+                        align-items:start;">
+
+                        <div style="flex:1;">
+
+                            <h3 style="
+                                margin-top:0;
+                                margin-bottom:0.4rem;">
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    publication.Link))
+                                {
+                                    <a href="@publication.Link"
+                                       target="_blank"
+                                       rel="noopener noreferrer">
+                                        @publication.Title
+                                    </a>
+                                }
+                                else
+                                {
+                                    @publication.Title
+                                }
+                            </h3>
+
+                            <div>
+                                @if (!string.IsNullOrWhiteSpace(
+                                    publication.Venue))
+                                {
+                                    <span>
+                                        @publication.Venue
+                                    </span>
+                                }
+
+                                @if (publication.PublicationYear.HasValue)
+                                {
+                                    <span>
+                                        · @publication.PublicationYear
+                                    </span>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(
+                                    publication.YearText))
+                                {
+                                    <span>
+                                        · @publication.YearText
+                                    </span>
+                                }
+                            </div>
+
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                publication.Doi))
+                            {
+                                <div class="small"
+                                     style="margin-top:0.4rem;">
+                                    DOI:
+                                    @publication.Doi
+                                </div>
+                            }
+                        </div>
+
+
+                        @if (publication.CitationCount.HasValue)
+                        {
+                            <div style="
+                                white-space:nowrap;
+                                text-align:center;">
+
+                                <strong style="
+                                    font-size:1.2rem;">
+                                    @publication.CitationCount
+                                </strong>
+
+                                <br />
+
+                                <span class="small">
+                                    citation@(publication.CitationCount == 1 ? "" : "s")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    }
+}

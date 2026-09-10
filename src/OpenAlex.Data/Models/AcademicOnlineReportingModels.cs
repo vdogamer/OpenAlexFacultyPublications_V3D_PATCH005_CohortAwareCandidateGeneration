@@ -60,6 +60,8 @@ public sealed class AcademicOnlineDepartmentRosterMember
     public string? OpenAlexAuthorId { get; init; }
     public string? OpenAlexResolutionStatus { get; init; }
     public int SearchPriority { get; init; }
+
+    public string? OfficialUnitName { get; init; }
 }
 
 

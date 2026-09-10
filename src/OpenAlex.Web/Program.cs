@@ -48,6 +48,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddOpenAlexData(builder.Configuration);
 // PATCH003 safeguard: ensure manual faculty intake repository is registered even if older data extensions are deployed.
 builder.Services.AddScoped<FacultyRepository>(); // PATCH003
+builder.Services.AddScoped<FacultyPublicationRepository>();
 builder.Services.AddOpenAlexClient(builder.Configuration);
 builder.Services.AddOpenAlexOperationalLogging(builder.Configuration);
 builder.Services.AddScoped<FacultyAuthorScoringService>();

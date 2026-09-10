@@ -1200,9 +1200,11 @@ SELECT
     AcademicOnlineAuthorId,
     OpenAlexAuthorId,
     OpenAlexResolutionStatus,
-    SearchPriority
+    SearchPriority,
+    OfficialUnitName
 FROM academiconline.DepartmentRosterMember
 WHERE DepartmentId = @DepartmentId
+  AND OfficialUnitName IS NULL
   AND IsActive = 1
 ORDER BY
     SearchPriority,
@@ -1239,12 +1241,173 @@ ORDER BY
                         reader.IsDBNull(6)
                             ? null
                             : reader.GetString(6),
-                    SearchPriority = reader.GetInt32(7)
+                    SearchPriority = reader.GetInt32(7),
+                    OfficialUnitName =
+                        reader.IsDBNull(8)
+                            ? null
+                            : reader.GetString(8)
                 });
         }
 
         return rows;
     }
+
+    public async Task<IReadOnlyList<AcademicOnlineDepartmentRosterMember>>
+    GetDepartmentRosterMembersForUnitAsync(
+        long departmentId,
+        string officialUnitName,
+        CancellationToken cancellationToken = default)
+{
+    var rows =
+        new List<AcademicOnlineDepartmentRosterMember>();
+
+    if (departmentId <= 0)
+    {
+        return rows;
+    }
+
+    if (string.IsNullOrWhiteSpace(officialUnitName))
+    {
+        return rows;
+    }
+
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(cancellationToken);
+
+    if (!await ObjectExistsAsync(
+            connection,
+            "academiconline.DepartmentRosterMember",
+            "U",
+            cancellationToken))
+    {
+        return rows;
+    }
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = @"
+SELECT
+    DepartmentRosterMemberId,
+    DepartmentId,
+    DisplayName,
+    ExpectedEmail,
+    AcademicOnlineAuthorId,
+    OpenAlexAuthorId,
+    OpenAlexResolutionStatus,
+    SearchPriority,
+    OfficialUnitName
+FROM academiconline.DepartmentRosterMember
+WHERE DepartmentId = @DepartmentId
+  AND OfficialUnitName = @OfficialUnitName
+  AND IsActive = 1
+ORDER BY
+    SearchPriority,
+    DisplayName;";
+
+    command.Parameters.AddWithValue(
+        "@DepartmentId",
+        departmentId);
+
+    command.Parameters.AddWithValue(
+        "@OfficialUnitName",
+        officialUnitName.Trim());
+
+    await using var reader =
+        await command.ExecuteReaderAsync(
+            cancellationToken);
+
+    while (await reader.ReadAsync(
+        cancellationToken))
+    {
+        rows.Add(
+            new AcademicOnlineDepartmentRosterMember
+            {
+                RosterMemberId = reader.GetInt64(0),
+                DepartmentId = reader.GetInt64(1),
+                DisplayName = reader.GetString(2),
+                ExpectedEmail =
+                    reader.IsDBNull(3)
+                        ? null
+                        : reader.GetString(3),
+                AcademicOnlineAuthorId =
+                    reader.IsDBNull(4)
+                        ? null
+                        : reader.GetString(4),
+                OpenAlexAuthorId =
+                    reader.IsDBNull(5)
+                        ? null
+                        : reader.GetString(5),
+                OpenAlexResolutionStatus =
+                    reader.IsDBNull(6)
+                        ? null
+                        : reader.GetString(6),
+                SearchPriority =
+                    reader.GetInt32(7),
+                OfficialUnitName =
+                    reader.IsDBNull(8)
+                        ? null
+                        : reader.GetString(8)
+            });
+    }
+
+    return rows;
+}
+    
+    public async Task<IReadOnlyList<string>>
+    GetRosterOpenAlexAuthorAliasesAsync(
+        long rosterMemberId,
+        CancellationToken cancellationToken = default)
+{
+    var rows =
+        new List<string>();
+
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(
+        cancellationToken);
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = @"
+SELECT
+    OpenAlexAuthorId
+FROM academiconline.DepartmentRosterOpenAlexAuthorAlias
+WHERE DepartmentRosterMemberId = @RosterMemberId
+  AND IsActive = 1
+ORDER BY
+    AliasPriority,
+    DepartmentRosterOpenAlexAuthorAliasId;";
+
+    command.Parameters.AddWithValue(
+        "@RosterMemberId",
+        rosterMemberId);
+
+    await using var reader =
+        await command.ExecuteReaderAsync(
+            cancellationToken);
+
+    while (await reader.ReadAsync(
+        cancellationToken))
+    {
+        if (!reader.IsDBNull(0))
+        {
+            var authorId =
+                reader.GetString(0).Trim();
+
+            if (!string.IsNullOrWhiteSpace(authorId))
+            {
+                rows.Add(authorId);
+            }
+        }
+    }
+
+    return rows;
+}
 
     public async Task<IReadOnlyList<AcademicOnlineRosterIdentitySeed>>
         GetRosterIdentitySeedsAsync(

@@ -1,41 +1,122 @@
 @page
 @model OpenAlex.Web.Pages.FacultyModel
 
-<h1>Faculty</h1>
+<h1>School of Medicine Faculty Publications</h1>
 
-<p><a class="button" href="/Admin/AddFaculty">Add Faculty</a></p>
+<p>
+    Search faculty by name, UVA computing ID, email,
+    department, or division.
+</p>
 
 <form method="get" class="card">
-    <label for="search">Search faculty</label><br />
-    <input id="search" name="search" type="text" value="@Model.Search" />
-    <button type="submit">Search</button>
+    <label for="search">
+        <strong>Find a faculty member</strong>
+    </label>
+
+    <div style="display:flex; gap:0.75rem; align-items:center; margin-top:0.5rem;">
+        <input
+            id="search"
+            name="search"
+            type="search"
+            value="@Model.Search"
+            placeholder="Name, computing ID, email, department..."
+            style="flex:1;"
+            autocomplete="off" />
+
+        <button type="submit">
+            Search
+        </button>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Search))
+        {
+            <a class="button" href="/Faculty">
+                Clear
+            </a>
+        }
+    </div>
 </form>
 
-<table>
-    <thead>
-        <tr>
-            <th>Faculty</th>
-            <th>Email</th>
-            <th>Department / Division</th>
-            <th>Title</th>
-            <th>IDs</th>
-            <th>Active</th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var item in Model.Faculty)
-    {
-        <tr>
-            <td><strong>@item.DisplayName</strong></td>
-            <td>@item.PrimaryEmail</td>
-            <td>@item.DepartmentName<br /><span class="small">@item.DivisionName</span></td>
-            <td>@item.AppointmentTitle</td>
-            <td>
-                <span class="small">ORCID: @(item.Orcid ?? "-")</span><br />
-                <span class="small">OpenAlex: @(item.ClaimedOpenAlexAuthorId ?? "-")</span>
-            </td>
-            <td>@item.IsActive</td>
-        </tr>
-    }
-    </tbody>
-</table>
+<p class="small">
+    @Model.Faculty.Count faculty member@(Model.Faculty.Count == 1 ? "" : "s") shown
+</p>
+
+@if (Model.Faculty.Count == 0)
+{
+    <div class="card">
+        <strong>No faculty members found.</strong>
+
+        <p>
+            Try searching by last name, UVA computing ID,
+            email address, department, or division.
+        </p>
+    </div>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Publications</th>
+                <th>Faculty</th>
+                <th>UVA Computing ID</th>
+                <th>Department / Division</th>
+                <th>Title</th>
+                <th>Email</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        @foreach (var item in Model.Faculty)
+        {
+            <tr>
+                <td>
+                    <a class="button"
+                    asp-page="/Faculty/Publications"
+                    asp-route-facultyKey="@item.FacultyKey">
+                        View Publications
+                    </a>
+                </td>
+                <td>
+                    <a asp-page="/Faculty/Publications"
+                    asp-route-facultyKey="@item.FacultyKey">
+                        <strong>@item.DisplayName</strong>
+                    </a>
+                </td>
+
+                <td>
+                    @(item.UvaUserId ?? "—")
+                </td>
+
+                <td>
+                    @item.DepartmentName
+
+                    @if (!string.IsNullOrWhiteSpace(item.DivisionName))
+                    {
+                        <br />
+                        <span class="small">
+                            @item.DivisionName
+                        </span>
+                    }
+                </td>
+
+                <td>
+                    @(item.AppointmentTitle ?? "—")
+                </td>
+
+                <td>
+                    @if (!string.IsNullOrWhiteSpace(item.PrimaryEmail))
+                    {
+                        <a href="mailto:@item.PrimaryEmail">
+                            @item.PrimaryEmail
+                        </a>
+                    }
+                    else
+                    {
+                        <span>—</span>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

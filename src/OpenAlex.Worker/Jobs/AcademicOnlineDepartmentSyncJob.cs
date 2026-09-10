@@ -504,6 +504,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
             "AggregateUnits" =>
                 await ResolveAggregateUnitScholarsAsync(
                     request.DepartmentId,
+                    request.VerifiedOnly,
                     cancellationToken),
 
             "FacultyRoster" =>
@@ -551,150 +552,288 @@ public sealed class AcademicOnlineDepartmentSyncJob
     }
 
     private async Task<ScholarSelection> ResolveAggregateUnitScholarsAsync(
-        long departmentId,
-        CancellationToken cancellationToken)
+    long departmentId,
+    bool verifiedOnly,
+    CancellationToken cancellationToken)
+{
+    if (departmentId <= 0)
     {
-        if (departmentId <= 0)
-        {
-            throw new InvalidOperationException(
-                "AggregateUnits source mode requires a persisted department ID.");
-        }
+        throw new InvalidOperationException(
+            "AggregateUnits source mode requires a persisted department ID.");
+    }
 
-        var configuredUnits =
-            await _repository.GetDepartmentSourceUnitsAsync(
-                departmentId,
-                cancellationToken);
+    var configuredUnits =
+        await _repository.GetDepartmentSourceUnitsAsync(
+            departmentId,
+            cancellationToken);
 
-        if (configuredUnits.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "AggregateUnits source mode has no configured source units.");
-        }
+    if (configuredUnits.Count == 0)
+    {
+        throw new InvalidOperationException(
+            "AggregateUnits source mode has no configured source units.");
+    }
 
-        var scholarsById =
-            new Dictionary<string, AcademicOnlineScholarSearchCandidate>(
-                StringComparer.OrdinalIgnoreCase);
+    var scholarsById =
+        new Dictionary<string, AcademicOnlineScholarSearchCandidate>(
+            StringComparer.OrdinalIgnoreCase);
 
-        var pagesFetched = 0;
-        var paginationSafeguardHit = false;
-        var unresolvedUnits = new List<string>();
-        var resolvedUnits = 0;
+    var rosterSources =
+        new List<RosterPublicationSource>();
 
-        foreach (var group in configuredUnits
+    var pagesFetched = 0;
+    var paginationSafeguardHit = false;
+
+    var unresolvedUnits =
+        new List<string>();
+
+    var rosterFallbackUnits =
+        new List<string>();
+
+    var rosterFallbackDetails =
+        new List<string>();
+
+    var resolvedUnits = 0;
+
+    var groupedUnits =
+        configuredUnits
             .GroupBy(
                 item => item.OfficialUnitName,
                 StringComparer.OrdinalIgnoreCase)
             .OrderBy(
                 item => item.Key,
-                StringComparer.OrdinalIgnoreCase))
+                StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    foreach (var group in groupedUnits)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var unitResolved = false;
+
+        /*
+         * First choice:
+         * normal Academic Online aggregate-unit aliases.
+         */
+        foreach (var alias in
+                 group.OrderBy(item => item.SearchPriority))
         {
-            var unitResolved = false;
+            cancellationToken.ThrowIfCancellationRequested();
 
-            foreach (var alias in group.OrderBy(item => item.SearchPriority))
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var result =
-                        await _client.GetDepartmentScholarsAsync(
-                            alias.AcademicOnlineSearchName,
-                            rowsPerPage: Math.Clamp(
+                var result =
+                    await _client.GetDepartmentScholarsAsync(
+                        alias.AcademicOnlineSearchName,
+                        rowsPerPage:
+                            Math.Clamp(
                                 _options.ScholarRowsPerPage,
                                 1,
                                 100),
-                            maxPages: Math.Clamp(
+                        maxPages:
+                            Math.Clamp(
                                 _options.MaxScholarPages,
                                 1,
                                 1000),
-                            cancellationToken: cancellationToken);
+                        cancellationToken:
+                            cancellationToken);
 
-                    pagesFetched += result.PagesFetched;
-                    paginationSafeguardHit |= result.HitMaxPages;
+                pagesFetched +=
+                    result.PagesFetched;
 
-                    if (result.Scholars.Count == 0)
-                    {
-                        await _repository.RecordSourceUnitAttemptAsync(
+                paginationSafeguardHit |=
+                    result.HitMaxPages;
+
+                if (result.Scholars.Count == 0)
+                {
+                    await _repository
+                        .RecordSourceUnitAttemptAsync(
                             alias.SourceUnitId,
                             "NoScholars",
                             0,
                             errorMessage: null,
-                            cancellationToken: cancellationToken);
-                        continue;
-                    }
+                            cancellationToken:
+                                cancellationToken);
 
-                    var aliasValidated =
-                        await ValidateAggregateAliasAsync(
-                            alias,
-                            result.Scholars,
-                            cancellationToken);
+                    continue;
+                }
 
-                    if (!aliasValidated)
-                    {
-                        await _repository.RecordSourceUnitAttemptAsync(
+                var aliasValidated =
+                    await ValidateAggregateAliasAsync(
+                        alias,
+                        result.Scholars,
+                        cancellationToken);
+
+                if (!aliasValidated)
+                {
+                    await _repository
+                        .RecordSourceUnitAttemptAsync(
                             alias.SourceUnitId,
                             "Rejected",
                             result.Scholars.Count,
                             "Returned scholars did not expose the configured division in sampled Academic Online profiles.",
-                            cancellationToken: CancellationToken.None);
-                        continue;
-                    }
+                            cancellationToken:
+                                CancellationToken.None);
 
-                    foreach (var scholar in result.Scholars)
-                    {
-                        scholarsById[scholar.AuthorId] = scholar;
-                    }
+                    continue;
+                }
 
-                    await _repository.RecordSourceUnitAttemptAsync(
+                foreach (var scholar in result.Scholars)
+                {
+                    scholarsById[
+                        scholar.AuthorId] =
+                        scholar;
+                }
+
+                await _repository
+                    .RecordSourceUnitAttemptAsync(
                         alias.SourceUnitId,
-                        result.HitMaxPages ? "Partial" : "Resolved",
+                        result.HitMaxPages
+                            ? "Partial"
+                            : "Resolved",
                         result.Scholars.Count,
                         errorMessage: null,
-                        cancellationToken: cancellationToken);
+                        cancellationToken:
+                            cancellationToken);
 
-                    unitResolved = true;
-                    resolvedUnits++;
-                    break;
-                }
-                catch (Exception ex)
-                    when (ex is HttpRequestException ||
-                          ex is TaskCanceledException)
-                {
-                    await _repository.RecordSourceUnitAttemptAsync(
+                unitResolved = true;
+                resolvedUnits++;
+
+                break;
+            }
+            catch (Exception ex)
+                when (ex is HttpRequestException ||
+                      ex is TaskCanceledException)
+            {
+                await _repository
+                    .RecordSourceUnitAttemptAsync(
                         alias.SourceUnitId,
                         "Failed",
                         0,
                         ex.Message,
                         CancellationToken.None);
-                }
-            }
-
-            if (!unitResolved)
-            {
-                unresolvedUnits.Add(group.Key);
             }
         }
 
-        return new ScholarSelection
+        /*
+         * PATCH021L:
+         * If every Academic Online alias failed, see whether
+         * this aggregate unit has an official unit-scoped roster.
+         */
+        if (!unitResolved)
         {
-            SourceMode = "AggregateUnits",
-            Scholars =
-                scholarsById.Values
-                    .OrderBy(
-                        item => item.Name ?? string.Empty,
-                        StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
-            ScholarsDiscovered = scholarsById.Count,
-            ScholarPagesFetched = pagesFetched,
-            ScholarPaginationSafeguardHit = paginationSafeguardHit,
-            SourceMembershipComplete =
-                unresolvedUnits.Count == 0 &&
-                !paginationSafeguardHit,
-            SourceDetail =
-                $"Aggregate units resolved={resolvedUnits}/{configuredUnits.Select(item => item.OfficialUnitName).Distinct(StringComparer.OrdinalIgnoreCase).Count()}; " +
-                $"Unresolved={string.Join(",", unresolvedUnits)}."
-        };
+            var unitRoster =
+                await _repository
+                    .GetDepartmentRosterMembersForUnitAsync(
+                        departmentId,
+                        group.Key,
+                        cancellationToken);
+
+            if (unitRoster.Count > 0)
+            {
+                var rosterSelection =
+                    await ResolveRosterMembersAsync(
+                        unitRoster,
+                        verifiedOnly,
+                        sourceMode:
+                            "AggregateUnitRoster",
+                        cancellationToken);
+
+                pagesFetched +=
+                    rosterSelection.ScholarPagesFetched;
+
+                paginationSafeguardHit |=
+                    rosterSelection
+                        .ScholarPaginationSafeguardHit;
+
+                foreach (var scholar in
+                         rosterSelection.Scholars)
+                {
+                    scholarsById[
+                        scholar.AuthorId] =
+                        scholar;
+                }
+
+                rosterSources.AddRange(
+                    rosterSelection
+                        .RosterPublicationSources);
+
+                rosterFallbackDetails.Add(
+                    $"{group.Key}[{rosterSelection.SourceDetail}]");
+
+                if (rosterSelection.SourceMembershipComplete)
+                {
+                    unitResolved = true;
+                    resolvedUnits++;
+
+                    rosterFallbackUnits.Add(
+                        group.Key);
+                }
+            }
+        }
+
+        if (!unitResolved)
+        {
+            unresolvedUnits.Add(
+                group.Key);
+        }
     }
+
+    /*
+     * The execution loop processes:
+     *
+     *   1. every unique Academic Online scholar once; plus
+     *   2. every OpenAlex roster source separately.
+     *
+     * Use that same accounting here so the existing
+     * scholarsProcessed == scholarsDiscovered safeguard
+     * remains meaningful.
+     */
+    var openAlexRosterSourceCount =
+        rosterSources.Count(item =>
+            string.Equals(
+                item.SourceProvider,
+                "OpenAlex",
+                StringComparison.OrdinalIgnoreCase));
+
+    var scholarsDiscovered =
+        scholarsById.Count +
+        openAlexRosterSourceCount;
+
+    return new ScholarSelection
+    {
+        SourceMode = "AggregateUnits",
+
+        Scholars =
+            scholarsById.Values
+                .OrderBy(
+                    item =>
+                        item.Name ?? string.Empty,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+
+        RosterPublicationSources =
+            rosterSources,
+
+        ScholarsDiscovered =
+            scholarsDiscovered,
+
+        ScholarPagesFetched =
+            pagesFetched,
+
+        ScholarPaginationSafeguardHit =
+            paginationSafeguardHit,
+
+        SourceMembershipComplete =
+            unresolvedUnits.Count == 0 &&
+            !paginationSafeguardHit,
+
+        SourceDetail =
+            $"Aggregate units resolved={resolvedUnits}/{groupedUnits.Count}; " +
+            $"RosterFallbackUnits={string.Join(",", rosterFallbackUnits)}; " +
+            $"Unresolved={string.Join(",", unresolvedUnits)}; " +
+            $"RosterDetail={string.Join(" || ", rosterFallbackDetails)}."
+    };
+}
 
     private async Task<bool> ValidateAggregateAliasAsync(
         AcademicOnlineDepartmentSourceUnit alias,
@@ -797,9 +936,22 @@ public sealed class AcademicOnlineDepartmentSyncJob
         if (roster.Count == 0)
         {
             throw new InvalidOperationException(
-                "FacultyRoster source mode has no active roster members.");
+                "FacultyRoster source mode has no active department-level roster members.");
         }
 
+        return await ResolveRosterMembersAsync(
+            roster,
+            verifiedOnly,
+            sourceMode: "FacultyRoster",
+            cancellationToken);
+    }
+
+    private async Task<ScholarSelection> ResolveRosterMembersAsync(
+        IReadOnlyList<AcademicOnlineDepartmentRosterMember> roster,
+        bool verifiedOnly,
+        string sourceMode,
+        CancellationToken cancellationToken)
+    {
         var scholarsById =
             new Dictionary<string, AcademicOnlineScholarSearchCandidate>(
                 StringComparer.OrdinalIgnoreCase);
@@ -874,6 +1026,88 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
                 continue;
             }
+
+            /*
+ * PATCH021N:
+ * A roster member can have multiple independently validated
+ * OpenAlex author profiles when OpenAlex has split one real
+ * person across multiple author entities.
+ */
+var openAlexAliases =
+    await _repository
+        .GetRosterOpenAlexAuthorAliasesAsync(
+            member.RosterMemberId,
+            cancellationToken);
+
+var distinctOpenAlexAliases =
+    openAlexAliases
+        .Where(item =>
+            !string.IsNullOrWhiteSpace(item))
+        .Distinct(
+            StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+if (distinctOpenAlexAliases.Count > 0)
+{
+    if (verifiedOnly)
+    {
+        unresolvedMembers.Add(
+            member.DisplayName);
+
+        await _repository
+            .RecordRosterMemberResolutionAsync(
+                member.RosterMemberId,
+                academicOnlineAuthorId: null,
+                status: "Unresolved",
+                errorMessage:
+                    "Validated split OpenAlex profiles cannot satisfy Academic Online VerifiedOnly policy.",
+                resolutionMethod:
+                    resolutionMethod,
+                resolutionEvidence:
+                    $"Split OpenAlex profiles={string.Join(",", distinctOpenAlexAliases)}",
+                cancellationToken:
+                    CancellationToken.None);
+
+        continue;
+    }
+
+    foreach (var aliasAuthorId in
+             distinctOpenAlexAliases)
+    {
+        rosterSources.Add(
+            new RosterPublicationSource(
+                member.RosterMemberId,
+                member.DisplayName,
+                "OpenAlex",
+                aliasAuthorId));
+    }
+
+    await _repository
+        .RecordRosterMemberOpenAlexFallbackAsync(
+            member.RosterMemberId,
+            openAlexAuthorId: null,
+            status: "SplitProfile",
+            evidence:
+                $"Validated split OpenAlex profiles={string.Join(",", distinctOpenAlexAliases)}",
+            cancellationToken:
+                CancellationToken.None);
+
+    await _repository
+        .RecordRosterMemberResolutionAsync(
+            member.RosterMemberId,
+            academicOnlineAuthorId: null,
+            status: "Unresolved",
+            errorMessage:
+                "Academic Online identity unresolved; using validated split OpenAlex profiles.",
+            resolutionMethod:
+                "SplitOpenAlexProfile",
+            resolutionEvidence:
+                $"OpenAlex profiles={string.Join(",", distinctOpenAlexAliases)}",
+            cancellationToken:
+                CancellationToken.None);
+
+    continue;
+}
 
             string? openAlexAuthorId =
                 string.IsNullOrWhiteSpace(
@@ -1008,7 +1242,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
 
         return new ScholarSelection
         {
-            SourceMode = "FacultyRoster",
+            SourceMode = sourceMode,
             Scholars =
                 scholarsById.Values
                     .OrderBy(
@@ -2654,29 +2888,43 @@ public sealed class AcademicOnlineDepartmentSyncJob
     }
 
     private static List<string> TokenizePersonName(
-        string? value)
+    string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return new List<string>();
-        }
-
-        var normalized =
-            new string(
-                value
-                    .ToLowerInvariant()
-                    .Select(character =>
-                        char.IsLetterOrDigit(character)
-                            ? character
-                            : ' ')
-                    .ToArray());
-
-        return normalized
-            .Split(
-                ' ',
-                StringSplitOptions.RemoveEmptyEntries)
-            .ToList();
+        return new List<string>();
     }
+
+    var normalized =
+        new string(
+            value
+                .ToLowerInvariant()
+                .Select(character =>
+                    char.IsLetterOrDigit(character)
+                        ? character
+                        : ' ')
+                .ToArray());
+
+    return normalized
+        .Split(
+            ' ',
+            StringSplitOptions.RemoveEmptyEntries)
+        .Where(token =>
+            !IsPersonNameSuffix(token))
+        .ToList();
+}
+
+private static bool IsPersonNameSuffix(
+    string token)
+{
+    return token is
+        "jr" or
+        "sr" or
+        "ii" or
+        "iii" or
+        "iv" or
+        "v";
+}
 
     private async Task<OpenAlexFallbackProcessResult>
         ProcessOpenAlexRosterFallbackAsync(
@@ -3164,6 +3412,7 @@ internal sealed record RosterResolution(
 internal sealed record CoauthorTokenPair(
     string Token1,
     string Token2);
+    
 
 internal sealed record OpenAlexSeedAuthorEvidence(
     long IdentitySeedId,
