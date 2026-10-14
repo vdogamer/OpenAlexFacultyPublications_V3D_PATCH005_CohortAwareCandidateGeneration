@@ -9,8 +9,10 @@ public sealed class LogoutModel : PageModel
 {
     public async Task<IActionResult> OnPostAsync()
     {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return RedirectToPage();
+        await HttpContext.SignOutAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme);
+
+        return RedirectToPage("/Account/Login");
     }
 
     public void OnGet()

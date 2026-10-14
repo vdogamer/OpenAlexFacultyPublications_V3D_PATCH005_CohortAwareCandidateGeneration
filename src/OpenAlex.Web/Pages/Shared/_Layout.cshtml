@@ -2,56 +2,243 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>OpenAlex Faculty Publications V3D</title>
+    <title>Faculty Publications</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/css/site.css" />
 </head>
+
 <body>
-    <header class="topbar">
-        <div class="brand">OpenAlex V3D</div>
-        <nav>
-            <a href="/">Dashboard</a>
-            <a href="/Faculty">Faculty</a>
-            @if (User?.Identity?.IsAuthenticated == true)
-            {
-                <a href="/Faculty/MyPublications">My Publications</a>
-            }
-            <a href="/Admin/AddFaculty">Add Faculty</a>
-            <a href="/Review/Identities">Identity Review</a>
-            <a href="/Review/Authors">Author Review</a>
-            <a href="/Review/Publications">Publication Review</a>
-            <a href="/Reports/AcceptedPublications">Accepted Publications</a>
-            <a href="/Reports/DataProvenance">Data Provenance</a>
-            <a href="/Reports/AcademicOnlineFacultyLookup">UVA Publication Lookup</a>
-            <a href="/Reports/SharedPublications">Shared Publications</a>
-            <a href="/Reports/DepartmentPublications">Department Publications</a>
-            <a href="/Operations">Operations</a>
-            <a href="/Operations/Runs">Runs</a>
-            <a href="/Admin/ExecutionWindows">Windows</a>
-            <a href="/Admin/Scheduler">Scheduler</a>
-            <a href="/Admin/AcademicOnlineDepartments">Department Catalog</a>
-            <a href="/Admin/Jobs">Jobs</a>
-            <a href="/Admin/Preflight">Preflight</a>
-            <a href="/Admin/Deployment">Deployment</a>
-            <a href="/Admin/Roles">Roles</a>
-            <a href="/Admin/Users">Admin</a>
-        </nav>
-        <div class="authbar">
-            @if (User?.Identity?.IsAuthenticated == true)
-            {
-                <span>@User.Identity.Name</span>
-                <form method="post" action="/Account/Logout" style="display:inline">
-                    <button type="submit">Logout</button>
-                </form>
-            }
-            else
-            {
-                <a href="/Account/Login">Login</a>
-            }
-        </div>
-    </header>
-    <main class="container">
-        @RenderBody()
-    </main>
+
+<header class="topbar">
+
+    <a class="brand brand-link" href="/">
+        Faculty Publications
+    </a>
+
+    <nav class="primary-nav" aria-label="Primary navigation">
+
+        <!-- Dashboard -->
+        <a class="nav-item" href="/">
+            Dashboard
+        </a>
+
+
+        <!-- Faculty -->
+        <details class="nav-group">
+            <summary class="nav-item">
+                Faculty
+            </summary>
+
+            <div class="nav-dropdown">
+
+                <a href="/Faculty">
+                    Faculty Directory
+                </a>
+
+                @if (User?.Identity?.IsAuthenticated == true)
+                {
+                    <a href="/Faculty/MyPublications">
+                        My Publications
+                    </a>
+                }
+
+                @if (User.IsInRole("Admin"))
+                {
+                    <a href="/Admin/AddFaculty">
+                        Add Faculty
+                    </a>
+                }
+
+            </div>
+        </details>
+
+
+        <!-- Department Review -->
+        @if (User.IsInRole("Reviewer") || User.IsInRole("Admin"))
+        {
+            <details class="nav-group">
+                <summary class="nav-item">
+                    Department Review
+                </summary>
+
+                <div class="nav-dropdown">
+
+                    <a href="/Review/DepartmentDashboard">
+                        Department Dashboard
+                    </a>
+
+                    <a href="/Review/Publications">
+                        Pending Publication Review
+                    </a>
+
+                    <a href="/Review/PublicationStatus">
+                        Review Status &amp; History
+                    </a>
+
+                    <div class="nav-divider"></div>
+
+                    <a href="/Review/Identities">
+                        Identity Review
+                    </a>
+
+                    <a href="/Review/Authors">
+                        Author Review
+                    </a>
+
+                </div>
+            </details>
+        }
+
+
+        <!-- Reports -->
+        <details class="nav-group">
+            <summary class="nav-item">
+                Reports
+            </summary>
+
+            <div class="nav-dropdown">
+
+                <a href="/Reports/DepartmentPublications">
+                    Department Publications
+                </a>
+
+                <a href="/Reports/AcceptedPublications">
+                    Accepted Publications
+                </a>
+
+                <a href="/Reports/AcademicOnlineFacultyLookup">
+                    UVA Publication Lookup
+                </a>
+
+                <a href="/Reports/PublicationFreshness">
+                    Publication Freshness
+                </a>
+
+                <a href="/Reports/SharedPublications">
+                    Shared Publications
+                </a>
+
+                <a href="/Reports/DataProvenance">
+                    Data Provenance
+                </a>
+
+            </div>
+        </details>
+
+
+        <!-- Operations -->
+        <details class="nav-group">
+            <summary class="nav-item">
+                Operations
+            </summary>
+
+            <div class="nav-dropdown">
+
+                <a href="/Operations">
+                    Operations Dashboard
+                </a>
+
+                <a href="/Operations/Runs">
+                    Runs
+                </a>
+
+                @if (User.IsInRole("Admin"))
+                {
+                    <div class="nav-divider"></div>
+
+                    <a href="/Admin/Scheduler">
+                        Scheduler
+                    </a>
+
+                    <a href="/Admin/Jobs">
+                        Jobs
+                    </a>
+
+                    <a href="/Admin/ExecutionWindows">
+                        Execution Windows
+                    </a>
+
+                    <a href="/Admin/AcademicOnlineDepartments">
+                        Department Catalog
+                    </a>
+
+                    <a href="/Admin/Preflight">
+                        Preflight
+                    </a>
+                }
+
+            </div>
+        </details>
+
+
+        <!-- Administration -->
+        @if (User.IsInRole("Admin"))
+        {
+            <details class="nav-group">
+                <summary class="nav-item">
+                    Administration
+                </summary>
+
+                <div class="nav-dropdown">
+
+                    <a href="/Admin/Users">
+                        Users
+                    </a>
+
+                    <a href="/Admin/Roles">
+                        Role Management
+                    </a>
+
+                    <a href="/Admin/DepartmentReviewerAccess">
+                        Reviewer Department Access
+                    </a>
+
+                    <a href="/Admin/DepartmentReviewerAccessAudit">
+                        Reviewer Access Audit
+                    </a>
+
+                    <div class="nav-divider"></div>
+
+                    <a href="/Admin/Deployment">
+                        Deployment
+                    </a>
+
+                </div>
+            </details>
+        }
+
+    </nav>
+
+
+    <div class="authbar">
+
+        @if (User?.Identity?.IsAuthenticated == true)
+        {
+            <span class="signed-in-user">
+                @User.Identity.Name
+            </span>
+
+            <form method="post"
+                asp-page="/Account/Logout"
+                style="display:inline">
+                <button type="submit">Logout</button>
+            </form>
+        }
+        else
+        {
+            <a href="/Account/Login">
+                Login
+            </a>
+        }
+
+    </div>
+
+</header>
+
+
+<main class="container">
+    @RenderBody()
+</main>
+
 </body>
 </html>

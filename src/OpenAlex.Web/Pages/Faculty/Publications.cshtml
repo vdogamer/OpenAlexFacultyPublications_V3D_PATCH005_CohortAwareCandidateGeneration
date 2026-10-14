@@ -8,202 +8,337 @@
             : $"{Model.Faculty.DisplayName} - Publications";
 }
 
-<p>
-    <a href="/Faculty">
-        ← Back to Faculty Search
-    </a>
-</p>
+<div class="faculty-detail-page">
 
-@if (Model.Faculty is not null)
-{
-    <section class="card">
-        <h1 style="margin-bottom:0.35rem;">
-            @Model.Faculty.DisplayName
-        </h1>
-
-        @if (!string.IsNullOrWhiteSpace(
-            Model.Faculty.Position))
-        {
-            <p style="margin-top:0;">
-                @Model.Faculty.Position
-            </p>
-        }
-
-        <p>
-            <strong>Department:</strong>
-            @Model.Faculty.DepartmentName
-
-            @if (!string.IsNullOrWhiteSpace(
-                Model.Faculty.DivisionName))
-            {
-                <br />
-                <strong>Division:</strong>
-                @Model.Faculty.DivisionName
-            }
-
-            @if (!string.IsNullOrWhiteSpace(
-                Model.Faculty.UvaUserId))
-            {
-                <br />
-                <strong>UVA Computing ID:</strong>
-                @Model.Faculty.UvaUserId
-            }
-
-            @if (!string.IsNullOrWhiteSpace(
-                Model.Faculty.Email))
-            {
-                <br />
-                <strong>Email:</strong>
-                <a href="mailto:@Model.Faculty.Email">
-                    @Model.Faculty.Email
-                </a>
-            }
-        </p>
-    </section>
-
-
-    @if (!Model.Faculty.DepartmentDataComplete)
-    {
-        <div class="card"
-             style="margin-top:1rem;">
-            <strong>
-                Publication data is still being completed
-                for this department.
-            </strong>
-
-            <p style="margin-bottom:0;">
-                The publications below reflect the latest
-                successfully processed refresh and may not
-                yet represent the department's complete
-                publication set.
-            </p>
-        </div>
-    }
-
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        align-items:end;
-        gap:1rem;
-        margin-top:1.5rem;
-        margin-bottom:0.75rem;">
-
-        <div>
-            <h2 style="margin-bottom:0.2rem;">
-                Publications
-            </h2>
-
-            <span class="small">
-                @Model.Publications.Count publication@(Model.Publications.Count == 1 ? "" : "s")
-            </span>
-        </div>
+    <div class="faculty-detail-back">
+        <a class="button secondary"
+           asp-page="/Faculty">
+            ← Back to Faculty Search
+        </a>
     </div>
 
 
-    @if (Model.Publications.Count == 0)
+    @if (Model.Faculty is null)
     {
-        <div class="card">
-            <strong>
-                No publications are available for the
-                selected reporting period.
-            </strong>
+        <div class="faculty-detail-empty">
+
+            <div class="faculty-detail-empty-icon"
+                 aria-hidden="true">
+                !
+            </div>
+
+            <h1>Faculty member not found</h1>
+
+            <p>
+                The requested faculty record could not be found
+                in the current School of Medicine publication data.
+            </p>
+
+            <a class="button"
+               asp-page="/Faculty">
+                Return to Faculty Search
+            </a>
+
         </div>
     }
     else
     {
-        <div>
-            @foreach (var publication in
-                Model.Publications)
+        <section class="faculty-detail-hero">
+
+            <div class="faculty-detail-hero-main">
+
+                <div class="faculty-detail-kicker">
+                    School of Medicine Faculty Publications
+                </div>
+
+                <h1>
+                    @Model.Faculty.DisplayName
+                </h1>
+
+                @if (!string.IsNullOrWhiteSpace(
+                    Model.Faculty.Position))
+                {
+                    <div class="faculty-detail-position">
+                        @Model.Faculty.Position
+                    </div>
+                }
+
+
+                <div class="faculty-detail-meta-grid">
+
+                    <div class="faculty-detail-meta-item">
+                        <span class="faculty-detail-meta-label">
+                            Department
+                        </span>
+
+                        <span class="faculty-detail-meta-value">
+                            @(Model.Faculty.DepartmentName ?? "—")
+                        </span>
+                    </div>
+
+
+                    @if (!string.IsNullOrWhiteSpace(
+                        Model.Faculty.DivisionName))
+                    {
+                        <div class="faculty-detail-meta-item">
+                            <span class="faculty-detail-meta-label">
+                                Division
+                            </span>
+
+                            <span class="faculty-detail-meta-value">
+                                @Model.Faculty.DivisionName
+                            </span>
+                        </div>
+                    }
+
+
+                    <div class="faculty-detail-meta-item">
+                        <span class="faculty-detail-meta-label">
+                            UVA Computing ID
+                        </span>
+
+                        <span class="faculty-detail-meta-value">
+                            @(Model.Faculty.UvaUserId ?? "—")
+                        </span>
+                    </div>
+
+
+                    <div class="faculty-detail-meta-item">
+                        <span class="faculty-detail-meta-label">
+                            Email
+                        </span>
+
+                        <span class="faculty-detail-meta-value">
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                Model.Faculty.Email))
+                            {
+                                <a href="mailto:@Model.Faculty.Email">
+                                    @Model.Faculty.Email
+                                </a>
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="faculty-detail-count-panel">
+
+                <div class="faculty-detail-count">
+                    @Model.Publications.Count
+                </div>
+
+                <div class="faculty-detail-count-label">
+                    recent
+                    publication@(Model.Publications.Count == 1 ? "" : "s")
+                </div>
+
+                <div class="faculty-detail-snapshot-status">
+                    <span class="faculty-detail-status-dot"
+                          aria-hidden="true">
+                    </span>
+
+                    Current department snapshot
+                </div>
+
+            </div>
+
+        </section>
+
+
+        @if (!Model.Faculty.DepartmentDataComplete)
+        {
+            <div class="faculty-detail-notice">
+
+                <strong>
+                    Publication data may be incomplete.
+                </strong>
+
+                <span>
+                    This department does not currently have a
+                    complete promoted publication snapshot.
+                </span>
+
+            </div>
+        }
+
+
+        <section class="faculty-publications-section">
+
+            <div class="faculty-publications-heading">
+
+                <div>
+                    <h2>Recent Publications</h2>
+
+                    <p>
+                        Publications currently available in the
+                        School of Medicine reporting window.
+                    </p>
+                </div>
+
+
+                @if (Model.Publications.Count > 0)
+                {
+                    <div class="faculty-publications-total">
+                        <strong>
+                            @Model.Publications.Count
+                        </strong>
+
+                        result@(Model.Publications.Count == 1 ? "" : "s")
+                    </div>
+                }
+
+            </div>
+
+
+            @if (Model.Publications.Count == 0)
             {
-                <article class="card"
-                         style="margin-bottom:1rem;">
+                <div class="faculty-detail-no-publications">
 
-                    <div style="
-                        display:flex;
-                        justify-content:space-between;
-                        gap:1rem;
-                        align-items:start;">
+                    <div class="faculty-detail-no-publications-icon"
+                         aria-hidden="true">
+                        ◷
+                    </div>
 
-                        <div style="flex:1;">
+                    <h2>
+                        No recent publications found
+                    </h2>
 
-                            <h3 style="
-                                margin-top:0;
-                                margin-bottom:0.4rem;">
+                    <p>
+                        No publications are currently available
+                        for this faculty member in the reporting
+                        window.
+                    </p>
+
+                    <p class="faculty-detail-muted">
+                        This does not necessarily mean the faculty
+                        member has no publications outside the
+                        current reporting period.
+                    </p>
+
+                </div>
+            }
+            else
+            {
+                <div class="faculty-publication-list">
+
+                    @foreach (var publication in Model.Publications)
+                    {
+                        <article class="faculty-publication-card">
+
+                            <div class="faculty-publication-card-main">
+
+                                <h3 class="faculty-publication-title">
+
+                                    @if (!string.IsNullOrWhiteSpace(
+                                        publication.Link))
+                                    {
+                                        <a href="@publication.Link"
+                                           target="_blank"
+                                           rel="noopener noreferrer">
+                                            @publication.Title
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        @publication.Title
+                                    }
+
+                                </h3>
+
+
+                                <div class="faculty-publication-meta">
+
+                                    @if (!string.IsNullOrWhiteSpace(
+                                        publication.Venue))
+                                    {
+                                        <span>
+                                            @publication.Venue
+                                        </span>
+                                    }
+
+
+                                    @if (!string.IsNullOrWhiteSpace(
+                                        publication.YearText))
+                                    {
+                                        <span>
+                                            @publication.YearText
+                                        </span>
+                                    }
+
+                                </div>
+
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    publication.Doi))
+                                {
+                                    <div class="faculty-publication-doi">
+                                        <span>
+                                            DOI
+                                        </span>
+
+                                        <code>
+                                            @publication.Doi
+                                        </code>
+                                    </div>
+                                }
+
+                            </div>
+
+
+                            <div class="faculty-publication-card-side">
+
+                                <div class="faculty-publication-citations">
+
+                                    <strong>
+                                        @publication.CitationCount
+                                    </strong>
+
+                                    <span>
+                                        citation@(publication.CitationCount == 1 ? "" : "s")
+                                    </span>
+
+                                </div>
+
 
                                 @if (!string.IsNullOrWhiteSpace(
                                     publication.Link))
                                 {
-                                    <a href="@publication.Link"
+                                    <a class="faculty-publication-link"
+                                       href="@publication.Link"
                                        target="_blank"
                                        rel="noopener noreferrer">
-                                        @publication.Title
+                                        View publication ↗
                                     </a>
                                 }
-                                else
-                                {
-                                    @publication.Title
-                                }
-                            </h3>
 
-                            <div>
-                                @if (!string.IsNullOrWhiteSpace(
-                                    publication.Venue))
-                                {
-                                    <span>
-                                        @publication.Venue
-                                    </span>
-                                }
-
-                                @if (publication.PublicationYear.HasValue)
-                                {
-                                    <span>
-                                        · @publication.PublicationYear
-                                    </span>
-                                }
-                                else if (!string.IsNullOrWhiteSpace(
-                                    publication.YearText))
-                                {
-                                    <span>
-                                        · @publication.YearText
-                                    </span>
-                                }
                             </div>
 
+                        </article>
+                    }
 
-                            @if (!string.IsNullOrWhiteSpace(
-                                publication.Doi))
-                            {
-                                <div class="small"
-                                     style="margin-top:0.4rem;">
-                                    DOI:
-                                    @publication.Doi
-                                </div>
-                            }
-                        </div>
-
-
-                        @if (publication.CitationCount.HasValue)
-                        {
-                            <div style="
-                                white-space:nowrap;
-                                text-align:center;">
-
-                                <strong style="
-                                    font-size:1.2rem;">
-                                    @publication.CitationCount
-                                </strong>
-
-                                <br />
-
-                                <span class="small">
-                                    citation@(publication.CitationCount == 1 ? "" : "s")
-                                </span>
-                            </div>
-                        }
-                    </div>
-                </article>
+                </div>
             }
+
+        </section>
+
+
+        <div class="faculty-detail-footer">
+
+            <a class="button secondary"
+               asp-page="/Faculty">
+                ← Back to Faculty Search
+            </a>
+
         </div>
     }
-}
+
+</div>

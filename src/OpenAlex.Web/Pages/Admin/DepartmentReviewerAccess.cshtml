@@ -1,0 +1,197 @@
+@page
+@model OpenAlex.Web.Pages.Admin.DepartmentReviewerAccessModel
+
+@{
+    ViewData["Title"] = "Department Reviewer Access";
+}
+
+<h1>Department Reviewer Access</h1>
+
+<section class="card">
+    <p>
+        Assign the School of Medicine departments that a Reviewer
+        is allowed to review.
+    </p>
+
+    <p>
+        Admin users already have global department access and do not
+        require department assignments.
+    </p>
+
+    <p>
+        <a class="button" asp-page="/Admin/Roles">
+            Back to Role Management
+        </a>
+    </p>
+
+    <a
+        class="button"
+        asp-page="/Admin/DepartmentReviewerAccessAudit">
+        View Access Audit
+    </a>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.Message))
+{
+    <section class="notice">
+        @Model.Message
+    </section>
+}
+
+<section class="card">
+    <h2>Select a reviewer</h2>
+
+    <form method="get">
+        <label for="AppUserId">
+            Reviewer or administrator
+        </label>
+
+        <select
+            id="AppUserId"
+            name="AppUserId">
+
+            <option value="">
+                Select a user...
+            </option>
+
+            @foreach (var user in Model.Users)
+            {
+                if (Model.AppUserId == user.AppUserId)
+                {
+                    <option
+                        value="@user.AppUserId"
+                        selected>
+                        @user.UserName — @user.RoleSummary
+                    </option>
+                }
+                else
+                {
+                    <option
+                        value="@user.AppUserId">
+                        @user.UserName — @user.RoleSummary
+                    </option>
+                }
+            }
+
+        </select>
+
+        <button type="submit">
+            Load assignments
+        </button>
+    </form>
+</section>
+
+@if (Model.SelectedUser is not null)
+{
+    <section class="card">
+        <h2>@Model.SelectedUser.UserName</h2>
+
+        <p>
+            <strong>Display name:</strong>
+            @(Model.SelectedUser.DisplayName ?? "-")
+        </p>
+
+        <p>
+            <strong>Email:</strong>
+            @(Model.SelectedUser.Email ?? "-")
+        </p>
+
+        <p>
+            <strong>Roles:</strong>
+            @Model.SelectedUser.RoleSummary
+        </p>
+
+        <p>
+            <strong>Enabled:</strong>
+            @(Model.SelectedUser.IsEnabled ? "Yes" : "No")
+        </p>
+    </section>
+
+    @if (Model.SelectedUser.IsAdmin)
+    {
+        <section class="notice">
+            <strong>Global administrator:</strong>
+            this account already has access to all departments.
+            Department assignments are not enforced for Admin users.
+        </section>
+    }
+    else
+    {
+        <form
+            method="post"
+            asp-page-handler="Save">
+
+            <input
+                type="hidden"
+                asp-for="AppUserId" />
+
+            <section class="card">
+                <h2>Authorized Departments</h2>
+
+                <p>
+                    Check every department this reviewer should be
+                    allowed to review.
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Allow</th>
+                            <th>Department</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                    @foreach (var department in Model.Departments)
+                    {
+                        <tr>
+                            <td>
+                                @if (department.IsAssigned)
+                                {
+                                    <input
+                                        type="checkbox"
+                                        name="SelectedDepartmentIds"
+                                        value="@department.DepartmentId"
+                                        checked />
+                                }
+                                else
+                                {
+                                    <input
+                                        type="checkbox"
+                                        name="SelectedDepartmentIds"
+                                        value="@department.DepartmentId" />
+                                }
+                            </td>
+
+                            <td>
+                                @department.DepartmentName
+                            </td>
+                        </tr>
+                    }
+
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="card">
+                <label asp-for="ChangeReason">
+                    Change reason
+                </label>
+
+                <textarea
+                    asp-for="ChangeReason"
+                    rows="3"
+                    placeholder="Optional reason for this access change"></textarea>
+
+                <p>
+                    <button
+                        type="submit"
+                        class="button">
+                        Save Department Access
+                    </button>
+                </p>
+            </section>
+        </form>
+    }
+}

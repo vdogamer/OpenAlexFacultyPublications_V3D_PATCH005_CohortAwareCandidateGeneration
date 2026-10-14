@@ -118,6 +118,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 ex.Message);
         }
 
+        var auditCorrelationId = Guid.NewGuid();
         var scholarsProcessed = 0;
         var publicationRowsProcessed = 0;
         var publicationRowsExcludedByYearPolicy = 0;
@@ -155,6 +156,62 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 throw new InvalidOperationException(
                     $"Scheduled department ID {request.DepartmentId} did not match the reporting-store department ID {departmentId} for '{departmentName}'.");
             }
+
+            /*
+ * PATCH021S:
+ * Emit one structured audit event per roster member whose
+ * publication-source identity was resolved.
+ *
+ * This deliberately audits the final source selection rather
+ * than duplicating the identity-resolution algorithm.
+ */
+foreach (var rosterGroup in
+         selection.RosterPublicationSources
+             .GroupBy(item =>
+                 item.RosterMemberId)
+             .OrderBy(group =>
+                 group.Key))
+{
+    var sources =
+        rosterGroup
+            .OrderBy(item =>
+                item.SourceProvider,
+                StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item =>
+                item.SourceAuthorId,
+                StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    var displayName =
+        sources
+            .Select(item => item.DisplayName)
+            .FirstOrDefault()
+        ?? "(unknown)";
+
+    var sourceText =
+        string.Join(
+            ",",
+            sources.Select(item =>
+                $"{item.SourceProvider}:{item.SourceAuthorId}"));
+
+            await _logger.LogInfoAsync(
+                "AcademicOnlineDepartmentSync",
+                sources.Count > 1
+                    ? "RosterIdentityMultipleSources"
+                    : "RosterIdentityResolved",
+                $"RunId={runId}; " +
+                $"DepartmentId={departmentId}; " +
+                $"Department={departmentName}; " +
+                $"RosterMemberId={rosterGroup.Key}; " +
+                $"Name={displayName}; " +
+                $"SourceCount={sources.Count}; " +
+                $"MultiSource={sources.Count > 1}; " +
+                $"Sources={sourceText}.",
+                correlationId:
+                    auditCorrelationId,
+                cancellationToken:
+                    cancellationToken);
+        }
 
             var scholars =
                 selection.Scholars
@@ -384,6 +441,7 @@ public sealed class AcademicOnlineDepartmentSyncJob
                         departmentId,
                         rosterSource,
                         request,
+                        auditCorrelationId,
                         cancellationToken);
 
                 publicationRowsProcessed +=
@@ -445,19 +503,59 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 summary,
                 cancellationToken);
 
-            if (isCacheComplete)
-            {
-                await _repository.PromoteDepartmentSnapshotAsync(
-                    runId,
-                    departmentId,
-                    cancellationToken);
-            }
+                        if (isCacheComplete)
+                        {
+                            await _repository.PromoteDepartmentSnapshotAsync(
+                                runId,
+                                departmentId,
+                                cancellationToken);
+
+                            try
+                            {
+                                var reviewSync =
+                                    await _repository
+                                        .SyncFacultyPublicationReviewCandidatesForDepartmentAsync(
+                                            departmentId,
+                                            CancellationToken.None);
+
+                                await _logger.LogInfoAsync(
+                                    "AcademicOnlineDepartmentSync",
+                                    "ReviewCandidateSyncCompleted",
+                                    $"RunId={runId}; " +
+                                    $"DepartmentId={departmentId}; " +
+                                    $"Department={departmentName}; " +
+                                    $"SourceRows={reviewSync.SourceRows}; " +
+                                    $"UpdatedRows={reviewSync.UpdatedRows}; " +
+                                    $"InsertedRows={reviewSync.InsertedRows}; " +
+                                    $"RetiredRows={reviewSync.RetiredRows}; " +
+                                    $"CurrentCandidateRows={reviewSync.CurrentCandidateRows}.",
+                                    cancellationToken:
+                                        CancellationToken.None);
+                            }
+                            catch (Exception reviewSyncException)
+                            {
+                                await _logger.LogErrorAsync(
+                                    "AcademicOnlineDepartmentSync",
+                                    "ReviewCandidateSyncFailed",
+                                    $"RunId={runId}; " +
+                                    $"DepartmentId={departmentId}; " +
+                                    $"Department={departmentName}; " +
+                                    "The promoted department snapshot succeeded, " +
+                                    "but publication review candidate synchronization failed.",
+                                    reviewSyncException,
+                                    cancellationToken:
+                                        CancellationToken.None);
+                            }
+                        }
 
             await _logger.LogInfoAsync(
                 "AcademicOnlineDepartmentSync",
                 "RunCompleted",
-                summary,
-                cancellationToken: cancellationToken);
+                $"RunId={runId}; {summary}",
+                correlationId:
+                    auditCorrelationId,
+                cancellationToken:
+                    cancellationToken);
 
             return new AcademicOnlineDepartmentSyncOutcome
             {
@@ -481,7 +579,10 @@ public sealed class AcademicOnlineDepartmentSyncJob
                 "RunFailed",
                 $"Academic Online department sync run {runId} failed.",
                 ex,
-                cancellationToken: CancellationToken.None);
+                correlationId:
+                    auditCorrelationId,
+                cancellationToken:
+                    CancellationToken.None);
 
             return AcademicOnlineDepartmentSyncOutcome.Failed(
                 runId,
@@ -1254,7 +1355,8 @@ if (distinctOpenAlexAliases.Count > 0)
             RosterPublicationSources =
                 rosterSources,
             ScholarsDiscovered =
-                roster.Count,
+                scholarsById.Count +
+                openAlexFallbackCount,
             ScholarPagesFetched =
                 searchRequests,
             ScholarPaginationSafeguardHit =
@@ -2932,6 +3034,7 @@ private static bool IsPersonNameSuffix(
             long departmentId,
             RosterPublicationSource rosterSource,
             AcademicOnlineDepartmentSyncRequest request,
+            Guid auditCorrelationId,
             CancellationToken cancellationToken)
     {
         if (request.VerifiedOnly)
@@ -2939,6 +3042,22 @@ private static bool IsPersonNameSuffix(
             throw new InvalidOperationException(
                 "OpenAlex fallback publications cannot satisfy Academic Online VerifiedOnly policy.");
         }
+
+        await _logger.LogInfoAsync(
+            "AcademicOnlineDepartmentSync",
+            "RosterPublicationSourceStarted",
+            $"RunId={runId}; " +
+            $"DepartmentId={departmentId}; " +
+            $"RosterMemberId={rosterSource.RosterMemberId}; " +
+            $"Name={rosterSource.DisplayName}; " +
+            $"SourceProvider={rosterSource.SourceProvider}; " +
+            $"SourceAuthorId={rosterSource.SourceAuthorId}; " +
+            $"FromYear={request.FromYear?.ToString() ?? "(all)"}; " +
+            $"ToYear={request.ToYear?.ToString() ?? "(current)"}.",
+            correlationId:
+                auditCorrelationId,
+            cancellationToken:
+                cancellationToken);
 
         var filter =
             BuildOpenAlexAuthorWorksFilter(
@@ -3095,6 +3214,24 @@ private static bool IsPersonNameSuffix(
 
             cursor = nextCursor;
         }
+
+        await _logger.LogInfoAsync(
+            "AcademicOnlineDepartmentSync",
+            "RosterPublicationSourceCompleted",
+            $"RunId={runId}; " +
+            $"DepartmentId={departmentId}; " +
+            $"RosterMemberId={rosterSource.RosterMemberId}; " +
+            $"Name={rosterSource.DisplayName}; " +
+            $"SourceProvider={rosterSource.SourceProvider}; " +
+            $"SourceAuthorId={rosterSource.SourceAuthorId}; " +
+            $"PublicationsProcessed={publicationsProcessed}; " +
+            $"PublicationsExcludedByYearPolicy={publicationsExcludedByYearPolicy}; " +
+            $"PagesFetched={pagesFetched}; " +
+            $"HitMaxPages={hitMaxPages}.",
+            correlationId:
+                auditCorrelationId,
+            cancellationToken:
+                cancellationToken);
 
         return new OpenAlexFallbackProcessResult(
             PublicationsProcessed:

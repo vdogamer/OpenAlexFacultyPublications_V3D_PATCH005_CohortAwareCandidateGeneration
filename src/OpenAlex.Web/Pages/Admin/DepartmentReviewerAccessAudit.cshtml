@@ -1,0 +1,154 @@
+@page
+@model OpenAlex.Web.Pages.Admin.DepartmentReviewerAccessAuditModel
+
+@{
+    ViewData["Title"] = "Department Reviewer Access Audit";
+}
+
+<h1>Department Reviewer Access Audit</h1>
+
+<section class="card">
+    <p>
+        Review department-access changes for reviewers.
+        This shows who changed access, what department was
+        affected, and when the change occurred.
+    </p>
+
+    <p>
+        <a
+            class="button"
+            asp-page="/Admin/DepartmentReviewerAccess">
+            Manage Reviewer Access
+        </a>
+
+        <a
+            class="button"
+            asp-page="/Admin/Roles">
+            Role Management
+        </a>
+    </p>
+</section>
+
+
+<section class="card">
+    <form method="get">
+
+        <label for="AppUserId">
+            Reviewer
+        </label>
+
+        <select
+            id="AppUserId"
+            name="AppUserId">
+
+            <option value="">
+                All reviewers
+            </option>
+
+            @foreach (var user in Model.Users)
+            {
+                if (Model.AppUserId == user.AppUserId)
+                {
+                    <option
+                        value="@user.AppUserId"
+                        selected>
+                        @user.UserName
+                    </option>
+                }
+                else
+                {
+                    <option
+                        value="@user.AppUserId">
+                        @user.UserName
+                    </option>
+                }
+            }
+
+        </select>
+
+        <button type="submit">
+            Filter
+        </button>
+
+        <a
+            class="button"
+            asp-page="/Admin/DepartmentReviewerAccessAudit">
+            Clear
+        </a>
+
+    </form>
+</section>
+
+
+@if (Model.AuditItems.Count == 0)
+{
+    <section class="notice">
+        No department-access audit records were found.
+    </section>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>When</th>
+                <th>Reviewer</th>
+                <th>Department</th>
+                <th>Change</th>
+                <th>Changed By</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        @foreach (var item in Model.AuditItems)
+        {
+            <tr>
+                <td>
+                    @item.CreatedAtUtc.ToString("u")
+                </td>
+
+                <td>
+                    <strong>
+                        @item.TargetUserName
+                    </strong>
+                </td>
+
+                <td>
+                    @(item.DepartmentName
+                        ?? $"Department {item.DepartmentId}")
+                </td>
+
+                <td>
+                    @if (
+                        item.ChangeType ==
+                        "DepartmentAccessGranted")
+                    {
+                        <strong>Granted</strong>
+                    }
+                    else if (
+                        item.ChangeType ==
+                        "DepartmentAccessRemoved")
+                    {
+                        <strong>Removed</strong>
+                    }
+                    else
+                    {
+                        @item.ChangeType
+                    }
+                </td>
+
+                <td>
+                    @item.ChangedBy
+                </td>
+
+                <td>
+                    @(item.ChangeReason ?? "-")
+                </td>
+            </tr>
+        }
+
+        </tbody>
+    </table>
+}

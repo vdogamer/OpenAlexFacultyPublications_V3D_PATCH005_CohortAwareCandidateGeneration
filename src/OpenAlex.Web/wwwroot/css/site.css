@@ -612,3 +612,1015 @@ button, .button {
         min-width: 0;
     }
 }
+
+/* ============================================================
+   PATCH021Q - Faculty Publications manager-demo polish
+   ============================================================ */
+
+.faculty-page {
+    --faculty-border: #d9dde3;
+    --faculty-soft-bg: #f6f7f9;
+    --faculty-card-bg: #ffffff;
+    --faculty-text-muted: #5d6673;
+    --faculty-heading: #17202a;
+
+    max-width: 1500px;
+    margin: 0 auto;
+    padding-bottom: 3rem;
+}
+
+
+/* ------------------------------------------------------------
+   Header
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-hero {
+    margin-bottom: 1.4rem;
+}
+
+.faculty-page .faculty-hero h1 {
+    margin-bottom: 0.35rem;
+    font-size: clamp(1.8rem, 3vw, 2.45rem);
+    line-height: 1.15;
+    color: var(--faculty-heading);
+}
+
+.faculty-page .faculty-hero p {
+    max-width: 850px;
+    margin: 0;
+    color: var(--faculty-text-muted);
+    font-size: 1.03rem;
+}
+
+
+/* ------------------------------------------------------------
+   Search/filter panel
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-search-card {
+    background: var(--faculty-card-bg);
+    border: 1px solid var(--faculty-border);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.faculty-page .faculty-search-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(260px, 2fr)
+        minmax(220px, 1fr)
+        minmax(90px, auto)
+        auto;
+    gap: 0.85rem;
+    align-items: end;
+}
+
+.faculty-page .faculty-field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 700;
+}
+
+.faculty-page .faculty-field input,
+.faculty-page .faculty-field select {
+    width: 100%;
+    min-height: 42px;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #adb5bd;
+    border-radius: 6px;
+    background: #fff;
+    font: inherit;
+}
+
+.faculty-page .faculty-search-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+
+/* ------------------------------------------------------------
+   Status/results summary
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-summary-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+
+    margin: 1rem 0;
+    padding: 0.65rem 0.85rem;
+
+    background: var(--faculty-soft-bg);
+    border-radius: 8px;
+    color: var(--faculty-text-muted);
+}
+
+.faculty-page .faculty-refresh-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.faculty-page .faculty-status-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #2e7d32;
+}
+
+.faculty-page .faculty-result-count strong {
+    color: var(--faculty-heading);
+}
+
+
+/* ------------------------------------------------------------
+   Table
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-table-wrap {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid var(--faculty-border);
+    border-radius: 10px;
+}
+
+.faculty-page .faculty-table {
+    width: 100%;
+    min-width: 980px;
+    margin: 0;
+    border-collapse: collapse;
+}
+
+.faculty-page .faculty-table thead th {
+    background: #f1f3f5;
+    padding: 0.8rem 0.75rem;
+    border-bottom: 2px solid var(--faculty-border);
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.faculty-page .faculty-table tbody td {
+    padding: 0.8rem 0.75rem;
+    border-bottom: 1px solid #eceff2;
+    vertical-align: top;
+}
+
+.faculty-page .faculty-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.faculty-page .faculty-table tbody tr:hover {
+    background: #fafbfc;
+}
+
+.faculty-page .faculty-name {
+    font-weight: 700;
+    font-size: 1.02rem;
+}
+
+.faculty-page .faculty-email,
+.faculty-page .faculty-secondary {
+    color: var(--faculty-text-muted);
+    font-size: 0.89rem;
+}
+
+
+/* ------------------------------------------------------------
+   Sort controls
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+
+    color: inherit;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.faculty-page .faculty-sort-link:hover {
+    text-decoration: underline;
+}
+
+.faculty-page .faculty-sort-indicator {
+    font-size: 0.85rem;
+    color: #65707c;
+}
+
+
+/* ------------------------------------------------------------
+   Publication count
+   ------------------------------------------------------------ */
+
+.faculty-page .publication-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+
+    background: #eef3f8;
+    font-size: 0.9rem;
+}
+
+.faculty-page .publication-count strong {
+    font-size: 1rem;
+}
+
+.faculty-page .no-publications {
+    color: var(--faculty-text-muted);
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+
+
+/* ------------------------------------------------------------
+   Action button
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-view-button {
+    display: inline-block;
+    padding: 0.42rem 0.7rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+
+/* ------------------------------------------------------------
+   Pagination
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+
+    margin-top: 1.4rem;
+}
+
+.faculty-page .faculty-page-link,
+.faculty-page .faculty-page-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0.35rem 0.6rem;
+
+    border: 1px solid var(--faculty-border);
+    border-radius: 6px;
+
+    text-decoration: none;
+}
+
+.faculty-page .faculty-page-link:hover {
+    background: #f1f3f5;
+}
+
+.faculty-page .faculty-page-current {
+    background: #343a40;
+    border-color: #343a40;
+    color: #fff;
+    font-weight: 700;
+}
+
+
+/* ------------------------------------------------------------
+   Empty state
+   ------------------------------------------------------------ */
+
+.faculty-page .faculty-empty-state {
+    margin-top: 1rem;
+    padding: 2rem;
+    text-align: center;
+
+    background: #fff;
+    border: 1px solid var(--faculty-border);
+    border-radius: 10px;
+}
+
+.faculty-page .faculty-empty-state strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 1.15rem;
+}
+
+
+/* ------------------------------------------------------------
+   Responsive layout
+   ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+
+    .faculty-page .faculty-search-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .faculty-page .faculty-search-actions {
+        align-self: end;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .faculty-page .faculty-search-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .faculty-page .faculty-search-actions {
+        width: 100%;
+    }
+
+    .faculty-page .faculty-summary-bar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+.faculty-page .faculty-pagination-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 38px;
+    color: #65707c;
+    font-weight: 700;
+}
+
+/* ============================================================
+   PATCH021R - Faculty publication detail page polish
+   ============================================================ */
+
+.faculty-detail-page {
+    --faculty-detail-border: #d9dde3;
+    --faculty-detail-soft-bg: #f6f7f9;
+    --faculty-detail-muted: #5d6673;
+    --faculty-detail-heading: #17202a;
+    --faculty-detail-link: #1f4e79;
+
+    max-width: 1250px;
+    margin: 0 auto;
+    padding-bottom: 3rem;
+}
+
+
+/* ------------------------------------------------------------
+   Back navigation
+   ------------------------------------------------------------ */
+
+.faculty-detail-back {
+    margin-bottom: 1rem;
+}
+
+
+/* ------------------------------------------------------------
+   Faculty hero
+   ------------------------------------------------------------ */
+
+.faculty-detail-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 2rem;
+    align-items: stretch;
+
+    background: #fff;
+    border: 1px solid var(--faculty-detail-border);
+    border-radius: 12px;
+
+    padding: 1.5rem 1.6rem;
+    margin-bottom: 1rem;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
+}
+
+.faculty-detail-kicker {
+    margin-bottom: .35rem;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.faculty-detail-hero h1 {
+    margin: 0 0 .35rem;
+
+    color: var(--faculty-detail-heading);
+
+    font-size: clamp(1.9rem, 3vw, 2.6rem);
+    line-height: 1.1;
+}
+
+.faculty-detail-position {
+    margin-bottom: 1.35rem;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: 1.05rem;
+}
+
+
+/* ------------------------------------------------------------
+   Faculty metadata
+   ------------------------------------------------------------ */
+
+.faculty-detail-meta-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(180px, 1fr));
+
+    gap: 1rem 1.5rem;
+}
+
+.faculty-detail-meta-item {
+    display: grid;
+    gap: .2rem;
+}
+
+.faculty-detail-meta-label {
+    color: var(--faculty-detail-muted);
+
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.faculty-detail-meta-value {
+    color: var(--faculty-detail-heading);
+
+    font-size: .96rem;
+}
+
+.faculty-detail-meta-value a {
+    color: var(--faculty-detail-link);
+}
+
+
+/* ------------------------------------------------------------
+   Publication-count panel
+   ------------------------------------------------------------ */
+
+.faculty-detail-count-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 180px;
+
+    background: var(--faculty-detail-soft-bg);
+    border-radius: 10px;
+
+    padding: 1.2rem;
+    text-align: center;
+}
+
+.faculty-detail-count {
+    color: var(--faculty-detail-heading);
+
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.faculty-detail-count-label {
+    margin-top: .35rem;
+
+    color: var(--faculty-detail-muted);
+
+    font-weight: 700;
+}
+
+.faculty-detail-snapshot-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+
+    margin-top: 1rem;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: .78rem;
+}
+
+.faculty-detail-status-dot {
+    display: inline-block;
+
+    width: 8px;
+    height: 8px;
+
+    background: #2e7d32;
+    border-radius: 50%;
+}
+
+
+/* ------------------------------------------------------------
+   Incomplete-data notice
+   ------------------------------------------------------------ */
+
+.faculty-detail-notice {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+
+    margin-bottom: 1rem;
+    padding: .8rem 1rem;
+
+    background: #fff7d6;
+    border: 1px solid #e8d37a;
+    border-radius: 8px;
+}
+
+
+/* ------------------------------------------------------------
+   Publications section
+   ------------------------------------------------------------ */
+
+.faculty-publications-section {
+    margin-top: 1.5rem;
+}
+
+.faculty-publications-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+
+    margin-bottom: .9rem;
+}
+
+.faculty-publications-heading h2 {
+    margin: 0 0 .25rem;
+
+    color: var(--faculty-detail-heading);
+
+    font-size: 1.55rem;
+}
+
+.faculty-publications-heading p {
+    margin: 0;
+
+    color: var(--faculty-detail-muted);
+}
+
+.faculty-publications-total {
+    white-space: nowrap;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: .92rem;
+}
+
+.faculty-publications-total strong {
+    color: var(--faculty-detail-heading);
+}
+
+
+/* ------------------------------------------------------------
+   Publication cards
+   ------------------------------------------------------------ */
+
+.faculty-publication-list {
+    display: grid;
+    gap: .85rem;
+}
+
+.faculty-publication-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 155px;
+    gap: 1.25rem;
+
+    background: #fff;
+    border: 1px solid var(--faculty-detail-border);
+    border-radius: 10px;
+
+    padding: 1.1rem 1.2rem;
+
+    transition:
+        border-color .15s ease,
+        box-shadow .15s ease;
+}
+
+.faculty-publication-card:hover {
+    border-color: #b9c1ca;
+
+    box-shadow:
+        0 3px 10px rgba(0, 0, 0, .05);
+}
+
+.faculty-publication-title {
+    margin: 0 0 .45rem;
+
+    font-size: 1.08rem;
+    line-height: 1.35;
+}
+
+.faculty-publication-title a {
+    color: var(--faculty-detail-link);
+    text-decoration: none;
+}
+
+.faculty-publication-title a:hover,
+.faculty-publication-title a:focus {
+    text-decoration: underline;
+}
+
+.faculty-publication-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem 1.2rem;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: .9rem;
+}
+
+.faculty-publication-doi {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .45rem;
+
+    margin-top: .7rem;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: .82rem;
+}
+
+.faculty-publication-doi > span {
+    font-weight: 700;
+}
+
+.faculty-publication-doi code {
+    overflow-wrap: anywhere;
+
+    color: #404852;
+
+    background: #f3f4f6;
+    border-radius: 4px;
+
+    padding: .15rem .3rem;
+}
+
+
+/* ------------------------------------------------------------
+   Publication side panel
+   ------------------------------------------------------------ */
+
+.faculty-publication-card-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: .8rem;
+}
+
+.faculty-publication-citations {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .3rem;
+
+    padding: .3rem .55rem;
+
+    background: #eef3f8;
+    border-radius: 999px;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: .82rem;
+}
+
+.faculty-publication-citations strong {
+    color: var(--faculty-detail-heading);
+
+    font-size: 1rem;
+}
+
+.faculty-publication-link {
+    color: var(--faculty-detail-link);
+
+    font-size: .88rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.faculty-publication-link:hover,
+.faculty-publication-link:focus {
+    text-decoration: underline;
+}
+
+
+/* ------------------------------------------------------------
+   No publications / missing faculty
+   ------------------------------------------------------------ */
+
+.faculty-detail-no-publications,
+.faculty-detail-empty {
+    padding: 2.5rem 1.5rem;
+
+    background: #fff;
+    border: 1px solid var(--faculty-detail-border);
+    border-radius: 10px;
+
+    text-align: center;
+}
+
+.faculty-detail-no-publications h2,
+.faculty-detail-empty h1 {
+    margin: .5rem 0;
+
+    color: var(--faculty-detail-heading);
+}
+
+.faculty-detail-no-publications p,
+.faculty-detail-empty p {
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.faculty-detail-no-publications-icon,
+.faculty-detail-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 46px;
+    height: 46px;
+
+    background: var(--faculty-detail-soft-bg);
+    border-radius: 50%;
+
+    color: var(--faculty-detail-muted);
+
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.faculty-detail-muted {
+    color: var(--faculty-detail-muted);
+    font-size: .9rem;
+}
+
+
+/* ------------------------------------------------------------
+   Footer navigation
+   ------------------------------------------------------------ */
+
+.faculty-detail-footer {
+    margin-top: 1.5rem;
+}
+
+
+/* ------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------ */
+
+@media (max-width: 850px) {
+
+    .faculty-detail-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .faculty-detail-count-panel {
+        min-height: 0;
+    }
+
+    .faculty-publication-card {
+        grid-template-columns: 1fr;
+    }
+
+    .faculty-publication-card-side {
+        align-items: flex-start;
+    }
+}
+
+
+@media (max-width: 600px) {
+
+    .faculty-detail-meta-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .faculty-publications-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .faculty-detail-hero {
+        padding: 1.1rem;
+    }
+}
+
+/* ============================================================
+   PATCH021U
+   Simplified application navigation
+   ============================================================ */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.85rem 1.25rem;
+    position: relative;
+    z-index: 1000;
+}
+
+.brand-link {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.brand-link:hover,
+.brand-link:focus {
+    color: #fff;
+    text-decoration: none;
+}
+
+
+/* Primary navigation */
+
+.primary-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 1;
+}
+
+.primary-nav .nav-item {
+    display: block;
+    padding: 0.55rem 0.7rem;
+    color: #fff;
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.primary-nav .nav-item:hover,
+.primary-nav .nav-item:focus {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    text-decoration: none;
+}
+
+
+/* Dropdown group */
+
+.nav-group {
+    position: relative;
+}
+
+.nav-group > summary {
+    list-style: none;
+}
+
+.nav-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.nav-group > summary::after {
+    content: " ▾";
+    font-size: 0.75rem;
+}
+
+.nav-group[open] > summary {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+
+/* Dropdown panel */
+
+.nav-dropdown {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    min-width: 230px;
+
+    padding: 0.45rem 0;
+
+    background: #fff;
+    border: 1px solid #d7d7d7;
+    border-radius: 7px;
+
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.18);
+
+    z-index: 2000;
+}
+
+.nav-dropdown a {
+    display: block;
+    padding: 0.65rem 0.9rem;
+
+    color: #222;
+    text-decoration: none;
+
+    white-space: nowrap;
+}
+
+.nav-dropdown a:hover,
+.nav-dropdown a:focus {
+    background: #f2f4f7;
+    color: #111;
+    text-decoration: none;
+}
+
+
+/* Dropdown section separator */
+
+.nav-divider {
+    height: 1px;
+    margin: 0.35rem 0;
+    background: #e3e3e3;
+}
+
+
+/* Authentication area */
+
+.authbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.signed-in-user {
+    color: #fff;
+}
+
+.logout-form {
+    display: inline;
+    margin: 0;
+}
+
+
+/* Responsive behavior */
+
+@media (max-width: 1100px) {
+
+    .topbar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .primary-nav {
+        order: 3;
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .authbar {
+        margin-left: auto;
+    }
+}
+
+
+@media (max-width: 700px) {
+
+    .primary-nav {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .primary-nav .nav-item {
+        width: 100%;
+    }
+
+    .nav-group {
+        width: 100%;
+    }
+
+    .nav-dropdown {
+        position: static;
+        margin-top: 0.25rem;
+        width: 100%;
+        box-shadow: none;
+    }
+
+    .authbar {
+        width: 100%;
+        margin-left: 0;
+    }
+}

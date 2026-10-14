@@ -1,0 +1,558 @@
+@page
+@model OpenAlex.Web.Pages.Reports.PublicationFreshnessModel
+@using OpenAlex.Web.Services
+@{
+    ViewData["Title"] = "Faculty Publication Freshness Check";
+}
+
+<h1>Faculty Publication Freshness Check</h1>
+
+<section class="card">
+    <p>
+        Compare the faculty member's current local publication list with live
+        Academic Online and OpenAlex results, or look up a publication directly
+        by DOI. PATCH022B remains read-only: it reports evidence but does not
+        insert publications, change identities, or write review decisions.
+    </p>
+
+    <p class="small">
+        A source can only report what it currently indexes. A clean scan means
+        the local application agrees with the available source data at scan time;
+        it cannot guarantee that a newly published work has already been indexed
+        by OpenAlex or Academic Online.
+    </p>
+</section>
+
+<section class="card">
+    <h2>Check a faculty member</h2>
+
+    <form method="get" class="filter-form faculty-search-form">
+        <label>
+            UVA User ID
+            <input type="text"
+                   name="UserId"
+                   value="@Model.UserId"
+                   maxlength="64"
+                   required
+                   autocomplete="off"
+                   placeholder="e.g. abc2d" />
+        </label>
+
+        <label>
+            Look back from year
+            <input type="number"
+                   name="FromYear"
+                   value="@Model.FromYear"
+                   min="1800"
+                   max="@(DateTime.UtcNow.Year + 1)"
+                   placeholder="automatic" />
+        </label>
+
+        <button type="submit">Check Latest Publications</button>
+    </form>
+
+    <p class="small">
+        If the year is left blank, the scanner begins one year before the newest
+        locally listed publication. That overlap helps catch publications that
+        were indexed late.
+    </p>
+</section>
+
+<section class="card">
+    <h2>Find a missing publication by DOI</h2>
+
+    <form method="get" class="filter-form faculty-search-form">
+        <label>
+            DOI
+            <input type="text"
+                   name="Doi"
+                   value="@Model.Doi"
+                   maxlength="512"
+                   required
+                   autocomplete="off"
+                   placeholder="e.g. 10.1000/example" />
+        </label>
+
+        <button type="submit">Find DOI</button>
+    </form>
+
+    <p class="small">
+        You may paste a bare DOI, a doi: value, or a https://doi.org/ URL.
+        The lookup checks OpenAlex directly, existing local review evidence,
+        trusted UVA/OpenAlex author mappings, and then the candidate faculty
+        member's Academic Online/local publication set when a safe faculty
+        association can be established.
+    </p>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.DoiErrorMessage))
+{
+    <section class="card">
+        <h2>DOI lookup error</h2>
+        <p class="notice">@Model.DoiErrorMessage</p>
+    </section>
+}
+
+@if (Model.DoiResult is not null)
+{
+    var doiResult = Model.DoiResult;
+
+    <section class="card">
+        <h2>DOI lookup result</h2>
+
+        <dl>
+            <dt>DOI</dt>
+            <dd>
+                <a href="https://doi.org/@doiResult.Doi"
+                   target="_blank"
+                   rel="noopener">@doiResult.Doi</a>
+            </dd>
+
+            <dt>Checked</dt>
+            <dd>@doiResult.CheckedAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</dd>
+
+            <dt>OpenAlex DOI lookup</dt>
+            <dd>
+                @if (!doiResult.OpenAlexIsAvailable)
+                {
+                    <span>Lookup failed</span>
+                }
+                else if (doiResult.Publication is not null)
+                {
+                    <span>Exact DOI match found</span>
+                }
+                else
+                {
+                    <span>No exact match returned</span>
+                }
+            </dd>
+        </dl>
+
+        @if (!string.IsNullOrWhiteSpace(doiResult.OpenAlexMessage))
+        {
+            <p class="notice">@doiResult.OpenAlexMessage</p>
+        }
+
+        @if (doiResult.Publication is not null)
+        {
+            var publication = doiResult.Publication;
+
+            <h3>@publication.Title</h3>
+
+            @if (!string.IsNullOrWhiteSpace(publication.Venue))
+            {
+                <p><strong>Venue:</strong> @publication.Venue</p>
+            }
+
+            <dl>
+                <dt>Publication date</dt>
+                <dd>@(publication.PublicationDate ?? publication.PublicationYear?.ToString() ?? "not supplied")</dd>
+
+                <dt>Type</dt>
+                <dd>@(publication.WorkType ?? "not supplied")</dd>
+
+                <dt>OpenAlex work</dt>
+                <dd>
+                    @if (!string.IsNullOrWhiteSpace(publication.OpenAlexWorkId))
+                    {
+                        <a href="https://openalex.org/@publication.OpenAlexWorkId"
+                           target="_blank"
+                           rel="noopener">@publication.OpenAlexWorkId</a>
+                    }
+                    else
+                    {
+                        <span>not supplied</span>
+                    }
+                </dd>
+            </dl>
+        }
+        else if (!doiResult.HasAnyEvidence)
+        {
+            <p>
+                No publication or faculty evidence was found for this DOI in the
+                sources available to the read-only lookup.
+            </p>
+        }
+
+        @foreach (var warning in doiResult.Warnings)
+        {
+            <p class="notice">@warning</p>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Possible UVA faculty association</h2>
+
+        @if (doiResult.FacultyCandidates.Count == 0)
+        {
+            <p>
+                No UVA faculty member could be associated with this DOI through a
+                trusted local OpenAlex identity or an existing review record.
+                This page deliberately does not assign faculty by author name alone.
+            </p>
+        }
+        else
+        {
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Faculty</th>
+                            <th scope="col">Association basis</th>
+                            <th scope="col">Local</th>
+                            <th scope="col">Academic Online</th>
+                            <th scope="col">OpenAlex</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var candidate in doiResult.FacultyCandidates)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@(string.IsNullOrWhiteSpace(candidate.FacultyName) ? candidate.UvaUserId : candidate.FacultyName)</strong>
+                                    <div class="small">@candidate.UvaUserId</div>
+                                    @if (candidate.Departments.Count > 0)
+                                    {
+                                        <div class="small">@string.Join(", ", candidate.Departments)</div>
+                                    }
+                                </td>
+                                <td>@candidate.AssociationBasis</td>
+                                <td>@(candidate.ExistsLocally ? "Yes" : "No")</td>
+                                <td>@(candidate.ExistsInAcademicOnline ? "Yes" : "No")</td>
+                                <td>@(candidate.ExistsInOpenAlex ? "Yes" : "No")</td>
+                                <td>
+                                    <strong>@candidate.StatusLabel</strong>
+                                    @if (!string.IsNullOrWhiteSpace(candidate.ReviewStatus))
+                                    {
+                                        <div class="small">Review: @candidate.ReviewStatus</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(candidate.ScanError))
+                                    {
+                                        <div class="notice">Scan error: @candidate.ScanError</div>
+                                    }
+                                </td>
+                            </tr>
+
+                            @foreach (var warning in candidate.ScanWarnings)
+                            {
+                                <tr>
+                                    <td colspan="6" class="small">
+                                        <span class="notice">@warning</span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @if (doiResult.OpenAlexAuthors.Count > 0)
+    {
+        <section class="card">
+            <details>
+                <summary>
+                    Show OpenAlex authors (@doiResult.OpenAlexAuthors.Count)
+                </summary>
+
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Author</th>
+                                <th scope="col">OpenAlex ID</th>
+                                <th scope="col">ORCID</th>
+                                <th scope="col">Institutions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var author in doiResult.OpenAlexAuthors)
+                            {
+                                <tr>
+                                    <td>
+                                        @author.DisplayName
+                                        @if (author.HasUvaAffiliationHint)
+                                        {
+                                            <div class="small"><strong>OpenAlex reports UVA affiliation</strong></div>
+                                        }
+                                    </td>
+                                    <td>@(author.OpenAlexAuthorId ?? "—")</td>
+                                    <td>@(author.Orcid ?? "—")</td>
+                                    <td>
+                                        @(author.InstitutionNames.Count == 0
+                                            ? "—"
+                                            : string.Join(", ", author.InstitutionNames))
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        </section>
+    }
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <section class="card">
+        <h2>Freshness check error</h2>
+        <p class="notice">@Model.ErrorMessage</p>
+    </section>
+}
+
+@if (Model.Result is not null)
+{
+    var result = Model.Result;
+    var attentionItems = result.Items
+        .Where(item => item.NeedsAttention)
+        .ToArray();
+
+    <section class="card">
+        <h2>@result.FacultyName</h2>
+
+        <dl>
+            <dt>UVA User ID</dt>
+            <dd>@result.UvaUserId</dd>
+
+            <dt>Email</dt>
+            <dd>@(result.Email ?? "not supplied")</dd>
+
+            <dt>Department(s)</dt>
+            <dd>
+                @(result.Departments.Count == 0
+                    ? "not supplied"
+                    : string.Join(", ", result.Departments))
+            </dd>
+
+            <dt>Scan window</dt>
+            <dd>@result.FromYear through @result.ToYear</dd>
+
+            <dt>Checked</dt>
+            <dd>@result.CheckedAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</dd>
+        </dl>
+    </section>
+
+    <section class="card">
+        <h2>Source identities and scan status</h2>
+
+        <dl>
+            <dt>Academic Online author ID(s)</dt>
+            <dd>
+                @(result.AcademicOnlineAuthorIds.Count == 0
+                    ? "not resolved"
+                    : string.Join(", ", result.AcademicOnlineAuthorIds))
+            </dd>
+
+            <dt>OpenAlex author ID(s)</dt>
+            <dd>
+                @(result.OpenAlexAuthorIds.Count == 0
+                    ? "not resolved"
+                    : string.Join(", ", result.OpenAlexAuthorIds))
+            </dd>
+
+            <dt>Academic Online</dt>
+            <dd>
+                @if (!result.AcademicOnlineSource.WasAttempted)
+                {
+                    <span>Not scanned</span>
+                }
+                else if (result.AcademicOnlineSource.IsAvailable)
+                {
+                    <span>
+                        Scanned — @result.AcademicOnlineSource.PagesFetched page(s)
+                    </span>
+                }
+                else
+                {
+                    <span>Scan failed</span>
+                }
+            </dd>
+
+            <dt>OpenAlex</dt>
+            <dd>
+                @if (!result.OpenAlexSource.WasAttempted)
+                {
+                    <span>Not scanned</span>
+                }
+                else if (result.OpenAlexSource.IsAvailable)
+                {
+                    <span>
+                        Scanned — @result.OpenAlexSource.PagesFetched page(s)
+                    </span>
+                }
+                else
+                {
+                    <span>Scan failed</span>
+                }
+            </dd>
+        </dl>
+
+        @if (!string.IsNullOrWhiteSpace(result.AcademicOnlineSource.Message))
+        {
+            <p class="notice">
+                <strong>Academic Online:</strong>
+                @result.AcademicOnlineSource.Message
+            </p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(result.OpenAlexSource.Message))
+        {
+            <p class="notice">
+                <strong>OpenAlex:</strong>
+                @result.OpenAlexSource.Message
+            </p>
+        }
+
+        @foreach (var warning in result.Warnings)
+        {
+            <p class="notice">@warning</p>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Freshness summary</h2>
+
+        <dl>
+            <dt>Local publications in scan window</dt>
+            <dd>@result.LocalPublicationCount</dd>
+
+            <dt>Academic Online publications returned</dt>
+            <dd>@result.AcademicOnlinePublicationCount</dd>
+
+            <dt>OpenAlex publications returned</dt>
+            <dd>@result.OpenAlexPublicationCount</dd>
+
+            <dt>Current / matched locally</dt>
+            <dd>@result.CurrentCount</dd>
+
+            <dt>Items needing attention</dt>
+            <dd>@result.AttentionCount</dd>
+        </dl>
+    </section>
+
+    <section class="card">
+        <h2>Items needing attention</h2>
+
+        @if (attentionItems.Length == 0)
+        {
+            <p>
+                No publication differences were found across the sources that
+                were successfully scanned for this date window.
+            </p>
+        }
+        else
+        {
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Publication</th>
+                            <th scope="col">Year</th>
+                            <th scope="col">Local</th>
+                            <th scope="col">Academic Online</th>
+                            <th scope="col">OpenAlex</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in attentionItems)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@item.Title</strong>
+
+                                    @if (!string.IsNullOrWhiteSpace(item.Venue))
+                                    {
+                                        <div class="small">@item.Venue</div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(item.Doi))
+                                    {
+                                        <div class="small">
+                                            DOI:
+                                            <a href="https://doi.org/@item.Doi"
+                                               target="_blank"
+                                               rel="noopener">
+                                                @item.Doi
+                                            </a>
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(item.OpenAlexWorkId))
+                                    {
+                                        <div class="small">
+                                            OpenAlex:
+                                            <a href="https://openalex.org/@item.OpenAlexWorkId"
+                                               target="_blank"
+                                               rel="noopener">
+                                                @item.OpenAlexWorkId
+                                            </a>
+                                        </div>
+                                    }
+                                </td>
+                                <td>@(item.PublicationYear?.ToString() ?? "—")</td>
+                                <td>@(item.ExistsLocally ? "Yes" : "No")</td>
+                                <td>@(item.ExistsInAcademicOnline ? "Yes" : "No")</td>
+                                <td>@(item.ExistsInOpenAlex ? "Yes" : "No")</td>
+                                <td>
+                                    <strong>@item.StatusLabel</strong>
+                                    @if (!string.IsNullOrWhiteSpace(item.ReviewStatus))
+                                    {
+                                        <div class="small">
+                                            Review: @item.ReviewStatus
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <p class="small">
+            PATCH022B remains read-only. After we validate UserID and DOI results,
+            the next step is a controlled “Send to Review” action that uses the
+            existing publication-review workflow.
+        </p>
+    </section>
+
+    <section class="card">
+        <details>
+            <summary>
+                Show all publications compared (@result.Items.Count)
+            </summary>
+
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Publication</th>
+                            <th scope="col">Year</th>
+                            <th scope="col">Local</th>
+                            <th scope="col">Academic Online</th>
+                            <th scope="col">OpenAlex</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in result.Items)
+                        {
+                            <tr>
+                                <td>@item.Title</td>
+                                <td>@(item.PublicationYear?.ToString() ?? "—")</td>
+                                <td>@(item.ExistsLocally ? "Yes" : "No")</td>
+                                <td>@(item.ExistsInAcademicOnline ? "Yes" : "No")</td>
+                                <td>@(item.ExistsInOpenAlex ? "Yes" : "No")</td>
+                                <td>@item.StatusLabel</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </section>
+}

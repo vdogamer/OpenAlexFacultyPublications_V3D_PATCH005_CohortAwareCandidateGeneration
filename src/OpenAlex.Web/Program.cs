@@ -46,6 +46,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddOpenAlexData(builder.Configuration);
+builder.Services.AddScoped<DepartmentReviewAuthorizationService>();
 // PATCH003 safeguard: ensure manual faculty intake repository is registered even if older data extensions are deployed.
 builder.Services.AddScoped<FacultyRepository>(); // PATCH003
 builder.Services.AddScoped<FacultyPublicationRepository>();
@@ -58,6 +59,7 @@ builder.Services.AddScoped<FacultyAcademicOnlineMappingRepository>();
 builder.Services.AddScoped<AcademicOnlineFacultyPublicationsService>();
 builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
 builder.Services.AddScoped<AcademicOnlineUniversalFacultyLookupService>();
+builder.Services.AddScoped<FacultyPublicationFreshnessService>();
 builder.Services.AddScoped<SharedPublicationsService>();
 builder.Services.AddScoped<FacultyProfileHandoffService>();
 builder.Services.AddScoped<PublicationKeywordFilterService>();

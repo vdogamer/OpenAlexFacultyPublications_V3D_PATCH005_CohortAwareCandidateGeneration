@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using OpenAlex.Data;
 using OpenAlex.Data.Models;
+using OpenAlex.Web.Auth;
 
 namespace OpenAlex.Web.Pages.Review;
 
@@ -11,90 +12,143 @@ public sealed class PublicationsModel : PageModel
 {
     private readonly ReviewQueueRepository _repository;
     private readonly ReviewDecisionRepository _decisionRepository;
+    private readonly DepartmentReviewAuthorizationService _departmentAuthorization;
 
     public PublicationsModel(
         ReviewQueueRepository repository,
-        ReviewDecisionRepository decisionRepository)
+        ReviewDecisionRepository decisionRepository,
+        DepartmentReviewAuthorizationService departmentAuthorization)
     {
         _repository = repository;
         _decisionRepository = decisionRepository;
+        _departmentAuthorization = departmentAuthorization;
     }
 
-    public IReadOnlyList<PublicationReviewQueueItem> Items { get; private set; } = Array.Empty<PublicationReviewQueueItem>();
+    [BindProperty(SupportsGet = true)]
+    public long DepartmentId { get; set; } = 2;
 
     [BindProperty(SupportsGet = true)]
     public string? SearchText { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public decimal? MinimumScore { get; set; }
+    public IReadOnlyList<CurrentPublicationReviewQueueItem> Items
+        { get; private set; }
+        = Array.Empty<CurrentPublicationReviewQueueItem>();
 
-    [BindProperty(SupportsGet = true)]
-    public string InstitutionEvidenceFilter { get; set; } = "Any";
-
-    [BindProperty(SupportsGet = true)]
-    public string CoauthorEvidenceFilter { get; set; } = "Any";
-
-    [BindProperty(SupportsGet = true)]
-    public string NearDuplicateFilter { get; set; } = "Any";
-
-    [BindProperty(SupportsGet = true)]
-    public string ResolutionStatusFilter { get; set; } = "Any";
+    public string DepartmentName { get; private set; }
+        = "Department of Cell Biology";
 
     public bool HasActiveFilters =>
-        !string.IsNullOrWhiteSpace(SearchText)
-        || MinimumScore.HasValue
-        || !string.Equals(InstitutionEvidenceFilter, "Any", StringComparison.OrdinalIgnoreCase)
-        || !string.Equals(CoauthorEvidenceFilter, "Any", StringComparison.OrdinalIgnoreCase)
-        || !string.Equals(NearDuplicateFilter, "Any", StringComparison.OrdinalIgnoreCase)
-        || !string.Equals(ResolutionStatusFilter, "Any", StringComparison.OrdinalIgnoreCase);
+        !string.IsNullOrWhiteSpace(SearchText);
 
-    public async Task OnGetAsync(CancellationToken cancellationToken)
+
+    public async Task<IActionResult> OnGetAsync(
+        CancellationToken cancellationToken)
     {
-        Items = await _repository.GetPublicationQueueAsync(
-            200,
-            SearchText,
-            MinimumScore,
-            InstitutionEvidenceFilter,
-            CoauthorEvidenceFilter,
-            NearDuplicateFilter,
-            ResolutionStatusFilter,
-            cancellationToken);
+        if (!await _departmentAuthorization
+                .CanReviewDepartmentAsync(
+                    User,
+                    DepartmentId,
+                    cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var departments =
+            await _repository
+                .GetReviewDepartmentOptionsAsync(
+                    cancellationToken);
+
+        DepartmentName =
+            departments
+                .FirstOrDefault(
+                    d => d.DepartmentId == DepartmentId)
+                ?.DepartmentName
+            ?? $"Department {DepartmentId}";
+
+        Items =
+            await _repository
+                .GetCurrentPublicationQueueAsync(
+                    DepartmentId,
+                    200,
+                    SearchText,
+                    cancellationToken);
+
+        return Page();
     }
 
-    public async Task<IActionResult> OnPostAcceptAsync(long id, string? notes, CancellationToken cancellationToken)
+
+    public async Task<IActionResult> OnPostAcceptAsync(
+        long id,
+        long departmentId,
+        string? notes,
+        string? searchText,
+        CancellationToken cancellationToken)
     {
-        await _decisionRepository.AcceptPublicationCandidateAsync(id, GetReviewerName(), notes, cancellationToken);
-        return RedirectToPage();
+        if (!await _departmentAuthorization
+                .CanReviewDepartmentAsync(
+                    User,
+                    departmentId,
+                    cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await _decisionRepository
+            .AcceptCurrentPublicationCandidateAsync(
+                id,
+                GetReviewerName(),
+                notes,
+                cancellationToken);
+
+        return RedirectToPage(
+            new
+            {
+                DepartmentId = departmentId,
+                SearchText = searchText
+            });
     }
 
-    public async Task<IActionResult> OnPostRejectAsync(long id, string? notes, CancellationToken cancellationToken)
+
+    public async Task<IActionResult> OnPostRejectAsync(
+        long id,
+        long departmentId,
+        string? notes,
+        string? searchText,
+        CancellationToken cancellationToken)
     {
-        await _decisionRepository.RejectPublicationCandidateAsync(id, GetReviewerName(), notes, cancellationToken);
-        return RedirectToPage();
+        if (!await _departmentAuthorization
+                .CanReviewDepartmentAsync(
+                    User,
+                    departmentId,
+                    cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await _decisionRepository
+            .RejectCurrentPublicationCandidateAsync(
+                id,
+                GetReviewerName(),
+                notes,
+                cancellationToken);
+
+        return RedirectToPage(
+            new
+            {
+                DepartmentId = departmentId,
+                SearchText = searchText
+            });
     }
 
-    public async Task<IActionResult> OnPostKeepSeparateAsync(long id, string? notes, CancellationToken cancellationToken)
-    {
-        await _decisionRepository.KeepNearDuplicatePublicationCandidateSeparateAsync(id, GetReviewerName(), notes, cancellationToken);
-        return RedirectToPage();
-    }
-
-    public async Task<IActionResult> OnPostSuppressNearDuplicateWarningAsync(long id, string? notes, CancellationToken cancellationToken)
-    {
-        await _decisionRepository.SuppressNearDuplicatePublicationCandidateWarningAsync(id, GetReviewerName(), notes, cancellationToken);
-        return RedirectToPage();
-    }
-
-    public async Task<IActionResult> OnPostMarkDuplicateOfCandidateAsync(long id, long relatedCandidateId, string? notes, CancellationToken cancellationToken)
-    {
-        await _decisionRepository.MarkPublicationCandidateAsNearDuplicateAsync(id, relatedCandidateId, GetReviewerName(), notes, cancellationToken);
-        return RedirectToPage();
-    }
 
     private string GetReviewerName()
     {
-        return User?.Identity?.IsAuthenticated == true && !string.IsNullOrWhiteSpace(User.Identity.Name)
+        return User?.Identity?.IsAuthenticated == true
+               && !string.IsNullOrWhiteSpace(
+                   User.Identity.Name)
+
             ? User.Identity.Name!
+
             : "local.demo.reviewer";
     }
 }

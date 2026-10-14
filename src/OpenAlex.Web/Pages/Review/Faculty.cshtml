@@ -1,0 +1,903 @@
+@page
+@model OpenAlex.Web.Pages.Review.FacultyModel
+
+<style>
+
+    .faculty-review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .faculty-review-stats {
+        display: grid;
+        grid-template-columns:
+            repeat(auto-fit, minmax(130px, 1fr));
+        gap: .75rem;
+        margin: 1rem 0;
+    }
+
+    .faculty-review-stat {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: .85rem;
+        background: #fff;
+    }
+
+    .faculty-review-stat .label {
+        display: block;
+        color: #666;
+        font-size: .85rem;
+    }
+
+    .faculty-review-stat .value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-top: .2rem;
+    }
+
+    .faculty-progress-track {
+        height: 10px;
+        background: #e6e6e6;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: .5rem;
+    }
+
+    .faculty-progress-fill {
+        height: 100%;
+        background: #555;
+    }
+
+    .faculty-review-toolbar {
+        display: flex;
+        gap: .75rem;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .review-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+}
+
+</style>
+
+
+<section class="card">
+
+    <div class="faculty-review-header">
+
+        <div>
+
+            <p class="small">
+                <a
+                    asp-page="/Review/DepartmentDashboard"
+                    asp-route-DepartmentId="@Model.DepartmentId">
+                    ← Back to Department Dashboard
+                </a>
+            </p>
+
+            <h1>
+                @Model.Summary.FacultyDisplayName
+            </h1>
+
+            <p>
+                <strong>UVA UserID:</strong>
+                @ValueOrDash(Model.Summary.UvaUserId)
+
+                @if (!string.IsNullOrWhiteSpace(
+                    Model.Summary.Email))
+                {
+                    <span>
+                        &nbsp; · &nbsp;
+                        <strong>Email:</strong>
+                        @Model.Summary.Email
+                    </span>
+                }
+            </p>
+
+            <p class="small">
+                @Model.Summary.DepartmentName
+            </p>
+
+        </div>
+
+
+        <div>
+            <a
+                class="button secondary"
+                asp-page="/Review/PublicationStatus"
+                asp-route-DepartmentId="@Model.DepartmentId"
+                asp-route-SearchText="@Model.Summary.UvaUserId">
+                Department Status &amp; History
+            </a>
+        </div>
+
+    </div>
+
+
+    <div class="faculty-review-stats">
+
+        <div class="faculty-review-stat">
+            <span class="label">
+                Total
+            </span>
+
+            <span class="value">
+                @Model.Summary.TotalCount
+            </span>
+        </div>
+
+
+        <div class="faculty-review-stat">
+            <span class="label">
+                Pending
+            </span>
+
+            <span class="value">
+                @Model.Summary.PendingCount
+            </span>
+        </div>
+
+
+        <div class="faculty-review-stat">
+            <span class="label">
+                Accepted
+            </span>
+
+            <span class="value">
+                @Model.Summary.AcceptedCount
+            </span>
+        </div>
+
+
+        <div class="faculty-review-stat">
+            <span class="label">
+                Rejected
+            </span>
+
+            <span class="value">
+                @Model.Summary.RejectedCount
+            </span>
+        </div>
+
+
+        <div class="faculty-review-stat">
+            <span class="label">
+                Progress
+            </span>
+
+            <span class="value">
+                @Model.Summary.ReviewProgressPercent%
+            </span>
+        </div>
+
+    </div>
+
+
+    <div class="faculty-progress-track">
+
+        <div
+            class="faculty-progress-fill"
+            style="width:@Model.Summary.ReviewProgressPercent%;">
+        </div>
+
+    </div>
+
+    <p class="small">
+        @Model.Summary.ReviewedCount
+        of
+        @Model.Summary.TotalCount
+        publication associations reviewed.
+    </p>
+
+</section>
+
+
+<section class="card">
+
+    <form method="get">
+
+        <input
+            type="hidden"
+            name="FacultyKey"
+            value="@Model.FacultyKey" />
+
+        <input
+            type="hidden"
+            name="DepartmentId"
+            value="@Model.DepartmentId" />
+
+        <div class="faculty-review-toolbar">
+
+            <label>
+                Status
+                <select name="StatusFilter">
+
+                    <option value="Pending"
+                        selected="@IsSelected(
+                            Model.StatusFilter,
+                            "Pending")">
+                        Pending
+                    </option>
+
+                    <option value="Accepted"
+                        selected="@IsSelected(
+                            Model.StatusFilter,
+                            "Accepted")">
+                        Accepted
+                    </option>
+
+                    <option value="Rejected"
+                        selected="@IsSelected(
+                            Model.StatusFilter,
+                            "Rejected")">
+                        Rejected
+                    </option>
+
+                    <option value="Any"
+                        selected="@IsSelected(
+                            Model.StatusFilter,
+                            "Any")">
+                        All statuses
+                    </option>
+
+                </select>
+            </label>
+
+
+            <label>
+                Year
+                <select name="YearFilter">
+
+                    <option value="">
+                        All years
+                    </option>
+
+                    @foreach (var year in Model.AvailableYears)
+                    {
+                        <option
+                            value="@year"
+                            selected="@(Model.YearFilter == year)">
+                            @year
+                        </option>
+                    }
+
+                </select>
+            </label>
+
+
+            <label>
+                DOI
+                <select name="DoiFilter">
+
+                    <option
+                        value="Any"
+                        selected="@IsSelected(
+                            Model.DoiFilter,
+                            "Any")">
+                        Any
+                    </option>
+
+                    <option
+                        value="HasDoi"
+                        selected="@IsSelected(
+                            Model.DoiFilter,
+                            "HasDoi")">
+                        Has DOI
+                    </option>
+
+                    <option
+                        value="NoDoi"
+                        selected="@IsSelected(
+                            Model.DoiFilter,
+                            "NoDoi")">
+                        No DOI
+                    </option>
+
+                </select>
+            </label>
+
+            <label>
+                Reporting Window
+
+                <select name="ReportingWindowFilter">
+
+                    <option
+                        value="Any"
+                        selected="@IsSelected(
+                            Model.ReportingWindowFilter,
+                            "Any")">
+                        Any
+                    </option>
+
+                    <option
+                        value="Current"
+                        selected="@IsSelected(
+                            Model.ReportingWindowFilter,
+                            "Current")">
+                        Current
+                    </option>
+
+                    <option
+                        value="Historical"
+                        selected="@IsSelected(
+                            Model.ReportingWindowFilter,
+                            "Historical")">
+                        Historical
+                    </option>
+
+                </select>
+            </label>
+
+
+            <label>
+                Search
+                <input
+                    type="text"
+                    name="SearchText"
+                    value="@Model.SearchText"
+                    placeholder="title, DOI, venue" />
+            </label>
+
+
+            <label>
+                Per page
+                <select name="PageSize">
+
+                    @foreach (var size in new[] { 10, 25, 50, 100 })
+                    {
+                        <option
+                            value="@size"
+                            selected="@(Model.PageSize == size)">
+                            @size
+                        </option>
+                    }
+
+                </select>
+            </label>
+
+
+            <input
+                type="hidden"
+                name="PageNumber"
+                value="1" />
+
+
+            <button type="submit">
+                Apply
+            </button>
+
+
+            <a
+                class="button secondary"
+                asp-page="/Review/Faculty"
+                asp-route-DepartmentId="@Model.DepartmentId"
+                asp-route-FacultyKey="@Model.FacultyKey">
+                Reset
+            </a>
+
+        </div>
+
+    </form>
+
+
+    @{
+        var firstItem =
+            Model.TotalFilteredCount == 0
+                ? 0
+                : ((Model.PageNumber - 1)
+                   * Model.PageSize) + 1;
+
+        var lastItem =
+            Math.Min(
+                (long)Model.PageNumber
+                    * Model.PageSize,
+                Model.TotalFilteredCount);
+    }
+
+
+    <p class="small">
+        Showing
+        @firstItem–@lastItem
+        of
+        @Model.TotalFilteredCount
+        matching item(s).
+
+        Page
+        @Model.PageNumber
+        of
+        @Model.TotalPages.
+    </p>
+
+</section>
+
+@if (Model.TotalPages > 1)
+{
+    <nav
+        class="review-pagination"
+        aria-label="Publication review pages">
+
+        @if (Model.PageNumber > 1)
+        {
+            <a
+                class="button secondary"
+                asp-page="/Review/Faculty"
+                asp-route-FacultyKey="@Model.FacultyKey"
+                asp-route-DepartmentId="@Model.DepartmentId"
+                asp-route-StatusFilter="@Model.StatusFilter"
+                asp-route-YearFilter="@Model.YearFilter"
+                asp-route-DoiFilter="@Model.DoiFilter"
+                asp-route-ReportingWindowFilter="@Model.ReportingWindowFilter"
+                asp-route-SearchText="@Model.SearchText"
+                asp-route-PageNumber="@(Model.PageNumber - 1)"
+                asp-route-PageSize="@Model.PageSize">
+                ← Previous
+            </a>
+        }
+
+
+        <span class="small">
+            Page @Model.PageNumber
+            of @Model.TotalPages
+        </span>
+
+
+        @if (Model.PageNumber < Model.TotalPages)
+        {
+            <a
+                class="button secondary"
+                asp-page="/Review/Faculty"
+                asp-route-FacultyKey="@Model.FacultyKey"
+                asp-route-DepartmentId="@Model.DepartmentId"
+                asp-route-StatusFilter="@Model.StatusFilter"
+                asp-route-YearFilter="@Model.YearFilter"
+                asp-route-DoiFilter="@Model.DoiFilter"
+                asp-route-ReportingWindowFilter="@Model.ReportingWindowFilter"
+                asp-route-SearchText="@Model.SearchText"
+                asp-route-PageNumber="@(Model.PageNumber + 1)"
+                asp-route-PageSize="@Model.PageSize">
+                Next →
+            </a>
+        }
+
+    </nav>
+}
+
+
+@if (Model.Items.Count == 0)
+{
+    <section class="card">
+
+        <h2>No matching publication associations</h2>
+
+        <p>
+            There are no records for this faculty member
+            matching the selected review status.
+        </p>
+
+    </section>
+}
+else
+{
+    <section
+        class="publication-review-list"
+        aria-label="Faculty publication review">
+
+        @foreach (var item in Model.Items)
+        {
+            var badgeClass =
+                item.ReviewStatus switch
+                {
+                    "Accepted" => "Accepted",
+                    "Rejected" => "Rejected",
+                    _ => "PendingReview"
+                };
+
+            <article class="publication-review-card">
+
+                <div class="publication-card-main">
+
+                    <div>
+
+                        <div class="publication-card-kicker">
+
+                            <span class="badge @badgeClass">
+                                @item.ReviewStatus
+                            </span>
+
+                            <span class="badge Information">
+                                @item.ReportingWindowStatus
+                            </span>
+
+                            @if (item.PublicationYear.HasValue)
+                            {
+                                <span class="publication-score">
+                                    @item.PublicationYear
+                                </span>
+                            }
+
+                        </div>
+
+
+                        <h2 class="publication-card-title">
+                            @ValueOrDash(item.WorkTitle)
+                        </h2>
+
+
+                        <div class="publication-card-meta">
+
+                            <span>
+                                <strong>Review item:</strong>
+                                @item.FacultyPublicationReviewCandidateId
+                            </span>
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                item.Venue))
+                            {
+                                <span>
+                                    <strong>Venue:</strong>
+                                    @item.Venue
+                                </span>
+                            }
+
+                        </div>
+
+
+                        @if (!string.IsNullOrWhiteSpace(
+                            item.WorkDoi))
+                        {
+                            <p class="small">
+                                <strong>DOI:</strong>
+                                @item.WorkDoi
+                            </p>
+                        }
+
+
+                        @if (!string.IsNullOrWhiteSpace(
+                            item.DoiUrl))
+                        {
+                            <div class="publication-links">
+
+                                <a
+                                    href="@item.DoiUrl"
+                                    target="_blank"
+                                    rel="noopener">
+                                    Open DOI
+                                </a>
+
+                            </div>
+                        }
+
+
+                        @if (!string.Equals(
+                            item.ReviewStatus,
+                            "Pending",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <section class="evidence-panel">
+
+                                <h3>Review Decision</h3>
+
+                                <p>
+                                    <strong>Reason:</strong>
+                                    @ValueOrDash(
+                                        item.DecisionReason)
+                                </p>
+
+                                <p>
+                                    <strong>Reviewed by:</strong>
+                                    @ValueOrDash(
+                                        item.ReviewedBy)
+                                </p>
+
+                                <p>
+                                    <strong>Reviewed:</strong>
+                                    @FormatDate(
+                                        item.ReviewedAtUtc)
+                                </p>
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    item.ReviewerNotes))
+                                {
+                                    <p>
+                                        <strong>Notes:</strong>
+                                        @item.ReviewerNotes
+                                    </p>
+                                }
+
+                            </section>
+                        }
+
+                    </div>
+
+
+                    <div class="publication-review-actions">
+
+                        @if (!string.Equals(
+                            item.ReviewStatus,
+                            "Accepted",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <form
+                                method="post"
+                                asp-page-handler="Accept">
+
+                                <input
+                                    type="hidden"
+                                    name="id"
+                                    value="@item.FacultyPublicationReviewCandidateId" />
+
+                                <input
+                                    type="hidden"
+                                    name="facultyKey"
+                                    value="@Model.FacultyKey" />
+
+                                <input
+                                    type="hidden"
+                                    name="departmentId"
+                                    value="@Model.DepartmentId" />
+
+                                <input
+                                    type="hidden"
+                                    name="statusFilter"
+                                    value="@Model.StatusFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="yearFilter"
+                                    value="@Model.YearFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="doiFilter"
+                                    value="@Model.DoiFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="reportingWindowFilter"
+                                    value="@Model.ReportingWindowFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="searchText"
+                                    value="@Model.SearchText" />
+
+                                <input
+                                    type="hidden"
+                                    name="pageNumber"
+                                    value="@Model.PageNumber" />
+
+                                <input
+                                    type="hidden"
+                                    name="pageSize"
+                                    value="@Model.PageSize" />
+
+                                <label
+                                    class="small"
+                                    for="accept-notes-@item.FacultyPublicationReviewCandidateId">
+
+                                    @(string.Equals(
+                                        item.ReviewStatus,
+                                        "Rejected",
+                                        StringComparison.OrdinalIgnoreCase)
+                                            ? "Change decision notes"
+                                            : "Accept notes")
+
+                                </label>
+
+                                <input
+                                    id="accept-notes-@item.FacultyPublicationReviewCandidateId"
+                                    type="text"
+                                    name="notes"
+                                    placeholder="optional notes" />
+
+                                <button type="submit">
+
+                                    @(string.Equals(
+                                        item.ReviewStatus,
+                                        "Rejected",
+                                        StringComparison.OrdinalIgnoreCase)
+                                            ? "Change to Accepted"
+                                            : "Accept")
+
+                                </button>
+
+                            </form>
+                        }
+
+
+                        @if (!string.Equals(
+                            item.ReviewStatus,
+                            "Rejected",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <form
+                                method="post"
+                                asp-page-handler="Reject">
+
+                                <input
+                                    type="hidden"
+                                    name="id"
+                                    value="@item.FacultyPublicationReviewCandidateId" />
+
+                                <input
+                                    type="hidden"
+                                    name="facultyKey"
+                                    value="@Model.FacultyKey" />
+
+                                <input
+                                    type="hidden"
+                                    name="departmentId"
+                                    value="@Model.DepartmentId" />
+
+                                <input
+                                    type="hidden"
+                                    name="statusFilter"
+                                    value="@Model.StatusFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="yearFilter"
+                                    value="@Model.YearFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="doiFilter"
+                                    value="@Model.DoiFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="reportingWindowFilter"
+                                    value="@Model.ReportingWindowFilter" />
+
+                                <input
+                                    type="hidden"
+                                    name="searchText"
+                                    value="@Model.SearchText" />
+
+                                <input
+                                    type="hidden"
+                                    name="pageNumber"
+                                    value="@Model.PageNumber" />
+
+                                <input
+                                    type="hidden"
+                                    name="pageSize"
+                                    value="@Model.PageSize" />
+
+                                <label
+                                    class="small"
+                                    for="reject-notes-@item.FacultyPublicationReviewCandidateId">
+
+                                    @(string.Equals(
+                                        item.ReviewStatus,
+                                        "Accepted",
+                                        StringComparison.OrdinalIgnoreCase)
+                                            ? "Change decision notes"
+                                            : "Reject notes")
+
+                                </label>
+
+                                <input
+                                    id="reject-notes-@item.FacultyPublicationReviewCandidateId"
+                                    type="text"
+                                    name="notes"
+                                    placeholder="optional notes" />
+
+                                <button type="submit">
+
+                                    @(string.Equals(
+                                        item.ReviewStatus,
+                                        "Accepted",
+                                        StringComparison.OrdinalIgnoreCase)
+                                            ? "Change to Rejected"
+                                            : "Reject")
+
+                                </button>
+
+                            </form>
+                        }
+
+                    </div>
+
+                </div>
+
+            </article>
+        }
+
+    </section>
+}
+
+@if (Model.TotalPages > 1)
+{
+    <nav
+        class="review-pagination"
+        aria-label="Publication review pages">
+
+        @if (Model.PageNumber > 1)
+        {
+            <a
+                class="button secondary"
+                asp-page="/Review/Faculty"
+                asp-route-FacultyKey="@Model.FacultyKey"
+                asp-route-DepartmentId="@Model.DepartmentId"
+                asp-route-StatusFilter="@Model.StatusFilter"
+                asp-route-YearFilter="@Model.YearFilter"
+                asp-route-DoiFilter="@Model.DoiFilter"
+                asp-route-ReportingWindowFilter="@Model.ReportingWindowFilter"
+                asp-route-SearchText="@Model.SearchText"
+                asp-route-PageNumber="@(Model.PageNumber - 1)"
+                asp-route-PageSize="@Model.PageSize">
+                ← Previous
+            </a>
+        }
+
+
+        <span class="small">
+            Page @Model.PageNumber
+            of @Model.TotalPages
+        </span>
+
+
+        @if (Model.PageNumber < Model.TotalPages)
+        {
+            <a
+                class="button secondary"
+                asp-page="/Review/Faculty"
+                asp-route-FacultyKey="@Model.FacultyKey"
+                asp-route-DepartmentId="@Model.DepartmentId"
+                asp-route-StatusFilter="@Model.StatusFilter"
+                asp-route-YearFilter="@Model.YearFilter"
+                asp-route-DoiFilter="@Model.DoiFilter"
+                asp-route-ReportingWindowFilter="@Model.ReportingWindowFilter"
+                asp-route-SearchText="@Model.SearchText"
+                asp-route-PageNumber="@(Model.PageNumber + 1)"
+                asp-route-PageSize="@Model.PageSize">
+                Next →
+            </a>
+        }
+
+    </nav>
+}
+
+
+@functions
+{
+    private static bool IsSelected(
+        string? current,
+        string expected)
+    {
+        return string.Equals(
+            current,
+            expected,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    private static string ValueOrDash(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
+    }
+
+
+    private static string FormatDate(
+        DateTime? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString(
+                "yyyy-MM-dd HH:mm:ss 'UTC'")
+            : "-";
+    }
+}

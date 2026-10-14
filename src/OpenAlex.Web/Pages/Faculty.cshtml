@@ -1,122 +1,611 @@
 @page
 @model OpenAlex.Web.Pages.FacultyModel
 
-<h1>School of Medicine Faculty Publications</h1>
+@{
+    ViewData["Title"] = "Faculty Publications";
+}
 
-<p>
-    Search faculty by name, UVA computing ID, email,
-    department, or division.
-</p>
+<div class="faculty-page">
 
-<form method="get" class="card">
-    <label for="search">
-        <strong>Find a faculty member</strong>
-    </label>
-
-    <div style="display:flex; gap:0.75rem; align-items:center; margin-top:0.5rem;">
-        <input
-            id="search"
-            name="search"
-            type="search"
-            value="@Model.Search"
-            placeholder="Name, computing ID, email, department..."
-            style="flex:1;"
-            autocomplete="off" />
-
-        <button type="submit">
-            Search
-        </button>
-
-        @if (!string.IsNullOrWhiteSpace(Model.Search))
-        {
-            <a class="button" href="/Faculty">
-                Clear
-            </a>
-        }
-    </div>
-</form>
-
-<p class="small">
-    @Model.Faculty.Count faculty member@(Model.Faculty.Count == 1 ? "" : "s") shown
-</p>
-
-@if (Model.Faculty.Count == 0)
-{
-    <div class="card">
-        <strong>No faculty members found.</strong>
+    <header class="faculty-hero">
+        <h1>School of Medicine Faculty Publications</h1>
 
         <p>
-            Try searching by last name, UVA computing ID,
-            email address, department, or division.
+            Find faculty members and review their recent
+            scholarly publications by name, UVA computing ID,
+            email, department, or division.
         </p>
-    </div>
-}
-else
-{
-    <table>
-        <thead>
-            <tr>
-                <th>Publications</th>
-                <th>Faculty</th>
-                <th>UVA Computing ID</th>
-                <th>Department / Division</th>
-                <th>Title</th>
-                <th>Email</th>
-            </tr>
-        </thead>
+    </header>
 
-        <tbody>
-        @foreach (var item in Model.Faculty)
-        {
-            <tr>
-                <td>
-                    <a class="button"
-                    asp-page="/Faculty/Publications"
-                    asp-route-facultyKey="@item.FacultyKey">
-                        View Publications
-                    </a>
-                </td>
-                <td>
-                    <a asp-page="/Faculty/Publications"
-                    asp-route-facultyKey="@item.FacultyKey">
-                        <strong>@item.DisplayName</strong>
-                    </a>
-                </td>
 
-                <td>
-                    @(item.UvaUserId ?? "—")
-                </td>
+    <form method="get"
+          class="faculty-search-card">
 
-                <td>
-                    @item.DepartmentName
+        <input type="hidden"
+               name="sort"
+               value="@Model.Sort" />
 
-                    @if (!string.IsNullOrWhiteSpace(item.DivisionName))
+        <input type="hidden"
+               name="direction"
+               value="@Model.Direction" />
+
+        <div class="faculty-search-grid">
+
+            <div class="faculty-field">
+                <label for="search">
+                    Find a faculty member
+                </label>
+
+                <input
+                    id="search"
+                    name="search"
+                    type="search"
+                    value="@Model.Search"
+                    placeholder="Name, computing ID, email..."
+                    autocomplete="off" />
+            </div>
+
+
+            <div class="faculty-field">
+                <label for="department">
+                    Department
+                </label>
+
+                <select
+                    id="department"
+                    name="department">
+
+                    @if (Model.CanViewAllDepartments)
                     {
-                        <br />
-                        <span class="small">
-                            @item.DivisionName
-                        </span>
+                        <option value="">
+                            All Departments
+                        </option>
                     }
-                </td>
 
-                <td>
-                    @(item.AppointmentTitle ?? "—")
-                </td>
-
-                <td>
-                    @if (!string.IsNullOrWhiteSpace(item.PrimaryEmail))
+                    @foreach (var department in Model.Departments)
                     {
-                        <a href="mailto:@item.PrimaryEmail">
-                            @item.PrimaryEmail
-                        </a>
+                        if (string.Equals(
+                            Model.Department,
+                            department,
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option
+                                value="@department"
+                                selected>
+                                @department
+                            </option>
+                        }
+                        else
+                        {
+                            <option value="@department">
+                                @department
+                            </option>
+                        }
+                    }
+
+                </select>
+            </div>
+
+
+            <div class="faculty-field">
+                <label for="pageSize">
+                    Rows
+                </label>
+
+                <select
+                    id="pageSize"
+                    name="pageSize">
+
+                    @if (Model.PageSize == 25)
+                    {
+                        <option value="25" selected>
+                            25
+                        </option>
                     }
                     else
                     {
-                        <span>—</span>
+                        <option value="25">
+                            25
+                        </option>
                     }
-                </td>
-            </tr>
+
+                    @if (Model.PageSize == 50)
+                    {
+                        <option value="50" selected>
+                            50
+                        </option>
+                    }
+                    else
+                    {
+                        <option value="50">
+                            50
+                        </option>
+                    }
+
+                    @if (Model.PageSize == 100)
+                    {
+                        <option value="100" selected>
+                            100
+                        </option>
+                    }
+                    else
+                    {
+                        <option value="100">
+                            100
+                        </option>
+                    }
+
+                </select>
+            </div>
+
+
+            <div class="faculty-search-actions">
+
+                <button type="submit">
+                    Search
+                </button>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Search) ||
+                     !string.IsNullOrWhiteSpace(Model.Department))
+                {
+                    <a class="button"
+                       href="/Faculty">
+                        Clear
+                    </a>
+                }
+
+            </div>
+
+        </div>
+    </form>
+
+
+    <div class="faculty-summary-bar">
+
+        <div class="faculty-refresh-status">
+
+            <span class="faculty-status-dot"
+                aria-hidden="true">
+            </span>
+
+            @if (string.IsNullOrWhiteSpace(Model.Department))
+            {
+                <span>
+                    <strong>All 29 departments ready</strong>
+                </span>
+            }
+            else if (Model.DataRefreshedEastern is not null)
+            {
+                <span>
+                    <strong>Department last refreshed:</strong>
+                    @Model.DataRefreshedEastern ET
+                </span>
+            }
+            else
+            {
+                <span>
+                    <strong>Department data ready</strong>
+                </span>
+            }
+
+        </div>
+
+
+        @if (Model.TotalCount > 0)
+        {
+            <div class="faculty-result-count">
+                Showing
+                <strong>
+                    @Model.StartItem–@Model.EndItem
+                </strong>
+                of
+                <strong>@Model.TotalCount</strong>
+                faculty members
+            </div>
         }
-        </tbody>
-    </table>
-}
+
+    </div>
+
+
+    @if (Model.Faculty.Count == 0)
+    {
+        <div class="faculty-empty-state">
+
+            <strong>
+                No matching faculty members were found.
+            </strong>
+
+
+            @if (!string.IsNullOrWhiteSpace(Model.Search) &&
+                 !string.IsNullOrWhiteSpace(Model.Department))
+            {
+                <p>
+                    No faculty matched
+                    "<strong>@Model.Search</strong>"
+                    in
+                    <strong>@Model.Department</strong>.
+                </p>
+
+                <p class="small">
+                    Try removing the department filter or
+                    searching by UVA computing ID or email.
+                </p>
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <p>
+                    No faculty matched
+                    "<strong>@Model.Search</strong>".
+                </p>
+
+                <p class="small">
+                    Try a full or partial name, UVA computing ID,
+                    email address, department, or division.
+                </p>
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.Department))
+            {
+                <p>
+                    No faculty are currently available for
+                    <strong>@Model.Department</strong>.
+                </p>
+            }
+            else
+            {
+                <p>
+                    No faculty records are currently available.
+                </p>
+            }
+
+
+            <a class="button"
+               href="/Faculty">
+                Clear Search &amp; Filters
+            </a>
+
+        </div>
+    }
+    else
+    {
+        <div class="faculty-table-wrap">
+
+            <table class="faculty-table">
+
+                <thead>
+                    <tr>
+
+                        <th>
+                            <a class="faculty-sort-link"
+                               asp-page="/Faculty"
+                               asp-route-search="@Model.Search"
+                               asp-route-department="@Model.Department"
+                               asp-route-sort="name"
+                               asp-route-direction="@(Model.NextDirection("name"))"
+                               asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize">
+
+                                Faculty
+
+                                <span class="faculty-sort-indicator"
+                                      aria-hidden="true">
+                                    @(Model.Sort == "name"
+                                        ? Model.SortIndicator("name")
+                                        : "↕")
+                                </span>
+
+                            </a>
+                        </th>
+
+
+                        <th>
+                            <a class="faculty-sort-link"
+                               asp-page="/Faculty"
+                               asp-route-search="@Model.Search"
+                               asp-route-department="@Model.Department"
+                               asp-route-sort="userid"
+                               asp-route-direction="@(Model.NextDirection("userid"))"
+                               asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize">
+
+                                UVA Computing ID
+
+                                <span class="faculty-sort-indicator"
+                                      aria-hidden="true">
+                                    @(Model.Sort == "userid"
+                                        ? Model.SortIndicator("userid")
+                                        : "↕")
+                                </span>
+
+                            </a>
+                        </th>
+
+
+                        <th>
+                            <a class="faculty-sort-link"
+                               asp-page="/Faculty"
+                               asp-route-search="@Model.Search"
+                               asp-route-department="@Model.Department"
+                               asp-route-sort="department"
+                               asp-route-direction="@(Model.NextDirection("department"))"
+                               asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize">
+
+                                Department / Division
+
+                                <span class="faculty-sort-indicator"
+                                      aria-hidden="true">
+                                    @(Model.Sort == "department"
+                                        ? Model.SortIndicator("department")
+                                        : "↕")
+                                </span>
+
+                            </a>
+                        </th>
+
+
+                        <th>
+                            <a class="faculty-sort-link"
+                               asp-page="/Faculty"
+                               asp-route-search="@Model.Search"
+                               asp-route-department="@Model.Department"
+                               asp-route-sort="title"
+                               asp-route-direction="@(Model.NextDirection("title"))"
+                               asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize">
+
+                                Title
+
+                                <span class="faculty-sort-indicator"
+                                      aria-hidden="true">
+                                    @(Model.Sort == "title"
+                                        ? Model.SortIndicator("title")
+                                        : "↕")
+                                </span>
+
+                            </a>
+                        </th>
+
+
+                        <th>
+                            <a class="faculty-sort-link"
+                               asp-page="/Faculty"
+                               asp-route-search="@Model.Search"
+                               asp-route-department="@Model.Department"
+                               asp-route-sort="publications"
+                               asp-route-direction="@(Model.NextDirection("publications"))"
+                               asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize">
+
+                                Publications
+
+                                <span class="faculty-sort-indicator"
+                                      aria-hidden="true">
+                                    @(Model.Sort == "publications"
+                                        ? Model.SortIndicator("publications")
+                                        : "↕")
+                                </span>
+
+                            </a>
+                        </th>
+
+
+                        <th>
+                            Actions
+                        </th>
+
+                    </tr>
+                </thead>
+
+
+                <tbody>
+
+                    @foreach (var item in Model.Faculty)
+                    {
+                        <tr>
+
+                            <td>
+                                <a class="faculty-name"
+                                   asp-page="/Faculty/Publications"
+                                   asp-route-facultyKey="@item.FacultyKey">
+                                    @item.DisplayName
+                                </a>
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    item.PrimaryEmail))
+                                {
+                                    <br />
+
+                                    <span class="faculty-email">
+                                        @item.PrimaryEmail
+                                    </span>
+                                }
+                            </td>
+
+
+                            <td>
+                                @(item.UvaUserId ?? "—")
+                            </td>
+
+
+                            <td>
+                                @item.DepartmentName
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    item.DivisionName))
+                                {
+                                    <br />
+
+                                    <span class="faculty-secondary">
+                                        @item.DivisionName
+                                    </span>
+                                }
+                            </td>
+
+
+                            <td>
+                                @(item.AppointmentTitle ?? "—")
+                            </td>
+
+
+                            <td>
+                                @if (item.PublicationCount > 0)
+                                {
+                                    <span class="publication-count">
+
+                                        <strong>
+                                            @item.PublicationCount
+                                        </strong>
+
+                                        publication@(item.PublicationCount == 1 ? "" : "s")
+
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="no-publications">
+                                        No recent publications
+                                    </span>
+                                }
+                            </td>
+
+
+                            <td>
+                                <a class="button faculty-view-button"
+                                   asp-page="/Faculty/Publications"
+                                   asp-route-facultyKey="@item.FacultyKey">
+                                    View Publications
+                                </a>
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="faculty-pagination"
+                aria-label="Faculty result pages">
+
+                @* Previous *@
+                @if (Model.HasPreviousPage)
+                {
+                    <a class="faculty-page-link"
+                    asp-page="/Faculty"
+                    asp-route-search="@Model.Search"
+                    asp-route-department="@Model.Department"
+                    asp-route-sort="@Model.Sort"
+                    asp-route-direction="@Model.Direction"
+                    asp-route-pageNumber="@(Model.PageNumber - 1)"
+                    asp-route-pageSize="@Model.PageSize">
+                        ← Previous
+                    </a>
+                }
+
+
+                @* Always offer page 1 when it is outside
+                the current visible window. *@
+                @if (Model.VisiblePageNumbers.Count > 0 &&
+                    Model.VisiblePageNumbers[0] > 1)
+                {
+                    <a class="faculty-page-link"
+                    asp-page="/Faculty"
+                    asp-route-search="@Model.Search"
+                    asp-route-department="@Model.Department"
+                    asp-route-sort="@Model.Sort"
+                    asp-route-direction="@Model.Direction"
+                    asp-route-pageNumber="1"
+                    asp-route-pageSize="@Model.PageSize">
+                        1
+                    </a>
+
+                    @if (Model.VisiblePageNumbers[0] > 2)
+                    {
+                        <span class="faculty-pagination-ellipsis"
+                            aria-hidden="true">
+                            …
+                        </span>
+                    }
+                }
+
+
+                @* Current five-page window *@
+                @foreach (var pageNumber in Model.VisiblePageNumbers)
+                {
+                    if (pageNumber == Model.PageNumber)
+                    {
+                        <span class="faculty-page-current"
+                            aria-current="page">
+                            @pageNumber
+                        </span>
+                    }
+                    else
+                    {
+                        <a class="faculty-page-link"
+                        asp-page="/Faculty"
+                        asp-route-search="@Model.Search"
+                        asp-route-department="@Model.Department"
+                        asp-route-sort="@Model.Sort"
+                        asp-route-direction="@Model.Direction"
+                        asp-route-pageNumber="@pageNumber"
+                        asp-route-pageSize="@Model.PageSize">
+                            @pageNumber
+                        </a>
+                    }
+                }
+
+
+                @* Always offer the last page when it is outside
+                the current visible window. *@
+                @if (Model.VisiblePageNumbers.Count > 0 &&
+                    Model.VisiblePageNumbers[Model.VisiblePageNumbers.Count - 1]
+                        < Model.TotalPages)
+                {
+                    @if (Model.VisiblePageNumbers[
+                            Model.VisiblePageNumbers.Count - 1]
+                            < Model.TotalPages - 1)
+                    {
+                        <span class="faculty-pagination-ellipsis"
+                            aria-hidden="true">
+                            …
+                        </span>
+                    }
+
+                    <a class="faculty-page-link"
+                    asp-page="/Faculty"
+                    asp-route-search="@Model.Search"
+                    asp-route-department="@Model.Department"
+                    asp-route-sort="@Model.Sort"
+                    asp-route-direction="@Model.Direction"
+                    asp-route-pageNumber="@Model.TotalPages"
+                    asp-route-pageSize="@Model.PageSize">
+                        @Model.TotalPages
+                    </a>
+                }
+
+
+                @* Next *@
+                @if (Model.HasNextPage)
+                {
+                    <a class="faculty-page-link"
+                    asp-page="/Faculty"
+                    asp-route-search="@Model.Search"
+                    asp-route-department="@Model.Department"
+                    asp-route-sort="@Model.Sort"
+                    asp-route-direction="@Model.Direction"
+                    asp-route-pageNumber="@(Model.PageNumber + 1)"
+                    asp-route-pageSize="@Model.PageSize">
+                        Next →
+                    </a>
+                }
+
+            </nav>
+        }
+    }
+
+</div>

@@ -1,0 +1,349 @@
+@page
+@model OpenAlex.Web.Pages.Review.DepartmentDashboardModel
+
+<style>
+    .review-dashboard-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .review-dashboard-stat {
+        border: 1px solid #d7d7d7;
+        border-radius: 10px;
+        padding: 1rem;
+        background: #fff;
+    }
+
+    .review-dashboard-stat .value {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-top: .25rem;
+    }
+
+    .review-dashboard-stat .label {
+        color: #555;
+        font-size: .9rem;
+    }
+
+    .review-dashboard-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .review-dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .review-dashboard-table th,
+    .review-dashboard-table td {
+        padding: .75rem;
+        border-bottom: 1px solid #ddd;
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .review-dashboard-table th {
+        background: #f5f5f5;
+        font-weight: 700;
+    }
+
+    .review-dashboard-table
+        td.review-count {
+        text-align: center;
+    }
+
+    .review-progress {
+        min-width: 140px;
+    }
+
+    .review-progress-track {
+        height: 8px;
+        background: #e5e5e5;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: .25rem;
+    }
+
+    .review-progress-fill {
+        height: 100%;
+        background: #555;
+    }
+
+    .review-dashboard-actions {
+        display: flex;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    .review-status-accepted {
+        font-weight: 700;
+    }
+
+    .review-status-rejected {
+        font-weight: 700;
+    }
+</style>
+
+
+<h1>Department Publication Review</h1>
+
+<section class="card">
+
+    <form method="get" class="faculty-review-toolbar">
+
+        <label>
+            Department
+
+            <select name="DepartmentId">
+
+                @foreach (var department in Model.Departments)
+                {
+                    <option
+                        value="@department.DepartmentId"
+                        selected="@(
+                            department.DepartmentId
+                            == Model.DepartmentId)">
+                        @department.DepartmentName
+                    </option>
+                }
+
+            </select>
+        </label>
+
+        <button type="submit">
+            Open Department
+        </button>
+
+    </form>
+
+</section>
+
+<section class="card">
+
+    <h2>@Model.Summary.DepartmentName</h2>
+
+    <p>
+        Confirm whether the publications associated with each
+        faculty member are correct.
+    </p>
+
+    <p class="small">
+        Accepted, Pending, and Rejected refer to the internal
+        faculty-publication matching review. They do not refer
+        to journal editorial or manuscript status.
+    </p>
+
+
+    <div class="review-dashboard-grid">
+
+        <div class="review-dashboard-stat">
+            <span class="label">
+                Faculty
+            </span>
+
+            <span class="value">
+                @Model.Summary.DistinctFacultyCount
+            </span>
+        </div>
+
+
+        <div class="review-dashboard-stat">
+            <span class="label">
+                Publication associations
+            </span>
+
+            <span class="value">
+                @Model.Summary.TotalCount
+            </span>
+        </div>
+
+
+        <div class="review-dashboard-stat">
+            <span class="label">
+                Pending
+            </span>
+
+            <span class="value">
+                @Model.Summary.PendingCount
+            </span>
+        </div>
+
+
+        <div class="review-dashboard-stat">
+            <span class="label">
+                Accepted
+            </span>
+
+            <span class="value">
+                @Model.Summary.AcceptedCount
+            </span>
+        </div>
+
+
+        <div class="review-dashboard-stat">
+            <span class="label">
+                Rejected
+            </span>
+
+            <span class="value">
+                @Model.Summary.RejectedCount
+            </span>
+        </div>
+
+
+        <div class="review-dashboard-stat">
+            <span class="label">
+                Review progress
+            </span>
+
+            <span class="value">
+                @Model.Summary.ReviewProgressPercent%
+            </span>
+        </div>
+
+    </div>    
+
+</section>
+
+
+<section class="card">
+
+    <h2>Faculty Review Progress</h2>
+
+    <p>
+        Choose a faculty member to review only that person's
+        publication associations.
+    </p>
+
+
+    <div class="review-dashboard-table-wrapper">
+
+        <table class="review-dashboard-table">
+
+            <thead>
+                <tr>
+                    <th>Faculty</th>
+                    <th>UVA UserID</th>
+                    <th>Total</th>
+                    <th>Pending</th>
+                    <th>Accepted</th>
+                    <th>Rejected</th>
+                    <th>Progress</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+
+            <tbody>
+
+    @foreach (var faculty in Model.Faculty)
+    {
+        <tr>
+
+            <td>
+                <strong>
+                    @faculty.FacultyDisplayName
+                </strong>
+
+                @if (!string.IsNullOrWhiteSpace(faculty.Email))
+                {
+                    <div class="small">
+                        @faculty.Email
+                    </div>
+                }
+            </td>
+
+            <td>
+                @ValueOrDash(faculty.UvaUserId)
+            </td>
+
+            <td class="review-count">
+                @faculty.TotalCount
+            </td>
+
+            <td class="review-count">
+                @faculty.PendingCount
+            </td>
+
+            <td class="review-count review-status-accepted">
+                @faculty.AcceptedCount
+            </td>
+
+            <td class="review-count review-status-rejected">
+                @faculty.RejectedCount
+            </td>
+
+            <td class="review-progress">
+
+                <div class="review-progress-track">
+                    <div
+                        class="review-progress-fill"
+                        style="width:@faculty.ReviewProgressPercent%;">
+                    </div>
+                </div>
+
+                <span class="small">
+                    @faculty.ReviewedCount
+                    of
+                    @faculty.TotalCount
+                    reviewed
+                    (@faculty.ReviewProgressPercent%)
+                </span>
+
+            </td>
+
+            <td>
+
+                <div class="review-dashboard-actions">
+
+                    @if (faculty.PendingCount > 0)
+                    {
+                        <a
+                            class="button"
+                            asp-page="/Review/Faculty"
+                            asp-route-DepartmentId="@Model.DepartmentId"
+                            asp-route-FacultyKey="@faculty.FacultyKey"
+                            asp-route-StatusFilter="Pending">
+                            Review
+                        </a>
+                    }
+
+                    <a
+                        class="button secondary"
+                        asp-page="/Review/Faculty"
+                        asp-route-DepartmentId="@Model.DepartmentId"
+                        asp-route-FacultyKey="@faculty.FacultyKey"
+                        asp-route-StatusFilter="Any">
+                        View All
+                    </a>
+
+                </div>
+
+            </td>
+
+        </tr>
+    }
+
+</tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+@functions
+{
+    private static string ValueOrDash(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
+    }
+}

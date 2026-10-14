@@ -17,8 +17,126 @@ public sealed class FacultyRepository
     int top = 100,
     CancellationToken cancellationToken = default)
 {
+    var result =
+        await GetFacultyPageAsync(
+            search,
+            department: null,
+            sort: "name",
+            direction: "asc",
+            pageNumber: 1,
+            pageSize: Math.Clamp(top, 1, 500),
+            cancellationToken);
+
+    return result.Items;
+}
+
+
+public async Task<IReadOnlyList<FacultyListItem>> GetFacultyAsync(
+    string? search,
+    string? department,
+    int top = 100,
+    CancellationToken cancellationToken = default)
+{
+    var result =
+        await GetFacultyPageAsync(
+            search,
+            department,
+            sort: "name",
+            direction: "asc",
+            pageNumber: 1,
+            pageSize: Math.Clamp(top, 1, 500),
+            cancellationToken);
+
+    return result.Items;
+}
+
+
+public async Task<FacultySearchPage> GetFacultyPageAsync(
+    string? search,
+    string? department,
+    string? sort,
+    string? direction,
+    int pageNumber,
+    int pageSize,
+    CancellationToken cancellationToken = default)
+{
     var rows =
         new List<FacultyListItem>();
+
+    var trimmedSearch =
+        string.IsNullOrWhiteSpace(search)
+            ? null
+            : search.Trim();
+
+    var trimmedDepartment =
+        string.IsNullOrWhiteSpace(department)
+            ? null
+            : department.Trim();
+
+    var safePageNumber =
+        Math.Max(1, pageNumber);
+
+    var safePageSize =
+        Math.Clamp(pageSize, 1, 100);
+
+    var offset =
+        (safePageNumber - 1) * safePageSize;
+
+    var normalizedDirection =
+        string.Equals(
+            direction,
+            "desc",
+            StringComparison.OrdinalIgnoreCase)
+            ? "DESC"
+            : "ASC";
+
+    /*
+     * IMPORTANT:
+     * Never put user-supplied values directly into ORDER BY.
+     * Every possible sort clause is explicitly whitelisted here.
+     */
+    var orderBy =
+        (sort ?? string.Empty)
+        .Trim()
+        .ToLowerInvariant() switch
+        {
+            "userid" =>
+                normalizedDirection == "DESC"
+                    ? @"
+CASE WHEN UvaUserId IS NULL THEN 1 ELSE 0 END ASC,
+UvaUserId DESC,
+DisplayName ASC"
+                    : @"
+CASE WHEN UvaUserId IS NULL THEN 1 ELSE 0 END ASC,
+UvaUserId ASC,
+DisplayName ASC",
+
+            "department" =>
+                $@"
+DepartmentName {normalizedDirection},
+DisplayName ASC",
+
+            "title" =>
+                normalizedDirection == "DESC"
+                    ? @"
+CASE WHEN Position IS NULL THEN 1 ELSE 0 END ASC,
+Position DESC,
+DisplayName ASC"
+                    : @"
+CASE WHEN Position IS NULL THEN 1 ELSE 0 END ASC,
+Position ASC,
+DisplayName ASC",
+
+            "publications" =>
+                $@"
+PublicationCount {normalizedDirection},
+DisplayName ASC",
+
+            _ =>
+                $@"
+DisplayName {normalizedDirection},
+DepartmentName ASC"
+        };
 
     await using var connection =
         _connectionFactory.CreateConnection();
@@ -32,19 +150,160 @@ public sealed class FacultyRepository
             "V",
             cancellationToken))
     {
-        return rows;
+        return new FacultySearchPage();
     }
-
-    var trimmedSearch =
-        string.IsNullOrWhiteSpace(search)
-            ? null
-            : search.Trim();
 
     await using var command =
         connection.CreateCommand();
 
     command.CommandText = $@"
-SELECT TOP ({Math.Clamp(top, 1, 500)})
+
+/* ------------------------------------------------------------
+   Result set 1: total rows matching current filters
+   ------------------------------------------------------------ */
+SELECT COUNT(*)
+FROM academiconline.vw_FacultyPublicationSearch f
+WHERE
+    (
+        @Search IS NULL
+
+        OR f.DisplayName LIKE
+            N'%' + @Search + N'%'
+
+        OR f.UvaUserId LIKE
+            N'%' + @Search + N'%'
+
+        OR f.Email LIKE
+            N'%' + @Search + N'%'
+
+        OR f.DepartmentName LIKE
+            N'%' + @Search + N'%'
+
+        OR f.DivisionName LIKE
+            N'%' + @Search + N'%'
+    )
+
+    AND
+    (
+        @Department IS NULL
+        OR f.DepartmentName = @Department
+    );
+
+
+/* ------------------------------------------------------------
+   Result set 2: requested page
+   ------------------------------------------------------------ */
+;WITH FacultyWithCounts AS
+(
+    SELECT
+        f.FacultyKey,
+        f.UvaUserId,
+        f.DisplayName,
+        f.Email,
+        f.DepartmentName,
+        f.DivisionName,
+        f.Position,
+        f.DepartmentDataComplete,
+
+        PublicationCount =
+            CASE
+                WHEN f.FacultyKey LIKE N'ROSTER:%'
+                THEN
+                (
+                    SELECT COUNT(DISTINCT drp.PublicationKey)
+                    FROM academiconline.DepartmentRosterPublication drp
+                    WHERE drp.DepartmentId =
+                          f.DepartmentId
+
+                      AND drp.DepartmentRosterMemberId =
+                          TRY_CONVERT
+                          (
+                              bigint,
+                              SUBSTRING(
+                                  f.FacultyKey,
+                                  LEN(N'ROSTER:') + 1,
+                                  50)
+                          )
+
+                      AND
+                      (
+                          (
+                              f.DepartmentDataComplete = 1
+                              AND drp.IsCurrent = 1
+                              AND drp.CurrentSnapshotRunId =
+                                  f.DataRunId
+                          )
+
+                          OR
+
+                          (
+                              f.DepartmentDataComplete = 0
+                              AND drp.LastSyncRunId =
+                                  f.DataRunId
+                          )
+                      )
+                )
+
+                ELSE
+                (
+                    SELECT COUNT(DISTINCT dsp.PublicationKey)
+                    FROM academiconline.DepartmentScholarPublication dsp
+                    WHERE dsp.DepartmentId =
+                          f.DepartmentId
+
+                      AND dsp.AcademicOnlineAuthorId =
+                          f.SourceAuthorId
+
+                      AND
+                      (
+                          (
+                              f.DepartmentDataComplete = 1
+                              AND dsp.IsCurrent = 1
+                              AND dsp.CurrentSnapshotRunId =
+                                  f.DataRunId
+                          )
+
+                          OR
+
+                          (
+                              f.DepartmentDataComplete = 0
+                              AND dsp.LastSyncRunId =
+                                  f.DataRunId
+                          )
+                      )
+                )
+            END
+
+    FROM academiconline.vw_FacultyPublicationSearch f
+
+    WHERE
+        (
+            @Search IS NULL
+
+            OR f.DisplayName LIKE
+                N'%' + @Search + N'%'
+
+            OR f.UvaUserId LIKE
+                N'%' + @Search + N'%'
+
+            OR f.Email LIKE
+                N'%' + @Search + N'%'
+
+            OR f.DepartmentName LIKE
+                N'%' + @Search + N'%'
+
+            OR f.DivisionName LIKE
+                N'%' + @Search + N'%'
+        )
+
+        AND
+        (
+            @Department IS NULL
+            OR f.DepartmentName = @Department
+        )
+)
+
+SELECT
     FacultyKey,
     UvaUserId,
     DisplayName,
@@ -52,36 +311,263 @@ SELECT TOP ({Math.Clamp(top, 1, 500)})
     DepartmentName,
     DivisionName,
     Position,
-    DepartmentDataComplete
-FROM academiconline.vw_FacultyPublicationSearch
-WHERE
-    @Search IS NULL
+    DepartmentDataComplete,
+    PublicationCount
 
-    OR DisplayName LIKE
-        N'%' + @Search + N'%'
-
-    OR UvaUserId LIKE
-        N'%' + @Search + N'%'
-
-    OR Email LIKE
-        N'%' + @Search + N'%'
-
-    OR DepartmentName LIKE
-        N'%' + @Search + N'%'
-
-    OR DivisionName LIKE
-        N'%' + @Search + N'%'
+FROM FacultyWithCounts
 
 ORDER BY
-    DisplayName,
-    DepartmentName,
-    DivisionName;";
+    {orderBy},
+    FacultyKey ASC
+
+OFFSET @Offset ROWS
+FETCH NEXT @PageSize ROWS ONLY;";
 
     command.Parameters.AddWithValue(
         "@Search",
         trimmedSearch is null
             ? DBNull.Value
             : trimmedSearch);
+
+    command.Parameters.AddWithValue(
+        "@Department",
+        trimmedDepartment is null
+            ? DBNull.Value
+            : trimmedDepartment);
+
+    command.Parameters.AddWithValue(
+        "@Offset",
+        offset);
+
+    command.Parameters.AddWithValue(
+        "@PageSize",
+        safePageSize);
+
+    await using var reader =
+        await command.ExecuteReaderAsync(
+            cancellationToken);
+
+    var totalCount = 0;
+
+    if (await reader.ReadAsync(
+            cancellationToken))
+    {
+        totalCount =
+            reader.IsDBNull(0)
+                ? 0
+                : reader.GetInt32(0);
+    }
+
+    if (await reader.NextResultAsync(
+            cancellationToken))
+    {
+        while (await reader.ReadAsync(
+            cancellationToken))
+        {
+            rows.Add(
+                new FacultyListItem
+                {
+                    FacultyKey =
+                        reader.IsDBNull(0)
+                            ? string.Empty
+                            : reader.GetString(0),
+
+                    UvaUserId =
+                        reader.IsDBNull(1)
+                            ? null
+                            : reader.GetString(1),
+
+                    DisplayName =
+                        reader.IsDBNull(2)
+                            ? string.Empty
+                            : reader.GetString(2),
+
+                    PrimaryEmail =
+                        reader.IsDBNull(3)
+                            ? null
+                            : reader.GetString(3),
+
+                    DepartmentName =
+                        reader.IsDBNull(4)
+                            ? null
+                            : reader.GetString(4),
+
+                    DivisionName =
+                        reader.IsDBNull(5)
+                            ? null
+                            : reader.GetString(5),
+
+                    AppointmentTitle =
+                        reader.IsDBNull(6)
+                            ? null
+                            : reader.GetString(6),
+
+                    DepartmentDataComplete =
+                        !reader.IsDBNull(7) &&
+                        reader.GetBoolean(7),
+
+                    PublicationCount =
+                        reader.IsDBNull(8)
+                            ? 0
+                            : reader.GetInt32(8),
+
+                    IsActive = true
+                });
+        }
+    }
+
+    return new FacultySearchPage
+    {
+        Items = rows,
+        TotalCount = totalCount
+    };
+}
+
+public async Task<int> GetFacultyCountAsync(
+    string? search,
+    string? department,
+    CancellationToken cancellationToken = default)
+{
+    var trimmedSearch =
+        string.IsNullOrWhiteSpace(search)
+            ? null
+            : search.Trim();
+
+    var trimmedDepartment =
+        string.IsNullOrWhiteSpace(department)
+            ? null
+            : department.Trim();
+
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(cancellationToken);
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = @"
+SELECT COUNT(*)
+FROM academiconline.vw_FacultyPublicationSearch f
+WHERE
+    (
+        @Search IS NULL
+        OR f.DisplayName LIKE N'%' + @Search + N'%'
+        OR f.UvaUserId LIKE N'%' + @Search + N'%'
+        OR f.Email LIKE N'%' + @Search + N'%'
+        OR f.DepartmentName LIKE N'%' + @Search + N'%'
+        OR f.DivisionName LIKE N'%' + @Search + N'%'
+    )
+    AND
+    (
+        @Department IS NULL
+        OR f.DepartmentName = @Department
+    );";
+
+    command.Parameters.AddWithValue(
+        "@Search",
+        trimmedSearch is null
+            ? DBNull.Value
+            : trimmedSearch);
+
+    command.Parameters.AddWithValue(
+        "@Department",
+        trimmedDepartment is null
+            ? DBNull.Value
+            : trimmedDepartment);
+
+    var result =
+        await command.ExecuteScalarAsync(
+            cancellationToken);
+
+    return result is null || result == DBNull.Value
+        ? 0
+        : Convert.ToInt32(result);
+}
+
+    public async Task<DateTime?> GetFacultyRefreshTimeAsync(
+    string? department,
+    CancellationToken cancellationToken = default)
+{
+    var trimmedDepartment =
+        string.IsNullOrWhiteSpace(department)
+            ? null
+            : department.Trim();
+
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(cancellationToken);
+
+    await using var command =
+        connection.CreateCommand();
+
+    /*
+     * When one department is selected, show that department's
+     * exact current snapshot time.
+     *
+     * For All Departments, use MIN rather than MAX. This means
+     * "every active department is refreshed at least through
+     * this time" rather than misleadingly showing only the
+     * newest department refresh.
+     */
+    command.CommandText = @"
+SELECT
+    CASE
+        WHEN @Department IS NULL
+        THEN MIN(d.CurrentSnapshotAtUtc)
+        ELSE MAX(d.CurrentSnapshotAtUtc)
+    END
+FROM academiconline.Department d
+WHERE d.IsActive = 1
+  AND d.CurrentSnapshotRunId IS NOT NULL
+  AND
+  (
+      @Department IS NULL
+      OR d.CanonicalName = @Department
+  );";
+
+    command.Parameters.AddWithValue(
+        "@Department",
+        trimmedDepartment is null
+            ? DBNull.Value
+            : trimmedDepartment);
+
+    var result =
+        await command.ExecuteScalarAsync(
+            cancellationToken);
+
+    if (result is null || result == DBNull.Value)
+    {
+        return null;
+    }
+
+    return Convert.ToDateTime(result);
+}
+
+    public async Task<IReadOnlyList<string>>
+    GetFacultyDepartmentsAsync(
+        CancellationToken cancellationToken = default)
+{
+    var departments =
+        new List<string>();
+
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(
+        cancellationToken);
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = @"
+SELECT DISTINCT
+    DepartmentName
+FROM academiconline.vw_FacultyPublicationSearch
+WHERE DepartmentName IS NOT NULL
+  AND LTRIM(RTRIM(DepartmentName)) <> N''
+ORDER BY DepartmentName;";
 
     await using var reader =
         await command.ExecuteReaderAsync(
@@ -90,53 +576,11 @@ ORDER BY
     while (await reader.ReadAsync(
         cancellationToken))
     {
-        rows.Add(
-            new FacultyListItem
-            {
-                FacultyKey =
-                    reader.IsDBNull(0)
-                        ? string.Empty
-                        : reader.GetString(0),
-
-                UvaUserId =
-                    reader.IsDBNull(1)
-                        ? null
-                        : reader.GetString(1),
-
-                DisplayName =
-                    reader.IsDBNull(2)
-                        ? string.Empty
-                        : reader.GetString(2),
-
-                PrimaryEmail =
-                    reader.IsDBNull(3)
-                        ? null
-                        : reader.GetString(3),
-
-                DepartmentName =
-                    reader.IsDBNull(4)
-                        ? null
-                        : reader.GetString(4),
-
-                DivisionName =
-                    reader.IsDBNull(5)
-                        ? null
-                        : reader.GetString(5),
-
-                AppointmentTitle =
-                    reader.IsDBNull(6)
-                        ? null
-                        : reader.GetString(6),
-
-                DepartmentDataComplete =
-                    !reader.IsDBNull(7) &&
-                    reader.GetBoolean(7),
-
-                IsActive = true
-            });
+        departments.Add(
+            reader.GetString(0));
     }
 
-    return rows;
+    return departments;
 }
 
     public async Task<long> AddFacultyAsync(ManualFacultyInput input, CancellationToken cancellationToken = default)

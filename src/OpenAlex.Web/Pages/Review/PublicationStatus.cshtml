@@ -1,0 +1,425 @@
+@page
+@model OpenAlex.Web.Pages.Review.PublicationStatusModel
+
+<h1>Publication Review Status</h1>
+
+<section class="card">
+    <h2>@Model.DepartmentName</h2>
+
+    <p>
+        <a
+            class="button secondary"
+            href="/Review/PublicationStatus">
+            View Review Status & History
+        </a>
+    </p>
+
+    <p>
+        Current human-review status for faculty-publication
+        associations from the promoted reporting snapshot.
+    </p>
+
+    <div class="publication-card-meta">
+        <span>
+            <strong>Total current:</strong>
+            @Model.Summary.TotalCurrentCount
+        </span>
+
+        <span>
+            <strong>Pending:</strong>
+            @Model.Summary.PendingCount
+        </span>
+
+        <span>
+            <strong>Accepted:</strong>
+            @Model.Summary.AcceptedCount
+        </span>
+
+        <span>
+            <strong>Rejected:</strong>
+            @Model.Summary.RejectedCount
+        </span>
+    </div>
+
+    <p>
+        <a
+            class="button secondary"
+            href="/Review/Publications">
+            Back to Pending Review Queue
+        </a>
+    </p>
+</section>
+
+<section class="card">
+    <h2>Filter Review Status</h2>
+
+    <form method="get" class="filter-form">
+
+        <label>
+            Status
+            <select name="StatusFilter">
+
+                <option
+                    value="Any"
+                    selected="@IsSelected(Model.StatusFilter, "Any")">
+                    Any
+                </option>
+
+                <option
+                    value="Pending"
+                    selected="@IsSelected(Model.StatusFilter, "Pending")">
+                    Pending
+                </option>
+
+                <option
+                    value="Accepted"
+                    selected="@IsSelected(Model.StatusFilter, "Accepted")">
+                    Accepted
+                </option>
+
+                <option
+                    value="Rejected"
+                    selected="@IsSelected(Model.StatusFilter, "Rejected")">
+                    Rejected
+                </option>
+
+            </select>
+        </label>
+
+        <label>
+            Search
+            <input
+                type="text"
+                name="SearchText"
+                value="@Model.SearchText"
+                placeholder="faculty, UVA userid, title, DOI, venue" />
+        </label>
+
+        <div class="review-actions">
+
+            <button type="submit">
+                Apply filters
+            </button>
+
+            <a
+                class="button secondary"
+                href="/Review/PublicationStatus">
+                Reset
+            </a>
+
+        </div>
+
+    </form>
+
+    <p class="small">
+        Showing @Model.Items.Count item(s)@(
+            Model.HasActiveFilters
+                ? " matching the current filters."
+                : "."
+        )
+    </p>
+</section>
+
+@if (Model.Items.Count == 0)
+{
+    <section class="card">
+
+        <h2>No matching review records</h2>
+
+        <p>
+            No current faculty-publication associations match
+            the selected status and search criteria.
+        </p>
+
+    </section>
+}
+else
+{
+    <section
+        class="publication-review-list"
+        aria-label="Publication review status">
+
+        @foreach (var item in Model.Items)
+        {
+            var badgeClass =
+                item.ReviewStatus switch
+                {
+                    "Accepted" => "Accepted",
+                    "Rejected" => "Rejected",
+                    _ => "PendingReview"
+                };
+
+            <article class="publication-review-card">
+
+                <div class="publication-card-main">
+
+                    <div>
+
+                        <div class="publication-card-kicker">
+
+                            <span class="badge @badgeClass">
+                                @item.ReviewStatus
+                            </span>
+
+                            @if (item.PublicationYear.HasValue)
+                            {
+                                <span class="publication-score">
+                                    @item.PublicationYear
+                                </span>
+                            }
+
+                        </div>
+
+                        <h2 class="publication-card-title">
+                            @ValueOrDash(item.WorkTitle)
+                        </h2>
+
+                        <div class="publication-card-meta">
+
+                            <span>
+                                <strong>Candidate:</strong>
+                                @item.FacultyPublicationReviewCandidateId
+                            </span>
+
+                            <span>
+                                <strong>Faculty:</strong>
+                                @item.FacultyDisplayName
+                            </span>
+
+                            <span>
+                                <strong>UVA UserID:</strong>
+                                @ValueOrDash(item.UvaUserId)
+                            </span>
+
+                            @if (!string.IsNullOrWhiteSpace(item.Venue))
+                            {
+                                <span>
+                                    <strong>Venue:</strong>
+                                    @item.Venue
+                                </span>
+                            }
+
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(item.WorkDoi))
+                        {
+                            <p class="small">
+                                <strong>DOI:</strong>
+                                @item.WorkDoi
+                            </p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
+                        {
+                            <div class="publication-links">
+
+                                <a
+                                    href="@item.DoiUrl"
+                                    target="_blank"
+                                    rel="noopener">
+                                    Open DOI
+                                </a>
+
+                            </div>
+                        }
+
+                        @if (!string.Equals(
+                            item.ReviewStatus,
+                            "Pending",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <section class="evidence-panel">
+
+                                <h3>Review Decision</h3>
+
+                                <p>
+                                    <strong>Status:</strong>
+                                    @ValueOrDash(item.DecisionStatus)
+                                </p>
+
+                                <p>
+                                    <strong>Reason:</strong>
+                                    @ValueOrDash(item.DecisionReason)
+                                </p>
+
+                                <p>
+                                    <strong>Reviewed by:</strong>
+                                    @ValueOrDash(item.ReviewedBy)
+                                </p>
+
+                                <p>
+                                    <strong>Reviewed:</strong>
+                                    @FormatDate(item.ReviewedAtUtc)
+                                </p>
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    item.ReviewerNotes))
+                                {
+                                    <p>
+                                        <strong>Notes:</strong>
+                                        @item.ReviewerNotes
+                                    </p>
+                                }
+
+                            </section>
+                        }
+
+                    </div>
+
+                </div>
+
+            </article>
+        }
+
+    </section>
+}
+
+
+<section class="card">
+
+    <h2>Decision History</h2>
+
+    <p class="small">
+        Decisions remain here even when a later review replaces
+        the current decision.
+    </p>
+
+    @if (Model.DecisionHistory.Count == 0)
+    {
+        <p>No review decisions have been recorded yet.</p>
+    }
+    else
+    {
+        <div class="publication-review-list">
+
+            @foreach (var decision in Model.DecisionHistory)
+            {
+                var badgeClass =
+                    decision.DecisionStatus == "Accepted"
+                        ? "Accepted"
+                        : "Rejected";
+
+                <article class="publication-review-card">
+
+                    <div class="publication-card-kicker">
+
+                        <span class="badge @badgeClass">
+                            @decision.DecisionStatus
+                        </span>
+
+                        @if (decision.IsCurrent)
+                        {
+                            <span class="badge Information">
+                                Current decision
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge Warning">
+                                Historical decision
+                            </span>
+                        }
+
+                    </div>
+
+                    <h3>
+                        @ValueOrDash(decision.WorkTitle)
+                    </h3>
+
+                    <div class="publication-card-meta">
+
+                        <span>
+                            <strong>Decision ID:</strong>
+                            @decision.FacultyPublicationReviewDecisionId
+                        </span>
+
+                        <span>
+                            <strong>Candidate:</strong>
+                            @decision.FacultyPublicationReviewCandidateId
+                        </span>
+
+                        <span>
+                            <strong>Faculty:</strong>
+                            @decision.FacultyDisplayName
+                        </span>
+
+                        <span>
+                            <strong>UVA UserID:</strong>
+                            @ValueOrDash(decision.UvaUserId)
+                        </span>
+
+                        <span>
+                            <strong>Reviewed by:</strong>
+                            @decision.ReviewedBy
+                        </span>
+
+                        <span>
+                            <strong>Reviewed:</strong>
+                            @decision.ReviewedAtUtc.ToString(
+                                "yyyy-MM-dd HH:mm:ss 'UTC'")
+                        </span>
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(decision.WorkDoi))
+                    {
+                        <p class="small">
+                            <strong>DOI:</strong>
+                            @decision.WorkDoi
+                        </p>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(
+                        decision.ReviewerNotes))
+                    {
+                        <p>
+                            <strong>Notes:</strong>
+                            @decision.ReviewerNotes
+                        </p>
+                    }
+
+                </article>
+            }
+
+        </div>
+    }
+
+</section>
+
+
+@functions
+{
+    private static bool IsSelected(
+        string? current,
+        string expected)
+    {
+        return string.Equals(
+                   current,
+                   expected,
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               (
+                   string.IsNullOrWhiteSpace(current)
+                   &&
+                   string.Equals(
+                       expected,
+                       "Any",
+                       StringComparison.OrdinalIgnoreCase)
+               );
+    }
+
+    private static string ValueOrDash(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
+    }
+
+    private static string FormatDate(DateTime? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString(
+                "yyyy-MM-dd HH:mm:ss 'UTC'")
+            : "-";
+    }
+}

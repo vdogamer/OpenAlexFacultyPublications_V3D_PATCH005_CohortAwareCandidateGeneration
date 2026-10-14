@@ -4,310 +4,291 @@
 <h1>Publication Review Queue</h1>
 
 <section class="card">
+
+    <h2>@Model.DepartmentName</h2>
+
+    <div class="review-actions">
+
+        <a
+            class="button secondary"
+            asp-page="/Review/DepartmentDashboard"
+            asp-route-DepartmentId="@Model.DepartmentId">
+            Department Dashboard
+        </a>
+
+        <a
+            class="button secondary"
+            asp-page="/Review/PublicationStatus"
+            asp-route-DepartmentId="@Model.DepartmentId">
+            View Status &amp; History
+        </a>
+
+    </div>
+
     <p>
-        Review pending faculty-publication candidates. Accepting or rejecting a candidate records a current decision and removes it from this pending queue.
+        Review current faculty-publication associations from the
+        promoted reporting snapshot.
     </p>
+
     <p class="small">
-        PATCH013 adds search and evidence filters so reviewers can focus the publication queue as the pilot grows.
+        A Pending status means the faculty-publication association
+        has not yet received a human review decision. It does not
+        refer to a journal's editorial or manuscript status.
     </p>
+
 </section>
 
+
 <section class="card">
-    <h2>Filters</h2>
+
+    <h2>Find Review Items</h2>
+
     <form method="get" class="filter-form">
+
+        <input
+            type="hidden"
+            name="DepartmentId"
+            value="@Model.DepartmentId" />
+
         <label>
             Search
-            <input type="text" name="SearchText" value="@Model.SearchText" placeholder="faculty, title, department, author" />
+
+            <input
+                type="text"
+                name="SearchText"
+                value="@Model.SearchText"
+                placeholder="faculty, UVA userid, title, DOI, venue" />
         </label>
-        <label>
-            Minimum score
-            <input type="text" name="MinimumScore" value="@Model.MinimumScore" placeholder="e.g. 90" />
-        </label>
-        <label>
-            Institution evidence
-            <select name="InstitutionEvidenceFilter">
-                <option value="Any" selected="@IsSelected(Model.InstitutionEvidenceFilter, "Any")">Any</option>
-                <option value="Present" selected="@IsSelected(Model.InstitutionEvidenceFilter, "Present")">Present</option>
-                <option value="Missing" selected="@IsSelected(Model.InstitutionEvidenceFilter, "Missing")">Missing</option>
-            </select>
-        </label>
-        <label>
-            Coauthor evidence
-            <select name="CoauthorEvidenceFilter">
-                <option value="Any" selected="@IsSelected(Model.CoauthorEvidenceFilter, "Any")">Any</option>
-                <option value="Present" selected="@IsSelected(Model.CoauthorEvidenceFilter, "Present")">Present</option>
-                <option value="Missing" selected="@IsSelected(Model.CoauthorEvidenceFilter, "Missing")">Missing</option>
-            </select>
-        </label>
-        <label>
-            Near-duplicate
-            <select name="NearDuplicateFilter">
-                <option value="Any" selected="@IsSelected(Model.NearDuplicateFilter, "Any")">Any</option>
-                <option value="Warning" selected="@IsSelected(Model.NearDuplicateFilter, "Warning")">Warning</option>
-                <option value="Resolved" selected="@IsSelected(Model.NearDuplicateFilter, "Resolved")">Resolved</option>
-                <option value="None" selected="@IsSelected(Model.NearDuplicateFilter, "None")">None</option>
-            </select>
-        </label>
-        <label>
-            Resolution
-            <select name="ResolutionStatusFilter">
-                <option value="Any" selected="@IsSelected(Model.ResolutionStatusFilter, "Any")">Any</option>
-                <option value="Unresolved" selected="@IsSelected(Model.ResolutionStatusFilter, "Unresolved")">Unresolved warning</option>
-                <option value="Resolved" selected="@IsSelected(Model.ResolutionStatusFilter, "Resolved")">Any resolved</option>
-                <option value="KeepSeparate" selected="@IsSelected(Model.ResolutionStatusFilter, "KeepSeparate")">Keep separate</option>
-                <option value="DuplicateOfCandidate" selected="@IsSelected(Model.ResolutionStatusFilter, "DuplicateOfCandidate")">Duplicate of candidate</option>
-                <option value="SuppressWarning" selected="@IsSelected(Model.ResolutionStatusFilter, "SuppressWarning")">Suppress warning</option>
-            </select>
-        </label>
+
         <div class="review-actions">
-            <button type="submit">Apply filters</button>
-            <a class="button secondary" href="/Review/Publications">Reset</a>
+
+            <button type="submit">
+                Search
+            </button>
+
+            <a
+                class="button secondary"
+                asp-page="/Review/Publications"
+                asp-route-DepartmentId="@Model.DepartmentId">
+                Reset
+            </a>
+
         </div>
+
     </form>
+
     <p class="small">
-        Showing @Model.Items.Count pending review card(s)@((Model.HasActiveFilters) ? " with active filters." : ".")
+        Showing @Model.Items.Count pending review item(s)@(
+            Model.HasActiveFilters
+                ? " matching the current search."
+                : "."
+        )
     </p>
+
 </section>
+
 
 @if (Model.Items.Count == 0)
 {
     <section class="card">
-        <h2>No pending publication candidates</h2>
+
+        <h2>No pending publications</h2>
+
         <p>
-            There are no pending publication candidates matching the current filters. Reset the filters or check the Accepted Publications report.
+            There are no pending faculty-publication associations
+            matching the current search.
         </p>
+
     </section>
 }
 else
 {
-    <section class="publication-review-list" aria-label="Pending publication candidates">
+    <section
+        class="publication-review-list"
+        aria-label="Pending publication review items">
+
         @foreach (var item in Model.Items)
         {
-            var affiliatedInstitutionMatchCount = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionMatchCount");
-            var affiliatedInstitutionEvidenceWeight = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionEvidenceWeight");
-            var affiliatedInstitutionNames = ExtractEvidenceValue(item.EvidenceSummary, "AffiliatedInstitutionNames");
-            var knownCoauthorOverlapCount = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorOverlapCount");
-            var knownCoauthorHistoricalPublicationCount = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorHistoricalPublicationCount");
-            var knownCoauthorNames = ExtractEvidenceValue(item.EvidenceSummary, "KnownCoauthorNames");
-            var evidenceBoost = ExtractEvidenceValue(item.EvidenceSummary, "EvidenceBoost");
-            var duplicateCandidateCount = ExtractEvidenceValue(item.EvidenceSummary, "PATCH010DuplicateCandidateCount");
-            var reviewGrouping = ExtractEvidenceValue(item.EvidenceSummary, "PATCH010ReviewGrouping");
-            var nearDuplicateCandidateCount = ExtractEvidenceValue(item.EvidenceSummary, "PATCH011NearDuplicateCandidateCount");
-            var nearDuplicateWarning = ExtractEvidenceValue(item.EvidenceSummary, "PATCH011NearDuplicateWarning");
-            var resolutionStatus = ExtractEvidenceValue(item.EvidenceSummary, "PATCH012ResolutionStatus");
-            var relatedCandidateId = ExtractEvidenceValue(item.EvidenceSummary, "PATCH012RelatedCandidateId");
-            var resolutionReason = ExtractEvidenceValue(item.EvidenceSummary, "PATCH012ResolutionReason");
-            var isNearDuplicateGroup = HasDuplicateCount(nearDuplicateCandidateCount);
-            var hasResolution = !string.IsNullOrWhiteSpace(resolutionStatus);
-
             <article class="publication-review-card">
+
                 <div class="publication-card-main">
+
                     <div>
+
                         <div class="publication-card-kicker">
-                            <span class="badge @item.CandidateStatus">@ValueOrDash(item.CandidateStatus)</span>
-                            <span class="publication-score">Score: @item.MatchScore</span>
-                            @if (HasEvidenceValue(evidenceBoost))
+
+                            <span class="badge PendingReview">
+                                @item.ReviewStatus
+                            </span>
+
+                            @if (item.PublicationYear.HasValue)
                             {
-                                <span class="badge Information">Boost: +@evidenceBoost</span>
+                                <span class="publication-score">
+                                    @item.PublicationYear
+                                </span>
                             }
-                            @if (HasDuplicateCount(duplicateCandidateCount))
-                            {
-                                <span class="badge Warning">Grouped: @duplicateCandidateCount candidates</span>
-                            }
-                            @if (isNearDuplicateGroup && !hasResolution)
-                            {
-                                <span class="badge Warning">Near-duplicate group: @nearDuplicateCandidateCount works</span>
-                            }
-                            @if (hasResolution)
-                            {
-                                <span class="badge Accepted">Near-duplicate resolved: @resolutionStatus</span>
-                            }
+
                         </div>
 
-                        <h2 class="publication-card-title">@item.WorkTitle</h2>
+
+                        <h2 class="publication-card-title">
+                            @ValueOrDash(item.WorkTitle)
+                        </h2>
+
 
                         <div class="publication-card-meta">
-                            <span><strong>CandidateId:</strong> @item.FacultyPublicationCandidateId</span>
-                            <span><strong>Faculty:</strong> @item.FacultyDisplayName</span>
-                            <span><strong>Matched author:</strong> @ValueOrDash(item.AuthorDisplayName)</span>
-                            <span><strong>Year:</strong> @item.PublicationYear</span>
-                            @if (!string.IsNullOrWhiteSpace(item.DepartmentName))
+
+                            <span>
+                                <strong>Candidate:</strong>
+                                @item.FacultyPublicationReviewCandidateId
+                            </span>
+
+                            <span>
+                                <strong>Faculty:</strong>
+                                @item.FacultyDisplayName
+                            </span>
+
+                            <span>
+                                <strong>UVA UserID:</strong>
+                                @ValueOrDash(item.UvaUserId)
+                            </span>
+
+                            <span>
+                                <strong>Department:</strong>
+                                @item.DepartmentName
+                            </span>
+
+                            @if (!string.IsNullOrWhiteSpace(item.Venue))
                             {
-                                <span><strong>Department:</strong> @item.DepartmentName</span>
+                                <span>
+                                    <strong>Venue:</strong>
+                                    @item.Venue
+                                </span>
                             }
+
                         </div>
 
-                        @if (!string.IsNullOrWhiteSpace(reviewGrouping))
+
+                        @if (!string.IsNullOrWhiteSpace(item.WorkDoi))
                         {
-                            <p class="small">@reviewGrouping</p>
+                            <p class="small">
+                                <strong>DOI:</strong>
+                                @item.WorkDoi
+                            </p>
                         }
 
-                        @if (!string.IsNullOrWhiteSpace(nearDuplicateWarning) && !hasResolution)
-                        {
-                            <p class="notice"><strong>Possible near-duplicate:</strong> @nearDuplicateWarning</p>
-                        }
-
-                        @if (hasResolution)
-                        {
-                            <p class="notice"><strong>Near-duplicate resolution:</strong> @resolutionStatus @(!string.IsNullOrWhiteSpace(relatedCandidateId) ? $"candidate {relatedCandidateId}" : string.Empty) @(!string.IsNullOrWhiteSpace(resolutionReason) ? $"— {resolutionReason}" : string.Empty)</p>
-                        }
 
                         <div class="publication-links">
+
                             @if (!string.IsNullOrWhiteSpace(item.DoiUrl))
                             {
-                                <a href="@item.DoiUrl" target="_blank" rel="noopener">DOI</a>
+                                <a
+                                    href="@item.DoiUrl"
+                                    target="_blank"
+                                    rel="noopener">
+                                    Open DOI
+                                </a>
                             }
-                            else if (!string.IsNullOrWhiteSpace(item.WorkOpenAlexId))
-                            {
-                                <a href="https://openalex.org/@item.WorkOpenAlexId" target="_blank" rel="noopener">OpenAlex</a>
-                            }
+
                         </div>
+
                     </div>
+
 
                     <div class="publication-review-actions">
-                        <form method="post" asp-page-handler="Accept">
-                            <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
-                            <label class="small" for="accept-notes-@item.FacultyPublicationCandidateId">Accept notes</label>
-                            <input id="accept-notes-@item.FacultyPublicationCandidateId" type="text" name="notes" placeholder="optional notes" />
-                            <button type="submit">Accept</button>
+
+                        <form
+                            method="post"
+                            asp-page-handler="Accept">
+
+                            <input
+                                type="hidden"
+                                name="id"
+                                value="@item.FacultyPublicationReviewCandidateId" />
+
+                            <input
+                                type="hidden"
+                                name="departmentId"
+                                value="@Model.DepartmentId" />
+
+                            <input
+                                type="hidden"
+                                name="searchText"
+                                value="@Model.SearchText" />
+
+                            <label
+                                class="small"
+                                for="accept-notes-@item.FacultyPublicationReviewCandidateId">
+                                Accept notes
+                            </label>
+
+                            <input
+                                id="accept-notes-@item.FacultyPublicationReviewCandidateId"
+                                type="text"
+                                name="notes"
+                                placeholder="optional notes" />
+
+                            <button type="submit">
+                                Accept
+                            </button>
+
                         </form>
-                        <form method="post" asp-page-handler="Reject">
-                            <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
-                            <label class="small" for="reject-notes-@item.FacultyPublicationCandidateId">Reject notes</label>
-                            <input id="reject-notes-@item.FacultyPublicationCandidateId" type="text" name="notes" placeholder="optional notes" />
-                            <button type="submit">Reject</button>
+
+
+                        <form
+                            method="post"
+                            asp-page-handler="Reject">
+
+                            <input
+                                type="hidden"
+                                name="id"
+                                value="@item.FacultyPublicationReviewCandidateId" />
+
+                            <input
+                                type="hidden"
+                                name="departmentId"
+                                value="@Model.DepartmentId" />
+
+                            <input
+                                type="hidden"
+                                name="searchText"
+                                value="@Model.SearchText" />
+
+                            <label
+                                class="small"
+                                for="reject-notes-@item.FacultyPublicationReviewCandidateId">
+                                Reject notes
+                            </label>
+
+                            <input
+                                id="reject-notes-@item.FacultyPublicationReviewCandidateId"
+                                type="text"
+                                name="notes"
+                                placeholder="optional notes" />
+
+                            <button type="submit">
+                                Reject
+                            </button>
+
                         </form>
+
                     </div>
+
                 </div>
 
-                @if (isNearDuplicateGroup)
-                {
-                    <section class="evidence-panel evidence-panel-wide">
-                        <h3>Near-Duplicate Resolution</h3>
-                        <div class="review-actions">
-                            <form method="post" asp-page-handler="KeepSeparate">
-                                <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
-                                <input type="text" name="notes" placeholder="why keep separate?" />
-                                <button type="submit">Keep separate</button>
-                            </form>
-                            <form method="post" asp-page-handler="SuppressNearDuplicateWarning">
-                                <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
-                                <input type="text" name="notes" placeholder="why suppress warning?" />
-                                <button type="submit">Suppress warning</button>
-                            </form>
-                            <form method="post" asp-page-handler="MarkDuplicateOfCandidate">
-                                <input type="hidden" name="id" value="@item.FacultyPublicationCandidateId" />
-                                <input type="text" name="relatedCandidateId" placeholder="duplicate of CandidateId" />
-                                <input type="text" name="notes" placeholder="optional notes" />
-                                <button type="submit">Mark duplicate of</button>
-                            </form>
-                        </div>
-                    </section>
-                }
-
-                <div class="publication-evidence-grid">
-                    <section class="evidence-panel">
-                        <h3>Institution Evidence</h3>
-                        @if (HasEvidenceValue(affiliatedInstitutionMatchCount))
-                        {
-                            <div class="evidence-badge-row">
-                                <span class="evidence-badge positive">@affiliatedInstitutionMatchCount match(es)</span>
-                                <span class="evidence-badge neutral">Weight @ValueOrDash(affiliatedInstitutionEvidenceWeight)</span>
-                            </div>
-                            <p>@ValueOrDash(affiliatedInstitutionNames)</p>
-                        }
-                        else
-                        {
-                            <p class="small">No PATCH009 institution evidence</p>
-                        }
-                    </section>
-
-                    <section class="evidence-panel">
-                        <h3>Coauthor Evidence</h3>
-                        @if (HasEvidenceValue(knownCoauthorOverlapCount))
-                        {
-                            <div class="evidence-badge-row">
-                                <span class="evidence-badge positive">@knownCoauthorOverlapCount overlap(s)</span>
-                                <span class="evidence-badge neutral">@ValueOrDash(knownCoauthorHistoricalPublicationCount) prior accepted work(s)</span>
-                            </div>
-                            <p>@ValueOrDash(knownCoauthorNames)</p>
-                        }
-                        else
-                        {
-                            <p class="small">No PATCH009 coauthor evidence</p>
-                        }
-                    </section>
-
-                    <section class="evidence-panel evidence-panel-wide">
-                        <h3>Author Match Evidence</h3>
-                        <p>
-                            <strong>@ValueOrDash(item.AuthorDisplayName)</strong><br />
-                            <span class="small">@ShortEvidence(item.EvidenceSummary)</span>
-                        </p>
-                    </section>
-                </div>
             </article>
         }
+
     </section>
 }
 
-@functions {
-    private static string? ExtractEvidenceValue(string? evidenceSummary, string key)
-    {
-        if (string.IsNullOrWhiteSpace(evidenceSummary) || string.IsNullOrWhiteSpace(key))
-        {
-            return null;
-        }
 
-        var pattern = key + "=";
-        var start = evidenceSummary.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
-        if (start < 0)
-        {
-            return null;
-        }
-
-        start += pattern.Length;
-        var end = evidenceSummary.IndexOf(';', start);
-        var value = end < 0
-            ? evidenceSummary.Substring(start)
-            : evidenceSummary.Substring(start, end - start);
-
-        value = value.Trim();
-        return string.IsNullOrWhiteSpace(value) || value == "(none)" ? null : value;
-    }
-
-    private static bool HasEvidenceValue(string? value)
-    {
-        return !string.IsNullOrWhiteSpace(value) && value != "0" && value != "0.0000";
-    }
-
-    private static bool HasDuplicateCount(string? value)
-    {
-        return int.TryParse(value, out var count) && count > 1;
-    }
-
-    private static bool IsSelected(string? current, string expected)
-    {
-        return string.Equals(current, expected, StringComparison.OrdinalIgnoreCase)
-            || (string.IsNullOrWhiteSpace(current) && string.Equals(expected, "Any", StringComparison.OrdinalIgnoreCase));
-    }
-
+@functions
+{
     private static string ValueOrDash(string? value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "-" : value;
-    }
-
-    private static string ShortEvidence(string? evidenceSummary)
-    {
-        if (string.IsNullOrWhiteSpace(evidenceSummary))
-        {
-            return "No evidence summary";
-        }
-
-        var patchMarker = evidenceSummary.IndexOf("PATCH007Evidence", StringComparison.OrdinalIgnoreCase);
-        var compact = patchMarker >= 0 ? evidenceSummary.Substring(0, patchMarker).Trim().TrimEnd(';') : evidenceSummary.Trim();
-
-        const int maxLength = 320;
-        return compact.Length <= maxLength ? compact : compact.Substring(0, maxLength) + "...";
+        return string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
     }
 }

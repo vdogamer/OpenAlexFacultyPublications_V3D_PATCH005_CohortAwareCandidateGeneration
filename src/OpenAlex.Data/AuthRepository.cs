@@ -391,6 +391,155 @@ ORDER BY AuthenticationEventId DESC;";
         return rows;
     }
 
+    public async Task<bool>
+    UserCanReviewDepartmentAsync(
+        long appUserId,
+        long departmentId,
+        CancellationToken cancellationToken = default)
+{
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(cancellationToken);
+
+    if (!await ObjectExistsAsync(
+            connection,
+            "openalex.AppUserDepartmentAccess",
+            "U",
+            cancellationToken))
+    {
+        return false;
+    }
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = @"
+SELECT
+    CASE
+        WHEN EXISTS
+        (
+            SELECT 1
+
+            FROM openalex.AppUserDepartmentAccess a
+
+            WHERE a.AppUserId = @AppUserId
+              AND a.DepartmentId = @DepartmentId
+              AND a.IsActive = 1
+              AND a.CanReview = 1
+        )
+            THEN 1
+        ELSE 0
+    END;";
+
+    command.Parameters.AddWithValue(
+        "@AppUserId",
+        appUserId);
+
+    command.Parameters.AddWithValue(
+        "@DepartmentId",
+        departmentId);
+
+    return
+        Convert.ToInt32(
+            await command.ExecuteScalarAsync(
+                cancellationToken))
+        == 1;
+}
+
+
+public async Task<IReadOnlyList<DepartmentAccessItem>>
+    GetReviewDepartmentsForUserAsync(
+        long appUserId,
+        CancellationToken cancellationToken = default)
+{
+    var rows =
+        new List<DepartmentAccessItem>();
+
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(cancellationToken);
+
+    if (!await ObjectExistsAsync(
+            connection,
+            "openalex.AppUserDepartmentAccess",
+            "U",
+            cancellationToken))
+    {
+        return rows;
+    }
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = @"
+SELECT
+    a.DepartmentId,
+
+    DepartmentName =
+        MAX(s.DepartmentName),
+
+    CanReview =
+        CONVERT(
+            bit,
+            MAX(
+                CASE
+                    WHEN a.CanReview = 1
+                    THEN 1
+                    ELSE 0
+                END
+            )
+        )
+
+FROM openalex.AppUserDepartmentAccess a
+
+LEFT JOIN
+    academiconline.vw_FacultyPublicationReviewStatus s
+
+    ON s.DepartmentId =
+       a.DepartmentId
+
+WHERE a.AppUserId = @AppUserId
+  AND a.IsActive = 1
+
+GROUP BY
+    a.DepartmentId
+
+ORDER BY
+    MAX(s.DepartmentName),
+    a.DepartmentId;";
+
+    command.Parameters.AddWithValue(
+        "@AppUserId",
+        appUserId);
+
+    await using var reader =
+        await command.ExecuteReaderAsync(
+            cancellationToken);
+
+    while (await reader.ReadAsync(
+               cancellationToken))
+    {
+        rows.Add(
+            new DepartmentAccessItem
+            {
+                DepartmentId =
+                    reader.GetInt64(0),
+
+                DepartmentName =
+                    reader.IsDBNull(1)
+                        ? $"Department {reader.GetInt64(0)}"
+                        : reader.GetString(1),
+
+                CanReview =
+                    reader.GetBoolean(2)
+            });
+    }
+
+    return rows;
+}
+
     private static async Task<IReadOnlyList<string>> GetRolesForUserAsync(
         SqlConnection connection,
         long appUserId,

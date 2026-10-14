@@ -75,6 +75,59 @@ VALUES
             await command.ExecuteScalarAsync(cancellationToken));
     }
 
+    public async Task<FacultyPublicationReviewSyncResult>
+    SyncFacultyPublicationReviewCandidatesForDepartmentAsync(
+        long departmentId,
+        CancellationToken cancellationToken = default)
+{
+    await using var connection =
+        _connectionFactory.CreateConnection();
+
+    await connection.OpenAsync(cancellationToken);
+
+    await using var command =
+        connection.CreateCommand();
+
+    command.CommandText = @"
+EXEC academiconline.usp_SyncFacultyPublicationReviewCandidatesForDepartment
+    @DepartmentId = @DepartmentId;";
+
+    command.Parameters.AddWithValue(
+        "@DepartmentId",
+        departmentId);
+
+    await using var reader =
+        await command.ExecuteReaderAsync(
+            cancellationToken);
+
+    if (!await reader.ReadAsync(cancellationToken))
+    {
+        throw new InvalidOperationException(
+            $"Review candidate synchronization returned no result for DepartmentId={departmentId}.");
+    }
+
+    return new FacultyPublicationReviewSyncResult
+    {
+        DepartmentId =
+            reader.GetInt64(0),
+
+        SourceRows =
+            reader.GetInt64(1),
+
+        UpdatedRows =
+            reader.GetInt32(2),
+
+        InsertedRows =
+            reader.GetInt32(3),
+
+        RetiredRows =
+            reader.GetInt32(4),
+
+        CurrentCandidateRows =
+            reader.GetInt64(5)
+    };
+}
+
     public async Task<long> UpsertDepartmentAsync(
         long runId,
         string sourceName,
