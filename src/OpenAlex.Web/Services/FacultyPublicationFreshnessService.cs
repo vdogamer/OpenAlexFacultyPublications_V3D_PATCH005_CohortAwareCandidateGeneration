@@ -548,6 +548,14 @@ public sealed class FacultyPublicationFreshnessService
                         StatusLabel =
                             item?.StatusLabel ??
                             BuildFallbackDoiStatus(reviewForFaculty),
+                        AcademicOnlineWasAttempted =
+                            scan.AcademicOnlineSource.WasAttempted,
+                        AcademicOnlineIsAvailable =
+                            scan.AcademicOnlineSource.IsAvailable,
+                        OpenAlexWasAttempted =
+                            scan.OpenAlexSource.WasAttempted,
+                        OpenAlexIsAvailable =
+                            scan.OpenAlexSource.IsAvailable,
                         ScanWarnings = scan.Warnings
                     });
             }
@@ -2049,6 +2057,10 @@ public sealed class PublicationDoiFacultyCandidate
     public bool ExistsInOpenAlex { get; init; }
     public string? ReviewStatus { get; init; }
     public string StatusLabel { get; init; } = string.Empty;
+    public bool AcademicOnlineWasAttempted { get; init; }
+    public bool AcademicOnlineIsAvailable { get; init; }
+    public bool OpenAlexWasAttempted { get; init; }
+    public bool OpenAlexIsAvailable { get; init; }
     public IReadOnlyList<string> ScanWarnings { get; init; } =
         Array.Empty<string>();
     public string? ScanError { get; init; }

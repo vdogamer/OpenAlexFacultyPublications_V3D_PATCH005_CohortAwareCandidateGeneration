@@ -1,0 +1,188 @@
+@page
+@model OpenAlex.Web.Pages.Reports.PublicationFreshnessHistoryModel
+@{
+    ViewData["Title"] = "Publication Freshness History";
+}
+
+<h1>Publication Freshness History</h1>
+
+<section class="card">
+    <p>
+        Audit history for UserID and DOI freshness scans. The newest 200 matching
+        scans are shown. Scan history records what the application checked; it does
+        not convert source evidence into an accepted publication decision.
+    </p>
+    <p>
+        <a href="/Reports/PublicationFreshness">Run a publication freshness check</a>
+    </p>
+</section>
+
+<section class="card">
+    <h2>Filter history</h2>
+
+    <form method="get" class="filter-form">
+        <label>
+            Scan type
+            <select name="ScanType">
+                <option value="">All</option>
+                <option value="UserId" selected="@(Model.ScanType == "UserId")">UserID</option>
+                <option value="Doi" selected="@(Model.ScanType == "Doi")">DOI</option>
+            </select>
+        </label>
+
+        <label>
+            UVA User ID
+            <input type="text"
+                   name="UvaUserId"
+                   value="@Model.UvaUserId"
+                   maxlength="64"
+                   autocomplete="off">
+        </label>
+
+        <label>
+            Requested by
+            <input type="text"
+                   name="RequestedBy"
+                   value="@Model.RequestedBy"
+                   maxlength="256"
+                   autocomplete="off">
+        </label>
+
+        <label>
+            <input type="checkbox"
+                   name="AttentionOnly"
+                   value="true"
+                   checked="@Model.AttentionOnly">
+            Attention / warning / failed scans only
+        </label>
+
+        <button type="submit">Apply filters</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Recent scans (@Model.Items.Count)</h2>
+
+    @if (Model.Items.Count == 0)
+    {
+        <p>No scan audit records matched the selected filters.</p>
+    }
+    else
+    {
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Checked</th>
+                        <th scope="col">Type / search</th>
+                        <th scope="col">Faculty / department</th>
+                        <th scope="col">Sources</th>
+                        <th scope="col">Counts</th>
+                        <th scope="col">Outcome</th>
+                        <th scope="col">Requested by</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td>
+                            @item.CompletedAtUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC
+                            <div class="small">@item.DurationMs ms</div>
+                            <div class="small">Audit #@item.ScanAuditId</div>
+                        </td>
+                        <td>
+                            <strong>@(item.ScanType == "UserId" ? "UserID" : "DOI")</strong>
+                            <div>@item.RequestedValue</div>
+                            @if (!string.IsNullOrWhiteSpace(item.NormalizedValue) &&
+                                 !string.Equals(item.RequestedValue, item.NormalizedValue, StringComparison.OrdinalIgnoreCase))
+                            {
+                                <div class="small">Normalized: @item.NormalizedValue</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.OpenAlexWorkId))
+                            {
+                                <div class="small">OpenAlex: @item.OpenAlexWorkId</div>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.FacultyDisplayName))
+                            {
+                                <strong>@item.FacultyDisplayName</strong>
+                            }
+                            else if (item.FacultyMatchCount > 1)
+                            {
+                                <strong>@item.FacultyMatchCount faculty matches</strong>
+                            }
+                            else
+                            {
+                                <span>Not uniquely resolved</span>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(item.UvaUserId))
+                            {
+                                <div class="small">@item.UvaUserId</div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(item.DepartmentNames))
+                            {
+                                <div class="small">@item.DepartmentNames</div>
+                            }
+                        </td>
+                        <td>
+                            <div>Academic Online: @item.AcademicOnlineStatusLabel</div>
+                            <div>OpenAlex: @item.OpenAlexStatusLabel</div>
+                        </td>
+                        <td>
+                            <div>Local: @item.LocalResultCount</div>
+                            <div>AO: @item.AcademicOnlineResultCount</div>
+                            <div>OA: @item.OpenAlexResultCount</div>
+                            <div class="small">Compared: @item.ComparedItemCount</div>
+                        </td>
+                        <td>
+                            <strong>@item.OutcomeLabel</strong>
+
+                            @if (item.AttentionItemCount > 0)
+                            {
+                                <div>@item.AttentionItemCount item(s) need attention</div>
+                            }
+
+                            @if (item.WarningCount > 0)
+                            {
+                                <div>@item.WarningCount warning(s)</div>
+                            }
+
+                            @if (!item.Succeeded &&
+                                 !string.IsNullOrWhiteSpace(item.ErrorMessage))
+                            {
+                                <details>
+                                    <summary>Show error</summary>
+                                    <div class="small">@item.ErrorMessage</div>
+                                </details>
+                            }
+
+                            @if (item.Warnings.Count > 0)
+                            {
+                                <details>
+                                    <summary>Show warnings</summary>
+                                    <ul>
+                                    @foreach (var warning in item.Warnings)
+                                    {
+                                        <li>@warning</li>
+                                    }
+                                    </ul>
+                                </details>
+                            }
+                        </td>
+                        <td>@item.RequestedBy</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <p class="small">
+        UserID scan counts are publication counts. DOI scan counts summarize the
+        DOI evidence and faculty associations resolved during that request.
+    </p>
+</section>
