@@ -33,6 +33,11 @@ public sealed class DepartmentReviewAuthorizationService
             return true;
         }
 
+        if (!user.IsInRole("Reviewer"))
+        {
+            return false;
+        }
+
         var appUserId =
             GetAppUserId(user);
 
@@ -55,6 +60,11 @@ public sealed class DepartmentReviewAuthorizationService
             CancellationToken cancellationToken = default)
     {
         if (IsGlobalAdmin(user))
+        {
+            return Array.Empty<DepartmentAccessItem>();
+        }
+
+        if (!user.IsInRole("Reviewer"))
         {
             return Array.Empty<DepartmentAccessItem>();
         }

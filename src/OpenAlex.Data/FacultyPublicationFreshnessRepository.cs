@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 using OpenAlex.Data.Models;
 
@@ -495,6 +496,125 @@ ORDER BY UvaUserId;";
         return rows
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+
+    public async Task<FacultyPublicationManualReviewSubmissionResult>
+        SubmitDoiReviewCandidateAsync(
+            FacultyPublicationFreshnessIdentity identity,
+            string openAlexAuthorId,
+            string openAlexWorkId,
+            string normalizedDoi,
+            string title,
+            string? venue,
+            int? publicationYear,
+            string? link,
+            string submittedBy,
+            CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+
+        if (string.IsNullOrWhiteSpace(identity.FacultyKey))
+        {
+            throw new InvalidOperationException(
+                "The faculty identity does not contain a FacultyKey.");
+        }
+
+        if (string.IsNullOrWhiteSpace(identity.UvaUserId))
+        {
+            throw new InvalidOperationException(
+                "The faculty identity does not contain a UVA User ID.");
+        }
+
+        if (string.IsNullOrWhiteSpace(openAlexAuthorId) ||
+            string.IsNullOrWhiteSpace(openAlexWorkId) ||
+            string.IsNullOrWhiteSpace(normalizedDoi) ||
+            string.IsNullOrWhiteSpace(title))
+        {
+            throw new InvalidOperationException(
+                "Trusted OpenAlex author, work, DOI, and title values are required before a publication can be sent to review.");
+        }
+
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandType = CommandType.StoredProcedure;
+        command.CommandText =
+            "academiconline.usp_SubmitFacultyPublicationReviewCandidateByDoi";
+
+        AddNVarChar(command, "@FacultyKey", 600, identity.FacultyKey);
+        command.Parameters.Add("@DepartmentId", SqlDbType.BigInt).Value =
+            identity.DepartmentId;
+        AddNVarChar(command, "@UvaUserId", 512, identity.UvaUserId);
+        AddNVarChar(command, "@OpenAlexAuthorId", 256, openAlexAuthorId);
+        AddNVarChar(command, "@OpenAlexWorkId", 128, openAlexWorkId);
+        AddNVarChar(command, "@DoiNormalized", 512, normalizedDoi);
+        AddNVarChar(command, "@Title", -1, title);
+        AddNVarChar(command, "@Venue", 512, venue);
+
+        var yearParameter =
+            command.Parameters.Add(
+                "@PublicationYear",
+                SqlDbType.Int);
+
+        yearParameter.Value =
+            publicationYear.HasValue
+                ? publicationYear.Value
+                : DBNull.Value;
+
+        AddNVarChar(command, "@Link", 1024, link);
+        AddNVarChar(command, "@SubmittedBy", 256, submittedBy);
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "The database did not return a review-submission result.");
+        }
+
+        return new FacultyPublicationManualReviewSubmissionResult
+        {
+            FacultyPublicationReviewCandidateId =
+                reader.GetInt64(0),
+            PublicationKey =
+                reader.GetInt64(1),
+            WasCreated =
+                reader.GetBoolean(2),
+            SubmissionStatus =
+                reader.IsDBNull(3)
+                    ? string.Empty
+                    : reader.GetString(3)
+        };
+    }
+
+    private static void AddNVarChar(
+        SqlCommand command,
+        string parameterName,
+        int size,
+        string? value)
+    {
+        var parameter =
+            size == -1
+                ? command.Parameters.Add(
+                    parameterName,
+                    SqlDbType.NVarChar,
+                    -1)
+                : command.Parameters.Add(
+                    parameterName,
+                    SqlDbType.NVarChar,
+                    size);
+
+        parameter.Value =
+            string.IsNullOrWhiteSpace(value)
+                ? DBNull.Value
+                : value.Trim();
     }
 
     private static string? GetNullableString(

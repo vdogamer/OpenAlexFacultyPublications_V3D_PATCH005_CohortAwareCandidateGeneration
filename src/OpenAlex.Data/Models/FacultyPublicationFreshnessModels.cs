@@ -38,3 +38,11 @@ public sealed class FacultyPublicationDoiReviewAssociation
     public string? DecisionStatus { get; init; }
     public bool IsCurrentSource { get; init; }
 }
+
+public sealed class FacultyPublicationManualReviewSubmissionResult
+{
+    public long FacultyPublicationReviewCandidateId { get; init; }
+    public long PublicationKey { get; init; }
+    public bool WasCreated { get; init; }
+    public string SubmissionStatus { get; init; } = string.Empty;
+}

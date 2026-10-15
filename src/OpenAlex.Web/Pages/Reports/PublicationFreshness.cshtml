@@ -11,8 +11,10 @@
     <p>
         Compare the faculty member's current local publication list with live
         Academic Online and OpenAlex results, or look up a publication directly
-        by DOI. PATCH022B remains read-only: it reports evidence but does not
-        insert publications, change identities, or write review decisions.
+        by DOI. PATCH022D allows an Admin or an authorized department Reviewer
+        to stage an exact OpenAlex DOI result as a Pending publication-review
+        candidate for a department they are allowed to review. It does not accept
+        the publication or add a faculty/publication relationship.
     </p>
 
     <p class="small">
@@ -84,6 +86,22 @@
         association can be established.
     </p>
 </section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ReviewActionMessage))
+{
+    <section class="card">
+        <h2>Review submission</h2>
+        <p><strong>@Model.ReviewActionMessage</strong></p>
+    </section>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ReviewActionErrorMessage))
+{
+    <section class="card">
+        <h2>Review submission blocked</h2>
+        <p class="notice">@Model.ReviewActionErrorMessage</p>
+    </section>
+}
 
 @if (!string.IsNullOrWhiteSpace(Model.DoiErrorMessage))
 {
@@ -203,6 +221,7 @@
                             <th scope="col">Academic Online</th>
                             <th scope="col">OpenAlex</th>
                             <th scope="col">Status</th>
+                            <th scope="col">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -232,12 +251,74 @@
                                         <div class="notice">Scan error: @candidate.ScanError</div>
                                     }
                                 </td>
+                                <td>
+                                    @if (doiResult.Publication is not null &&
+                                         Model.CanCurrentUserSendToReview(candidate))
+                                    {
+                                        <details>
+                                            <summary>Send to review</summary>
+                                            <p class="small">
+                                                This creates a Pending review candidate only
+                                                for @(candidate.ReviewDepartmentName ?? "the authorized department").
+                                                It does not accept the publication or add it to
+                                                the faculty member's official publication list.
+                                            </p>
+                                            <form method="post"
+                                                  asp-page-handler="SendToReview">
+                                                <input type="hidden"
+                                                       name="doi"
+                                                       value="@doiResult.Doi" />
+                                                <input type="hidden"
+                                                       name="uvaUserId"
+                                                       value="@candidate.UvaUserId" />
+                                                <input type="hidden"
+                                                       name="departmentId"
+                                                       value="@candidate.ReviewDepartmentId" />
+                                                <button type="submit">
+                                                    Confirm Send to Review
+                                                </button>
+                                            </form>
+                                        </details>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(candidate.ReviewStatus))
+                                    {
+                                        <span class="small">Already in review workflow</span>
+                                    }
+                                    else if (candidate.ExistsLocally)
+                                    {
+                                        <span class="small">Already local</span>
+                                    }
+                                    else if (!candidate.HasTrustedOpenAlexIdentity)
+                                    {
+                                        <span class="small">Trusted OpenAlex identity required</span>
+                                    }
+                                    else if (!candidate.ReviewDepartmentId.HasValue)
+                                    {
+                                        <span class="small">Unique department review target required</span>
+                                    }
+                                    else if (!Model.HasReviewerRole)
+                                    {
+                                        <span class="small">Reviewer role required</span>
+                                    }
+                                    else if (!Model.AuthorizedReviewDepartmentIds.Contains(
+                                                 candidate.ReviewDepartmentId.Value))
+                                    {
+                                        <span class="small">
+                                            No review access to
+                                            @(candidate.ReviewDepartmentName ?? "this department")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="small">Not eligible</span>
+                                    }
+                                </td>
                             </tr>
 
                             @foreach (var warning in candidate.ScanWarnings)
                             {
                                 <tr>
-                                    <td colspan="6" class="small">
+                                    <td colspan="7" class="small">
                                         <span class="notice">@warning</span>
                                     </td>
                                 </tr>
@@ -514,9 +595,9 @@
         }
 
         <p class="small">
-            PATCH022B remains read-only. After we validate UserID and DOI results,
-            the next step is a controlled “Send to Review” action that uses the
-            existing publication-review workflow.
+            PATCH022C leaves UserID scanning read-only. DOI submissions are only
+            available to Admin users and create Pending review candidates; acceptance
+            and rejection still happen through the existing publication-review workflow.
         </p>
     </section>
 

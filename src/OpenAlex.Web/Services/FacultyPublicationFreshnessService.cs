@@ -490,6 +490,14 @@ public sealed class FacultyPublicationFreshnessService
                         StringComparison.OrdinalIgnoreCase))
                 .ToArray();
 
+            var reviewIdentity =
+                trustedFacultySet.Contains(userId)
+                    ? await ResolveUniqueTrustedReviewIdentityAsync(
+                        userId,
+                        openAlexAuthorIds,
+                        cancellationToken)
+                    : null;
+
             var anchorYear =
                 publication?.PublicationYear ??
                 reviewForFaculty
@@ -522,6 +530,12 @@ public sealed class FacultyPublicationFreshnessService
                         AssociationBasis = BuildAssociationBasis(
                             trustedFacultySet.Contains(userId),
                             reviewFacultyUserIds.Contains(userId)),
+                        HasTrustedOpenAlexIdentity =
+                            trustedFacultySet.Contains(userId),
+                        ReviewDepartmentId =
+                            reviewIdentity?.DepartmentId,
+                        ReviewDepartmentName =
+                            reviewIdentity?.DepartmentName,
                         ExistsLocally = item?.ExistsLocally ?? false,
                         ExistsInAcademicOnline =
                             item?.ExistsInAcademicOnline ?? false,
@@ -546,6 +560,12 @@ public sealed class FacultyPublicationFreshnessService
                         AssociationBasis = BuildAssociationBasis(
                             trustedFacultySet.Contains(userId),
                             reviewFacultyUserIds.Contains(userId)),
+                        HasTrustedOpenAlexIdentity =
+                            trustedFacultySet.Contains(userId),
+                        ReviewDepartmentId =
+                            reviewIdentity?.DepartmentId,
+                        ReviewDepartmentName =
+                            reviewIdentity?.DepartmentName,
                         ReviewStatus =
                             GetBestReviewStatus(reviewForFaculty),
                         StatusLabel =
@@ -705,6 +725,240 @@ public sealed class FacultyPublicationFreshnessService
         }
 
         return "Faculty association found; DOI not returned in the faculty scan window";
+    }
+
+
+    private async Task<FacultyPublicationFreshnessIdentity?>
+        ResolveUniqueTrustedReviewIdentityAsync(
+            string uvaUserId,
+            IReadOnlyCollection<string> doiOpenAlexAuthorIds,
+            CancellationToken cancellationToken)
+    {
+        if (doiOpenAlexAuthorIds.Count == 0)
+        {
+            return null;
+        }
+
+        var doiAuthorSet = doiOpenAlexAuthorIds
+            .Select(NormalizeOpenAlexAuthorId)
+            .Where(value => value is not null)
+            .Select(value => value!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (doiAuthorSet.Count == 0)
+        {
+            return null;
+        }
+
+        var identities =
+            await _freshnessRepository
+                .GetFacultyIdentitiesByUvaUserIdAsync(
+                    uvaUserId,
+                    cancellationToken);
+
+        var matches = identities
+            .Where(identity =>
+            {
+                var trustedAuthorId =
+                    string.Equals(
+                        identity.PublicationIdentitySource,
+                        "OpenAlex",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? NormalizeOpenAlexAuthorId(
+                            identity.SourceAuthorId)
+                        : IsUsableOpenAlexResolutionStatus(
+                            identity.OpenAlexResolutionStatus)
+                            ? NormalizeOpenAlexAuthorId(
+                                identity.OpenAlexAuthorId)
+                            : null;
+
+                return trustedAuthorId is not null &&
+                       doiAuthorSet.Contains(trustedAuthorId);
+            })
+            .GroupBy(identity => new
+            {
+                identity.FacultyKey,
+                identity.DepartmentId
+            })
+            .Select(group => group.First())
+            .ToArray();
+
+        return matches.Length == 1
+            ? matches[0]
+            : null;
+    }
+
+
+    public async Task<FacultyPublicationManualReviewSubmissionResult>
+        SendDoiToReviewAsync(
+            string doi,
+            string uvaUserId,
+            long expectedDepartmentId,
+            string submittedBy,
+            CancellationToken cancellationToken = default)
+    {
+        var normalizedDoi = NormalizeDoi(doi);
+
+        if (normalizedDoi is null ||
+            !normalizedDoi.StartsWith(
+                "10.",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "A valid DOI is required before a publication can be sent to review.");
+        }
+
+        var normalizedUserId =
+            AcademicOnlineUniversalFacultyLookupService
+                .NormalizeUvaUserId(uvaUserId);
+
+        if (expectedDepartmentId <= 0)
+        {
+            throw new InvalidOperationException(
+                "A valid department is required before a publication can be sent to review.");
+        }
+
+        var lookup =
+            await LookupDoiAsync(
+                normalizedDoi,
+                cancellationToken);
+
+        var publication =
+            lookup.Publication ??
+            throw new InvalidOperationException(
+                "The DOI is not currently available as an exact OpenAlex work, so it cannot be submitted automatically.");
+
+        var openAlexWorkId =
+            NormalizeOpenAlexWorkId(
+                publication.OpenAlexWorkId) ??
+            throw new InvalidOperationException(
+                "The OpenAlex DOI result did not contain a valid work ID.");
+
+        var facultyCandidate =
+            lookup.FacultyCandidates
+                .SingleOrDefault(item =>
+                    string.Equals(
+                        item.UvaUserId,
+                        normalizedUserId,
+                        StringComparison.OrdinalIgnoreCase))
+            ??
+            throw new InvalidOperationException(
+                "The selected UVA faculty member is no longer a trusted association for this DOI. Run the DOI lookup again.");
+
+        if (!facultyCandidate.HasTrustedOpenAlexIdentity)
+        {
+            throw new InvalidOperationException(
+                "Only a trusted OpenAlex author identity can be used to create a manual review candidate.");
+        }
+
+        if (facultyCandidate.ExistsLocally)
+        {
+            throw new InvalidOperationException(
+                "This publication is already present in the faculty member's local publication set.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                facultyCandidate.ReviewStatus))
+        {
+            throw new InvalidOperationException(
+                $"This publication is already represented in the review workflow with status '{facultyCandidate.ReviewStatus}'.");
+        }
+
+        var doiAuthorIds =
+            lookup.OpenAlexAuthors
+                .Select(item =>
+                    NormalizeOpenAlexAuthorId(
+                        item.OpenAlexAuthorId))
+                .Where(value =>
+                    value is not null)
+                .Select(value => value!)
+                .ToHashSet(
+                    StringComparer.OrdinalIgnoreCase);
+
+        if (doiAuthorIds.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "The OpenAlex work does not expose a usable author identity for safe faculty association.");
+        }
+
+        var identities =
+            await _freshnessRepository
+                .GetFacultyIdentitiesByUvaUserIdAsync(
+                    normalizedUserId,
+                    cancellationToken);
+
+        var trustedIdentityMatches = identities
+            .Select(identity =>
+            {
+                var trustedAuthorId =
+                    string.Equals(
+                        identity.PublicationIdentitySource,
+                        "OpenAlex",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? NormalizeOpenAlexAuthorId(
+                            identity.SourceAuthorId)
+                        : IsUsableOpenAlexResolutionStatus(
+                            identity.OpenAlexResolutionStatus)
+                            ? NormalizeOpenAlexAuthorId(
+                                identity.OpenAlexAuthorId)
+                            : null;
+
+                return new
+                {
+                    Identity = identity,
+                    OpenAlexAuthorId = trustedAuthorId
+                };
+            })
+            .Where(item =>
+                item.OpenAlexAuthorId is not null &&
+                doiAuthorIds.Contains(
+                    item.OpenAlexAuthorId))
+            .GroupBy(
+                item => new
+                {
+                    item.Identity.FacultyKey,
+                    item.Identity.DepartmentId,
+                    OpenAlexAuthorId =
+                        item.OpenAlexAuthorId!
+                })
+            .Select(group =>
+                group.First())
+            .ToArray();
+
+        if (trustedIdentityMatches.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "The trusted OpenAlex author association could not be revalidated against the current faculty identity records.");
+        }
+
+        if (trustedIdentityMatches.Length > 1)
+        {
+            throw new InvalidOperationException(
+                "More than one department/faculty identity matches this DOI. PATCH022C will not choose a department automatically; resolve the faculty identity before submitting this publication.");
+        }
+
+        var match = trustedIdentityMatches[0];
+
+        if (match.Identity.DepartmentId != expectedDepartmentId)
+        {
+            throw new InvalidOperationException(
+                "The selected department no longer matches the trusted faculty identity for this DOI. Run the DOI lookup again before submitting.");
+        }
+
+        return await _freshnessRepository
+            .SubmitDoiReviewCandidateAsync(
+                match.Identity,
+                match.OpenAlexAuthorId!,
+                openAlexWorkId,
+                normalizedDoi,
+                publication.Title,
+                publication.Venue,
+                publication.PublicationYear,
+                publication.Link,
+                string.IsNullOrWhiteSpace(submittedBy)
+                    ? "unknown"
+                    : submittedBy,
+                cancellationToken);
     }
 
     private async Task<OpenAlexIdentityFallbackResult>
@@ -1787,6 +2041,9 @@ public sealed class PublicationDoiFacultyCandidate
     public IReadOnlyList<string> Departments { get; init; } =
         Array.Empty<string>();
     public string AssociationBasis { get; init; } = string.Empty;
+    public bool HasTrustedOpenAlexIdentity { get; init; }
+    public long? ReviewDepartmentId { get; init; }
+    public string? ReviewDepartmentName { get; init; }
     public bool ExistsLocally { get; init; }
     public bool ExistsInAcademicOnline { get; init; }
     public bool ExistsInOpenAlex { get; init; }
@@ -1795,4 +2052,10 @@ public sealed class PublicationDoiFacultyCandidate
     public IReadOnlyList<string> ScanWarnings { get; init; } =
         Array.Empty<string>();
     public string? ScanError { get; init; }
+
+    public bool CanSendToReview =>
+        HasTrustedOpenAlexIdentity &&
+        !ExistsLocally &&
+        string.IsNullOrWhiteSpace(ReviewStatus) &&
+        string.IsNullOrWhiteSpace(ScanError);
 }
