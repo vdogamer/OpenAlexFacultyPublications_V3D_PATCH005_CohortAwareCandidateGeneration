@@ -65,18 +65,26 @@ trusted SQL connection settings for your local server:
 
 ```powershell
 $testServer = 'DESKTOP-SPA6UI1'
-sqlcmd -S $testServer -E -b -Q 'CREATE DATABASE OpenAlexReviewSyncRegression;'
+sqlcmd -S $testServer -E -b -Q "IF DB_ID(N'OpenAlexReviewSyncRegression') IS NULL CREATE DATABASE [OpenAlexReviewSyncRegression];"
 if ($LASTEXITCODE -ne 0) { throw 'Scratch database creation failed' }
+$env:RepoRoot = $PWD.Path
 sqlcmd -S $testServer -E -b -d OpenAlexReviewSyncRegression `
-  -v RepoRoot="$($PWD.Path)" `
   -i tests/sql/EmptyDepartmentReviewSync_Regression.sql
 if ($LASTEXITCODE -ne 0) { throw 'SQL regression checks failed' }
 ```
 
+SQLCMD expands `$(RepoRoot)` from its process environment. Using `$env:RepoRoot`
+avoids PowerShell/native-command quote handling for a `-v` assignment whose value
+contains spaces, such as a checkout under `Smoke Test`. If SQLCMD reports an
+invalid `RepoRoot=...` argument, the regression script has not started; rerun the
+environment-variable command above without `-v`.
+
 Use your existing trusted certificate configuration. The suite refuses a database
 with another name or an existing `academiconline` schema. It leaves its scratch
-database for inspection; it does not drop or overwrite a database. If the named
-database already exists, stop and inspect it rather than deleting it blindly.
+database for inspection; it does not drop or overwrite a database. An existing
+empty scratch database can be reused after a command-line parsing failure. If
+the suite reports an existing scratch schema, stop and inspect it rather than
+deleting a database blindly.
 The final success message must be `ALL REGRESSION CHECKS PASSED` with exit code 0.
 
 ## Apply locally after tests pass
