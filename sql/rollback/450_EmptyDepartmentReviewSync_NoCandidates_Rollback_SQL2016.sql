@@ -24,8 +24,49 @@ IF @ThrowPosition = 0 OR @StartPosition < 1
     THROW 51214, 'Unrecognized installed guard; restore the saved definition after review.', 1;
 
 SET @Definition = STUFF(@Definition, @StartPosition, @ThrowPosition - @StartPosition, N'');
-DECLARE @HeaderPosition int = PATINDEX(
-    N'%[^ ' + NCHAR(9) + NCHAR(10) + NCHAR(13) + N']%', @Definition);
+-- Preserve leading line and nested block comments in the module definition.
+DECLARE @HeaderPosition int = 1;
+DECLARE @DefinitionLength int = LEN(@Definition);
+DECLARE @CommentDepth int;
+WHILE @HeaderPosition <= @DefinitionLength
+BEGIN
+    IF UNICODE(SUBSTRING(@Definition, @HeaderPosition, 1)) IN (9, 10, 11, 12, 13, 32, 65279)
+    BEGIN
+        SET @HeaderPosition += 1;
+        CONTINUE;
+    END;
+    IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'--'
+    BEGIN
+        SET @HeaderPosition += 2;
+        WHILE @HeaderPosition <= @DefinitionLength
+          AND UNICODE(SUBSTRING(@Definition, @HeaderPosition, 1)) NOT IN (10, 13)
+            SET @HeaderPosition += 1;
+        CONTINUE;
+    END;
+    IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'/*'
+    BEGIN
+        SET @CommentDepth = 1;
+        SET @HeaderPosition += 2;
+        WHILE @CommentDepth > 0 AND @HeaderPosition <= @DefinitionLength
+        BEGIN
+            IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'/*'
+            BEGIN
+                SET @CommentDepth += 1;
+                SET @HeaderPosition += 2;
+            END
+            ELSE IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'*/'
+            BEGIN
+                SET @CommentDepth -= 1;
+                SET @HeaderPosition += 2;
+            END
+            ELSE SET @HeaderPosition += 1;
+        END;
+        IF @CommentDepth <> 0
+            THROW 51214, 'Unterminated procedure header comment; no change made.', 1;
+        CONTINUE;
+    END;
+    BREAK;
+END;
 IF UPPER(SUBSTRING(@Definition, @HeaderPosition, 5)) <> N'ALTER'
     THROW 51214, 'Unrecognized patched procedure header; no change made.', 1;
 

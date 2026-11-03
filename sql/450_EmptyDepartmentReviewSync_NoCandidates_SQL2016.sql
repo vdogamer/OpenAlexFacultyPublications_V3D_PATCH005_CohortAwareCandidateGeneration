@@ -115,9 +115,52 @@ SET @NoCandidatesGuard = N'
 
 SET @Definition = STUFF(@Definition, @AnchorPosition, 0, @NoCandidatesGuard);
 
+-- OBJECT_DEFINITION can retain comments preceding CREATE/ALTER. Skip only
+-- header trivia; never search for keywords that could occur inside comments.
+DECLARE @HeaderPosition int = 1;
+DECLARE @DefinitionLength int = LEN(@Definition);
+DECLARE @CommentDepth int;
+WHILE @HeaderPosition <= @DefinitionLength
+BEGIN
+    IF UNICODE(SUBSTRING(@Definition, @HeaderPosition, 1)) IN (9, 10, 11, 12, 13, 32, 65279)
+    BEGIN
+        SET @HeaderPosition += 1;
+        CONTINUE;
+    END;
+    IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'--'
+    BEGIN
+        SET @HeaderPosition += 2;
+        WHILE @HeaderPosition <= @DefinitionLength
+          AND UNICODE(SUBSTRING(@Definition, @HeaderPosition, 1)) NOT IN (10, 13)
+            SET @HeaderPosition += 1;
+        CONTINUE;
+    END;
+    IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'/*'
+    BEGIN
+        SET @CommentDepth = 1;
+        SET @HeaderPosition += 2;
+        WHILE @CommentDepth > 0 AND @HeaderPosition <= @DefinitionLength
+        BEGIN
+            IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'/*'
+            BEGIN
+                SET @CommentDepth += 1;
+                SET @HeaderPosition += 2;
+            END
+            ELSE IF SUBSTRING(@Definition, @HeaderPosition, 2) = N'*/'
+            BEGIN
+                SET @CommentDepth -= 1;
+                SET @HeaderPosition += 2;
+            END
+            ELSE SET @HeaderPosition += 1;
+        END;
+        IF @CommentDepth <> 0
+            THROW 51213, 'Unterminated procedure header comment; no change made.', 1;
+        CONTINUE;
+    END;
+    BREAK;
+END;
+
 -- ALTER preserves the object and grants. Fail closed on unfamiliar headers.
-DECLARE @HeaderPosition int = PATINDEX(
-    N'%[^ ' + NCHAR(9) + NCHAR(10) + NCHAR(13) + N']%', @Definition);
 IF UPPER(SUBSTRING(@Definition, @HeaderPosition, 6)) = N'CREATE'
 BEGIN
     DECLARE @HeaderTail nvarchar(max) = LTRIM(SUBSTRING(

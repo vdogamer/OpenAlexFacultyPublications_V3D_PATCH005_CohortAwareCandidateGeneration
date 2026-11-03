@@ -38,7 +38,9 @@ All other empty-source cases continue raising 51101. The duplicate-source guard
 51102 and the nonempty update/insert/retire code remain unchanged. The patch
 inserts a marked block before the recognized original THROW rather than replacing
 the entire deployed procedure. Missing prerequisites, unexpected guard context,
-or unfamiliar headers stop installation. Reapplication is a no-op. Module ALTER
+or unfamiliar headers stop installation. Leading line comments and nested block
+comments are preserved when locating CREATE/ALTER; keyword text inside comments
+is not treated as the procedure header. Reapplication is a no-op. Module ALTER
 preserves the existing procedure's grants.
 
 ## Test before applying to the app database

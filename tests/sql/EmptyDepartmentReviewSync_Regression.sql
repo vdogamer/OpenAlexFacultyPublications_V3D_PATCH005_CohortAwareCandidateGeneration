@@ -102,6 +102,16 @@ GO
 :r ./sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql
 GO
 
+DECLARE @InstalledDefinition nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(
+    N'academiconline.usp_SyncFacultyPublicationReviewCandidatesForDepartment', N'P'));
+DECLARE @InstalledMarker nvarchar(100) = N'/* EmptyDepartmentReviewSync_NoCandidates_v1 */';
+IF CHARINDEX(N'Header scanner fixture: CREATE PROCEDURE in a comment', @InstalledDefinition) = 0
+    THROW 52001, 'Installer did not preserve the fixture header comments.', 1;
+IF (LEN(@InstalledDefinition) - LEN(REPLACE(@InstalledDefinition, @InstalledMarker, N'')))
+       <> LEN(@InstalledMarker)
+    THROW 52001, 'Expected exactly one installed guard after repeated application.', 1;
+PRINT N'PASS: commented header preserved and guard installed once';
+
 DECLARE @Outcome TABLE
 (
     DepartmentId bigint, SourceRows bigint, UpdatedRows int,
