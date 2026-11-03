@@ -65,26 +65,24 @@ trusted SQL connection settings for your local server:
 
 ```powershell
 $testServer = 'DESKTOP-SPA6UI1'
-sqlcmd -S $testServer -E -b -Q "IF DB_ID(N'OpenAlexReviewSyncRegression') IS NULL CREATE DATABASE [OpenAlexReviewSyncRegression];"
+$regressionDb = 'OpenAlexReviewSyncRegression_' + [guid]::NewGuid().ToString('N')
+sqlcmd -S $testServer -E -b -Q "CREATE DATABASE [$regressionDb];"
 if ($LASTEXITCODE -ne 0) { throw 'Scratch database creation failed' }
-$env:RepoRoot = $PWD.Path
-sqlcmd -S $testServer -E -b -d OpenAlexReviewSyncRegression `
+sqlcmd -S $testServer -E -b -d $regressionDb `
   -i tests/sql/EmptyDepartmentReviewSync_Regression.sql
 if ($LASTEXITCODE -ne 0) { throw 'SQL regression checks failed' }
 ```
 
-SQLCMD expands `$(RepoRoot)` from its process environment. Using `$env:RepoRoot`
-avoids PowerShell/native-command quote handling for a `-v` assignment whose value
-contains spaces, such as a checkout under `Smoke Test`. If SQLCMD reports an
-invalid `RepoRoot=...` argument, the regression script has not started; rerun the
-environment-variable command above without `-v`.
+The script uses relative `:r` include paths from the repository root. No `-v`
+assignment or `RepoRoot` environment variable is needed, and a checkout path
+containing spaces is supported. Do not launch the command from `tests/sql`.
 
 Use your existing trusted certificate configuration. The suite refuses a database
-with another name or an existing `academiconline` schema. It leaves its scratch
-database for inspection; it does not drop or overwrite a database. An existing
-empty scratch database can be reused after a command-line parsing failure. If
-the suite reports an existing scratch schema, stop and inspect it rather than
-deleting a database blindly.
+outside the `OpenAlexReviewSyncRegression` name/prefix or with an existing
+`academiconline` schema. Each invocation above creates a uniquely named scratch
+database, so a prior partial test run does not block a retry. It leaves scratch
+databases for inspection and does not drop or overwrite any database. Inspect
+and remove only identified scratch databases separately when finished.
 The final success message must be `ALL REGRESSION CHECKS PASSED` with exit code 0.
 
 ## Apply locally after tests pass

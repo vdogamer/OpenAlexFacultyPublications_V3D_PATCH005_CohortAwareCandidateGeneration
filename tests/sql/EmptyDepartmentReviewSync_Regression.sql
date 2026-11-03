@@ -1,9 +1,12 @@
 :On Error exit
-/* SQLCMD mode, -b required. Set RepoRoot to this checkout's absolute path.
-   Run ONLY in a newly created database named OpenAlexReviewSyncRegression.
+/* SQLCMD mode, -b required. Run sqlcmd from the repository root.
+   Run ONLY in a newly created database named OpenAlexReviewSyncRegression
+   or with the OpenAlexReviewSyncRegression_ prefix.
    The suite creates its own fixtures and refuses an existing application schema.
    It leaves the scratch database for inspection; it never drops a database. */
 IF DB_NAME() <> N'OpenAlexReviewSyncRegression'
+   AND LEFT(DB_NAME(), LEN(N'OpenAlexReviewSyncRegression_'))
+       <> N'OpenAlexReviewSyncRegression_'
     THROW 52000, 'Use a fresh OpenAlexReviewSyncRegression scratch database.', 1;
 IF SCHEMA_ID(N'academiconline') IS NOT NULL
     THROW 52000, 'Scratch schema already exists. Use a fresh scratch database.', 1;
@@ -60,7 +63,7 @@ GO
 CREATE VIEW academiconline.vw_FacultyPublicationReviewUniverse AS
     SELECT * FROM academiconline.FixtureReviewSource;
 GO
-:r "$(RepoRoot)/tests/sql/fixtures/ReviewSyncProcedure_BeforeFix.sql"
+:r ./tests/sql/fixtures/ReviewSyncProcedure_BeforeFix.sql
 GO
 CREATE PROCEDURE academiconline._ResetEmptyReviewSyncFixture AS
 BEGIN
@@ -93,10 +96,10 @@ GO
 EXEC academiconline._ResetEmptyReviewSyncFixture;
 EXEC academiconline._ExpectEmptyReviewGuard N'original procedure rejects expected empty snapshot';
 GO
-:r "$(RepoRoot)/sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql"
+:r ./sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql
 GO
 -- Reapplication must be an explicit no-op, not a second guard insertion.
-:r "$(RepoRoot)/sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql"
+:r ./sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql
 GO
 
 DECLARE @Outcome TABLE
@@ -237,12 +240,12 @@ BEGIN CATCH
 END CATCH;
 
 GO
-:r "$(RepoRoot)/sql/rollback/450_EmptyDepartmentReviewSync_NoCandidates_Rollback_SQL2016.sql"
+:r ./sql/rollback/450_EmptyDepartmentReviewSync_NoCandidates_Rollback_SQL2016.sql
 GO
 EXEC academiconline._ResetEmptyReviewSyncFixture;
 EXEC academiconline._ExpectEmptyReviewGuard N'rollback restores original behavior';
 GO
-:r "$(RepoRoot)/sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql"
+:r ./sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql
 GO
 DECLARE @Reapplied TABLE
 (
