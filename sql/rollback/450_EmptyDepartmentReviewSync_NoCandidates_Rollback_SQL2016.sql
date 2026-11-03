@@ -67,8 +67,27 @@ BEGIN
     END;
     BREAK;
 END;
-IF UPPER(SUBSTRING(@Definition, @HeaderPosition, 5)) <> N'ALTER'
-    THROW 51214, 'Unrecognized patched procedure header; no change made.', 1;
+-- Do not assume that a stored module definition begins with ALTER. Accept
+-- either valid header and always execute an ALTER of the existing object.
+IF UPPER(SUBSTRING(@Definition, @HeaderPosition, 6)) = N'CREATE'
+BEGIN
+    DECLARE @HeaderTail nvarchar(max) = LTRIM(SUBSTRING(
+        @Definition, @HeaderPosition + 6, LEN(@Definition)));
+    SET @HeaderTail = LTRIM(REPLACE(REPLACE(REPLACE(
+        @HeaderTail, NCHAR(9), N' '), NCHAR(10), N' '), NCHAR(13), N' '));
+    IF LEFT(UPPER(@HeaderTail), 9) <> N'PROCEDURE'
+       AND LEFT(UPPER(@HeaderTail), 5) <> N'PROC '
+        THROW 51214, 'Unrecognized CREATE procedure header; no change made.', 1;
+    SET @Definition = STUFF(@Definition, @HeaderPosition, 6, N'ALTER');
+END
+ELSE IF UPPER(SUBSTRING(@Definition, @HeaderPosition, 5)) <> N'ALTER'
+BEGIN
+    DECLARE @HeaderError nvarchar(2048) =
+        N'Unrecognized patched procedure header at position '
+        + CONVERT(nvarchar(20), @HeaderPosition) + N': '
+        + SUBSTRING(@Definition, @HeaderPosition, 30) + N'; no change made.';
+    THROW 51214, @HeaderError, 1;
+END;
 
 EXEC sys.sp_executesql @Definition;
 PRINT N'Restored the original empty-source guard. No application data was changed.';

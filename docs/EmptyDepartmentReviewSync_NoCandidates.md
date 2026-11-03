@@ -119,6 +119,8 @@ the dashboard's lifetime error count or retroactively rewrite run 353.
 With writers paused, run
 `sql/rollback/450_EmptyDepartmentReviewSync_NoCandidates_Rollback_SQL2016.sql`.
 It removes only this marked guard and restores 51101 for empty sources, without
-changing review data. If the procedure was independently edited after installation,
+changing review data. It accepts a stored CREATE or ALTER procedure header and
+normalizes it to ALTER while preserving the leading comments. If the procedure
+was independently edited after installation,
 inspect the diff and use the saved ALTER definition as appropriate. A changed
 guard format causes rollback to stop rather than guess.

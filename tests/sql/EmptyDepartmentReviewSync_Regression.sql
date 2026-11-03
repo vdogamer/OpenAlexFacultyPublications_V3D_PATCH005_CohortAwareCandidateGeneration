@@ -254,6 +254,12 @@ GO
 GO
 EXEC academiconline._ResetEmptyReviewSyncFixture;
 EXEC academiconline._ExpectEmptyReviewGuard N'rollback restores original behavior';
+DECLARE @RolledBackDefinition nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(
+    N'academiconline.usp_SyncFacultyPublicationReviewCandidatesForDepartment', N'P'));
+IF CHARINDEX(N'/* EmptyDepartmentReviewSync_NoCandidates_v1 */', @RolledBackDefinition) > 0
+   OR CHARINDEX(N'Header scanner fixture: CREATE PROCEDURE in a comment', @RolledBackDefinition) = 0
+    THROW 52001, 'Rollback must remove the guard and preserve the header comments.', 1;
+PRINT N'PASS: rollback removes only the guard and preserves header comments';
 GO
 :r ./sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql
 GO
