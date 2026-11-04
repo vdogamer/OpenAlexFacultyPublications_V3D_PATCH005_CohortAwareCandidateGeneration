@@ -81,3 +81,25 @@ The script uses the same three SQL fragments as `FacultyDoiRepository`, includin
 the optional `SourceFacultyKey` predicate. It preserves raw DOI values and
 duplicates so normalization and the final unique DOI count can be checked
 separately. Source-row counts are not unique DOI or publication counts.
+
+### Supplied live SQL evidence — November 4, 2026
+
+The user ran the comparison script against the configured local application
+database and supplied screenshots of the schema grids, returned rows, and Messages
+from the same validation run. All three sources were Ready: 14/14 required columns
+for accepted OpenAlex records, 17/17 for the roster cache, and 17/17 for the scholar
+cache. The missing-column grid was empty.
+
+The supplied ComputingID resolved to the intended faculty member and returned two
+synchronized publication rows with two nonblank, distinct DOI identifiers. Both
+identifiers match the lookup's supported DOI format. This confirms execution of
+the repository SQL and a positive identity/publication sample on that database;
+the cloud session did not independently connect to the database. The newer
+same-run screenshots supersede the earlier conflicting missing-column export.
+
+Browser verification remains pending: run the updated feature branch against the
+same database, open `/Reports/FacultyDois`, and confirm that the supplied ComputingID
+shows the intended faculty name and the same two unique DOI links. A live
+no-DOI/unknown-user case and comparison of other faculty samples have not yet been
+supplied. This evidence does not establish full publication-history completeness,
+DOI resolver availability, or a deployed UI/database round trip.
