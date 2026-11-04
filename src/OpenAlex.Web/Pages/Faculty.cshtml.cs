@@ -271,8 +271,8 @@ public string? DataRefreshedEastern
 
         var isDepartmentScopedReviewer =
             User.IsInRole("Reviewer")
-            && !_departmentAuthorization
-                .IsGlobalAdmin(User);
+            && !await _departmentAuthorization
+                .IsGlobalAdminAsync(User, cancellationToken);
 
         CanViewAllDepartments =
             !isDepartmentScopedReviewer;

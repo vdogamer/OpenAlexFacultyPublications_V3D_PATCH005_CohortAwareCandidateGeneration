@@ -3,7 +3,7 @@ using OpenAlex.Data.Models;
 
 namespace OpenAlex.Data;
 
-public sealed class AuthRepository
+public sealed class AuthRepository : IDepartmentReviewAuthorizationStore
 {
     private readonly SqlConnectionFactory _connectionFactory;
 
@@ -421,12 +421,26 @@ SELECT
         (
             SELECT 1
 
-            FROM openalex.AppUserDepartmentAccess a
-
-            WHERE a.AppUserId = @AppUserId
-              AND a.DepartmentId = @DepartmentId
-              AND a.IsActive = 1
-              AND a.CanReview = 1
+            FROM openalex.AppUser u
+            JOIN openalex.AppUserRole ur ON ur.AppUserId = u.AppUserId
+            JOIN openalex.AppRole r ON r.AppRoleId = ur.AppRoleId
+            WHERE u.AppUserId = @AppUserId
+              AND u.IsEnabled = 1
+              AND
+              (
+                  r.RoleName = N'Admin'
+                  OR
+                  (
+                      r.RoleName = N'Reviewer'
+                      AND EXISTS
+                      (
+                          SELECT 1 FROM openalex.AppUserDepartmentAccess a
+                          WHERE a.AppUserId = u.AppUserId
+                            AND a.DepartmentId = @DepartmentId
+                            AND a.IsActive = 1 AND a.CanReview = 1
+                      )
+                  )
+              )
         )
             THEN 1
         ELSE 0
@@ -502,6 +516,16 @@ LEFT JOIN
 
 WHERE a.AppUserId = @AppUserId
   AND a.IsActive = 1
+  AND a.CanReview = 1
+  AND EXISTS
+  (
+      SELECT 1 FROM openalex.AppUser u
+      JOIN openalex.AppUserRole ur ON ur.AppUserId = u.AppUserId
+      JOIN openalex.AppRole r ON r.AppRoleId = ur.AppRoleId
+      WHERE u.AppUserId = a.AppUserId
+        AND u.IsEnabled = 1
+        AND r.RoleName = N'Reviewer'
+  )
 
 GROUP BY
     a.DepartmentId

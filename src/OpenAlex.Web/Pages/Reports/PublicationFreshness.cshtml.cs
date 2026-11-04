@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -11,13 +12,13 @@ namespace OpenAlex.Web.Pages.Reports;
 [Authorize(Policy = "ReaderPolicy")]
 public sealed class PublicationFreshnessModel : PageModel
 {
-    private readonly FacultyPublicationFreshnessService _service;
+    private readonly IFacultyPublicationFreshnessService _service;
     private readonly DepartmentReviewAuthorizationService _departmentReviewAuthorization;
     private readonly PublicationFreshnessAuditRepository _auditRepository;
     private readonly ILogger<PublicationFreshnessModel> _logger;
 
     public PublicationFreshnessModel(
-        FacultyPublicationFreshnessService service,
+        IFacultyPublicationFreshnessService service,
         DepartmentReviewAuthorizationService departmentReviewAuthorization,
         PublicationFreshnessAuditRepository auditRepository,
         ILogger<PublicationFreshnessModel> logger)
@@ -99,6 +100,10 @@ public sealed class PublicationFreshnessModel : PageModel
             return Forbid();
         }
 
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var submittedByAppUserId)
+            || submittedByAppUserId <= 0 || string.IsNullOrWhiteSpace(User.Identity?.Name))
+            return Forbid();
+
         if (!await _departmentReviewAuthorization
                 .CanReviewDepartmentAsync(
                     User,
@@ -118,12 +123,18 @@ public sealed class PublicationFreshnessModel : PageModel
                     uvaUserId,
                     departmentId,
                     submittedBy,
+                    submittedByAppUserId,
                     cancellationToken);
 
             TempData["PublicationFreshnessReviewMessage"] =
                 result.WasCreated
                     ? $"Publication sent to review. Candidate #{result.FacultyPublicationReviewCandidateId} was created."
                     : $"This faculty/publication pair is already in the review workflow as candidate #{result.FacultyPublicationReviewCandidateId}.";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // A revocation during OpenAlex lookup must not become a success redirect.
+            return Forbid();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

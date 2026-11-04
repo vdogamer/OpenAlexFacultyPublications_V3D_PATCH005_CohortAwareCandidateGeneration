@@ -48,8 +48,8 @@ public sealed class DepartmentDashboardModel : PageModel
                 .GetReviewDepartmentOptionsAsync(
                     cancellationToken);
 
-        if (_departmentAuthorization
-            .IsGlobalAdmin(User))
+        if (await _departmentAuthorization
+            .IsGlobalAdminAsync(User, cancellationToken))
         {
             Departments =
                 allDepartments;

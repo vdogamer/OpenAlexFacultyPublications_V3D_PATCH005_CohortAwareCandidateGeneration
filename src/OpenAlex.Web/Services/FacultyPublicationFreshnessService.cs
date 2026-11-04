@@ -6,7 +6,7 @@ using OpenAlex.OpenAlexClient;
 
 namespace OpenAlex.Web.Services;
 
-public sealed class FacultyPublicationFreshnessService
+public sealed class FacultyPublicationFreshnessService : IFacultyPublicationFreshnessService
 {
     private const int MaxOpenAlexPages = 25;
 
@@ -803,8 +803,12 @@ public sealed class FacultyPublicationFreshnessService
             string uvaUserId,
             long expectedDepartmentId,
             string submittedBy,
+            long submittedByAppUserId,
             CancellationToken cancellationToken = default)
     {
+        if (submittedByAppUserId <= 0 || string.IsNullOrWhiteSpace(submittedBy))
+            throw new UnauthorizedAccessException("A current authenticated application account is required.");
+
         var normalizedDoi = NormalizeDoi(doi);
 
         if (normalizedDoi is null ||
@@ -963,9 +967,8 @@ public sealed class FacultyPublicationFreshnessService
                 publication.Venue,
                 publication.PublicationYear,
                 publication.Link,
-                string.IsNullOrWhiteSpace(submittedBy)
-                    ? "unknown"
-                    : submittedBy,
+                submittedBy,
+                submittedByAppUserId,
                 cancellationToken);
     }
 

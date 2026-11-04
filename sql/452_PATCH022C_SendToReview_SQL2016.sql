@@ -82,6 +82,10 @@ IF OBJECT_ID(
        N'academiconline.usp_SubmitFacultyPublicationReviewCandidateByDoi',
        N'P') IS NOT NULL
 BEGIN
+    IF CHARINDEX(N'/* LiveDoiSubmissionAuthorization_v1_BEGIN */', OBJECT_DEFINITION(OBJECT_ID(
+        N'academiconline.usp_SubmitFacultyPublicationReviewCandidateByDoi', N'P'))) > 0
+        THROW 51412, 'PATCH022C cannot overwrite a live-authorization-patched procedure. Preserve patch 458.', 1;
+
     DROP PROCEDURE
         academiconline.usp_SubmitFacultyPublicationReviewCandidateByDoi;
 END;

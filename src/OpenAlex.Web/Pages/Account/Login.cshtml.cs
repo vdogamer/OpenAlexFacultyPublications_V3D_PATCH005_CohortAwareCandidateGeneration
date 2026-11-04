@@ -67,7 +67,8 @@ public sealed class LoginModel : PageModel
             return Page();
         }
 
-        if (_authOptions.Value.RequireEnabledUser && !profile.IsEnabled)
+        // Enabled status is a revocation boundary, including in demo mode.
+        if (!profile.IsEnabled)
         {
             await _authRepository.LogAuthenticationEventAsync(
                 profile.UserName,

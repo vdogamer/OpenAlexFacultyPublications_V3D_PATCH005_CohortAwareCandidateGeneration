@@ -510,9 +510,12 @@ ORDER BY UvaUserId;";
             int? publicationYear,
             string? link,
             string submittedBy,
+            long submittedByAppUserId,
             CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(identity);
+        if (submittedByAppUserId <= 0 || string.IsNullOrWhiteSpace(submittedBy))
+            throw new UnauthorizedAccessException("A current authenticated application account is required.");
 
         if (string.IsNullOrWhiteSpace(identity.FacultyKey))
         {
@@ -569,29 +572,26 @@ ORDER BY UvaUserId;";
 
         AddNVarChar(command, "@Link", 1024, link);
         AddNVarChar(command, "@SubmittedBy", 256, submittedBy);
+        command.Parameters.Add("@SubmittedByAppUserId", SqlDbType.BigInt).Value = submittedByAppUserId;
 
-        await using var reader =
-            await command.ExecuteReaderAsync(cancellationToken);
-
-        if (!await reader.ReadAsync(cancellationToken))
+        try
         {
-            throw new InvalidOperationException(
-                "The database did not return a review-submission result.");
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new InvalidOperationException("The database did not return a review-submission result.");
+
+            return new FacultyPublicationManualReviewSubmissionResult
+            {
+                FacultyPublicationReviewCandidateId = reader.GetInt64(0),
+                PublicationKey = reader.GetInt64(1),
+                WasCreated = reader.GetBoolean(2),
+                SubmissionStatus = reader.IsDBNull(3) ? string.Empty : reader.GetString(3)
+            };
         }
-
-        return new FacultyPublicationManualReviewSubmissionResult
+        catch (SqlException ex) when (ex.Number == 51403)
         {
-            FacultyPublicationReviewCandidateId =
-                reader.GetInt64(0),
-            PublicationKey =
-                reader.GetInt64(1),
-            WasCreated =
-                reader.GetBoolean(2),
-            SubmissionStatus =
-                reader.IsDBNull(3)
-                    ? string.Empty
-                    : reader.GetString(3)
-        };
+            throw new UnauthorizedAccessException("Your current account is not authorized to submit publications for this department.", ex);
+        }
     }
 
     private static void AddNVarChar(

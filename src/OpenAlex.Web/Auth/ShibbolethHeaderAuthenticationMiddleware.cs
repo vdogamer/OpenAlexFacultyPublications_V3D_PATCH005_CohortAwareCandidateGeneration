@@ -77,7 +77,8 @@ public sealed class ShibbolethHeaderAuthenticationMiddleware
                 return;
             }
 
-            if (options.Value.RequireEnabledUser && !profile.IsEnabled)
+            // Do not recreate a revoked cookie from trusted headers for a disabled account.
+            if (!profile.IsEnabled)
             {
                 await authRepository.LogAuthenticationEventAsync(
                     userName,
