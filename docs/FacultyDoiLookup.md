@@ -82,7 +82,7 @@ the optional `SourceFacultyKey` predicate. It preserves raw DOI values and
 duplicates so normalization and the final unique DOI count can be checked
 separately. Source-row counts are not unique DOI or publication counts.
 
-### Supplied live SQL evidence — November 4, 2026
+### Supplied local SQL and browser evidence — November 4, 2026
 
 The user ran the comparison script against the configured local application
 database and supplied screenshots of the schema grids, returned rows, and Messages
@@ -97,9 +97,15 @@ the repository SQL and a positive identity/publication sample on that database;
 the cloud session did not independently connect to the database. The newer
 same-run screenshots supersede the earlier conflicting missing-column export.
 
-Browser verification remains pending: run the updated feature branch against the
-same database, open `/Reports/FacultyDois`, and confirm that the supplied ComputingID
-shows the intended faculty name and the same two unique DOI links. A live
-no-DOI/unknown-user case and comparison of other faculty samples have not yet been
-supplied. This evidence does not establish full publication-history completeness,
-DOI resolver availability, or a deployed UI/database round trip.
+The subsequent user-supplied browser screenshot from `localhost:5055` confirms
+that `/Reports/FacultyDois` loads with the supplied ComputingID, shows the intended
+faculty name, and displays **2 unique DOIs**. Both DOI identifiers, years, and
+source labels match the SQL sample. Publication titles and clickable DOI links
+are displayed, and the new navigation link and search form are present. This
+passes the local positive lookup comparison between SQL and the browser.
+
+The successful local screenshot is from port 5055 after the earlier app instance
+on port 5000 returned 404. Review, merge, and deployment remain
+pending. Live no-DOI/unknown-user cases and other faculty samples have not been
+supplied; this sample does not establish full publication-history completeness
+or DOI resolver availability.
