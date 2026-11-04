@@ -70,3 +70,14 @@ Share the schema-status and missing-column results and choose a known faculty
 userid from the candidate results. Next, compare that faculty member's DOI rows
 with `/Reports/FacultyDois` using the same database. This preflight does not by
 itself establish that the DOI results are correct.
+
+For the next step, open `sql/452_FacultyDoiLookup_Compare_SQL2016.sql`, set
+`@InputUserId` to a known faculty ComputingID, and run the entire file in SSMS
+against the application database. Its first grid reports schema readiness with
+a validation-run ID and database name; the second reports missing columns; the
+final grid returns the repository's actual source rows for that userid. Export
+the **final grid** to CSV and keep the first grid and Messages for context.
+The script uses the same three SQL fragments as `FacultyDoiRepository`, including
+the optional `SourceFacultyKey` predicate. It preserves raw DOI values and
+duplicates so normalization and the final unique DOI count can be checked
+separately. Source-row counts are not unique DOI or publication counts.
