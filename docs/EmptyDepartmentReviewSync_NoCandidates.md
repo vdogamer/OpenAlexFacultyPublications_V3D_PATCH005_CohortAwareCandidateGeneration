@@ -48,10 +48,27 @@ preserves the existing procedure's grants.
 **Execution status in this cloud task:** the migration, rollback, original
 procedure, resulting patched procedure, and regression suite passed Microsoft's
 SQL Server 2016 syntax parser. The original body preservation check passed.
-SQL execution tests have **not** run: SQL Server container downloads were denied
-at `centralus.data.mcr.microsoft.com`, which is outside the current allowlist.
+SQL execution tests have **not** run in the cloud: SQL Server container downloads
+were denied at `centralus.data.mcr.microsoft.com`, which is outside the current allowlist.
 The remote Windows database is also unreachable from this task. Syntax checks
 are not a substitute for the following execution tests.
+
+**Local validation supplied by the user (reviewed November 4, 2026):**
+
+- The complete SQL regression suite at commit `70769d6` passed on the local
+  Windows SQL Server, including rollback and reapplication.
+- In the actual application database, invoking review synchronization for
+  Department 18 returned `NoCandidates` and the expected zero-count result.
+- The running Windows service subsequently completed scheduled run **364** and
+  promoted it as the current snapshot. The supplied SQL result showed
+  `RunStatus=Completed`, `PublicationsProcessed=0`, `IsCacheComplete=1`,
+  `SnapshotPromoted=1`, and zero `ReviewCandidateSyncFailed` log entries for
+  `RunId=364;`. This verifies the expected-empty case through the deployed service.
+
+The local regression success was reported by the user; the scheduled-run status
+and failure count were supplied as a SQL-results screenshot. The cloud task did
+not independently connect to that Windows database. No SQL behavior changed after
+the tested commit; this validation update is documentation only.
 
 The regression suite is self-contained, using the exported original procedure
 and synthetic source views. It first reproduces 51101, applies the patch twice,
