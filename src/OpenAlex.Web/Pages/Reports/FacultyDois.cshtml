@@ -1,0 +1,78 @@
+@page
+@model OpenAlex.Web.Pages.Reports.FacultyDoisModel
+@{
+    ViewData["Title"] = "Faculty DOI Lookup";
+}
+
+<h1>Faculty DOI Lookup</h1>
+
+<section class="card">
+    <p>Enter a faculty member's userid/ComputingID to list their DOIs from our stored publication records.</p>
+    <form method="get" class="filter-form">
+        <label for="faculty-userid">
+            Faculty userid / ComputingID
+            <input id="faculty-userid" type="text" name="UserId" value="@Model.UserId"
+                   maxlength="64" required autocomplete="off" spellcheck="false"
+                   aria-describedby="faculty-userid-help" placeholder="e.g. cf2s" />
+        </label>
+        <button type="submit">Find DOIs</button>
+        <a href="/Reports/FacultyDois">Clear</a>
+    </form>
+    <p id="faculty-userid-help" class="small">
+        You can also enter a userid@@virginia.edu email address. Matching is exact and ignores capitalization.
+    </p>
+    <p class="small">
+        Results include all unique DOIs in current synchronized publications and accepted OpenAlex records.
+        Coverage depends on the publications and years already collected. Publications without a valid DOI are omitted.
+    </p>
+</section>
+
+@if (Model.ErrorMessage is not null)
+{
+    <section class="card" role="alert">
+        <h2>Lookup could not be completed</h2>
+        <p>@Model.ErrorMessage</p>
+    </section>
+}
+
+@if (Model.Result is { } result)
+{
+    <section class="card" aria-labelledby="doi-results-title">
+        <h2 id="doi-results-title">Results for @result.UserId</h2>
+        @if (!result.FacultyFound)
+        {
+            <p>No faculty record matches this userid in the available publication data. Check the userid or ask the administrator to confirm the faculty record has been loaded.</p>
+        }
+        else
+        {
+            <p>@string.Join(" / ", result.FacultyNames)</p>
+            <p><strong>@result.Dois.Count unique DOI(s)</strong></p>
+            @if (result.Dois.Count == 0)
+            {
+                <p>This faculty member was found, but no valid DOIs are available in the current stored publication records.</p>
+            }
+            else
+            {
+                <div style="overflow-x:auto">
+                    <table>
+                        <caption>Faculty DOIs, newest publications first</caption>
+                        <thead>
+                            <tr><th scope="col">DOI</th><th scope="col">Publication</th><th scope="col">Year</th><th scope="col">Source</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in result.Dois)
+                            {
+                                <tr>
+                                    <td><a href="@entry.Url" target="_blank" rel="noopener noreferrer" style="overflow-wrap:anywhere">@entry.Doi</a></td>
+                                    <td>@entry.Title</td>
+                                    <td>@(entry.Year?.ToString() ?? "—")</td>
+                                    <td>@string.Join("; ", entry.Sources)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </section>
+}
