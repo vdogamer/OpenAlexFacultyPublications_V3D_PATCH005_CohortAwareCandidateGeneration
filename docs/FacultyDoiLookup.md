@@ -55,3 +55,18 @@ OpenAlex decisions. Check a userid with no DOI, an unknown userid, an invalid
 userid, case/email input variants, and a DOI repeated across sources. Verify
 that incomplete snapshots and nonaccepted native decisions remain excluded.
 Unit tests and a successful build do not establish SQL-backed data correctness.
+
+### Live database preflight
+
+In SQL Server Management Studio, select the database used by the app
+(`OpenAlexIngestion_Test` in the current configuration), then run
+`sql/451_FacultyDoiLookup_Preflight_SQL2016.sql`. It reports the connected
+server/database, checks every column used by the lookup, and lists up to ten
+candidate faculty userids from each available source. It changes no application
+data or schema. An absent source may be optional; missing columns within an
+existing source must be investigated before testing results.
+
+Share the schema-status and missing-column results and choose a known faculty
+userid from the candidate results. Next, compare that faculty member's DOI rows
+with `/Reports/FacultyDois` using the same database. This preflight does not by
+itself establish that the DOI results are correct.
