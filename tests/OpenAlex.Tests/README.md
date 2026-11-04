@@ -28,3 +28,11 @@ inside the test factory; it is not registered in the production application.
 Run `tests/sql/DoiSubmissionAuthorization_Regression.sql` separately in a new
 scratch SQL Server database to exercise the real stored-procedure boundary.
 See `docs/DoiSubmissionLiveAuthorization.md` for deployment and validation limits.
+
+The real exported role schema also has enabled/revoked membership state. Six
+additional cookie cases cover disabled role definitions, disabled assignments,
+and non-null revocation timestamps. SQL 459 and the two scratch suites
+`tests/sql/EnabledRoleAuthorization_Regression.sql` and
+`tests/sql/ReviewAuthBaseline_Regression.sql` validate the corresponding database
+guard and the actual exported schema separately. See
+`docs/ReviewAuthPrerequisiteBaseline.md`.

@@ -1,0 +1,144 @@
+{
+  "format_version": 1,
+  "scope": "PATCH022 review/auth feature subset; not a full OpenAlex application/ingestion database",
+  "source_date": "2026-11-04",
+  "sources": [
+    {
+      "name": "OpenAlex-review-auth-prerequisites.sql",
+      "sha256": "58e6f754959d2bc429ada48ecd4d1f7835ab22648b783232255ec53d5e5b27f5",
+      "encoding": "UTF-16 LE",
+      "origin": "User-supplied schema-only SSMS export"
+    },
+    {
+      "name": "OpenAlex-auth-core-prerequisites.sql",
+      "sha256": "a2d98c1e9a97da1d7ddfa386edee8ad446fe29201b67634a1469b05b66147e74",
+      "encoding": "UTF-8",
+      "origin": "Whitespace-formatted transcription of the user's pasted core-auth DDL; hash identifies the transcription, not an original uploaded file"
+    }
+  ],
+  "normalization": [
+    "Removed the hardcoded USE target from core-auth DDL",
+    "Omitted five OPTIMIZE_FOR_SEQUENTIAL_KEY=OFF options not supported by SQL Server 2016",
+    "Removed SSMS script timestamps and an unresolved alias-c warning comment",
+    "Added empty-database/system-database guards, dbo-owned schemas, required SET options, SQLCMD fail-fast, and transactional schema creation",
+    "Retained exported tables, columns, defaults, keys, indexes, foreign keys, checks, views, and procedures; no table data or privilege grants copied"
+  ],
+  "snapshot_objects": [
+    {
+      "kind": "table",
+      "name": "academiconline.DepartmentRosterMember"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.SyncRun"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.Department"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.Scholar"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.ScholarDepartment"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.DepartmentRosterOpenAlexAuthorAlias"
+    },
+    {
+      "kind": "view",
+      "name": "academiconline.vw_FacultyPublicationSearch"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.FacultyPublicationReviewCandidate"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.FacultyPublicationReviewDecision"
+    },
+    {
+      "kind": "view",
+      "name": "academiconline.vw_FacultyPublicationReviewStatus"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.DepartmentRosterPublication"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.Publication"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.DepartmentScholarPublication"
+    },
+    {
+      "kind": "view",
+      "name": "academiconline.vw_FacultyPublicationReviewUniverse"
+    },
+    {
+      "kind": "table",
+      "name": "openalex.AppUserDepartmentAccess"
+    },
+    {
+      "kind": "table",
+      "name": "openalex.AppUserDepartmentAccessAudit"
+    },
+    {
+      "kind": "table",
+      "name": "academiconline.FacultyPublicationManualReviewSubmission"
+    },
+    {
+      "kind": "table",
+      "name": "openalex.AppUser"
+    },
+    {
+      "kind": "procedure",
+      "name": "academiconline.usp_SetFacultyPublicationReviewDecision"
+    },
+    {
+      "kind": "procedure",
+      "name": "academiconline.usp_SyncFacultyPublicationReviewCandidatesForDepartment"
+    },
+    {
+      "kind": "table",
+      "name": "openalex.AppRole"
+    },
+    {
+      "kind": "table",
+      "name": "openalex.AppUserRole"
+    },
+    {
+      "kind": "table",
+      "name": "openalex.AuthenticationEvent"
+    }
+  ],
+  "ordered_install": [
+    "sql/baselines/PATCH022_ReviewAuthPrerequisites_SQL2016.sql",
+    "sql/150_V3C_Create_Role_Management_Extensions.sql",
+    "sql/452_PATCH022C_SendToReview_SQL2016.sql",
+    "sql/455_PATCH022E_PublicationFreshnessScanAudit_SQL2016.sql",
+    "sql/450_EmptyDepartmentReviewSync_NoCandidates_SQL2016.sql (already in snapshot; idempotency check)",
+    "sql/457_PATCH022F_ManualDoiReviewLifecycle_SQL2016.sql (already in snapshot; idempotency check)",
+    "sql/458_PATCH022G_DoiSubmissionLiveAuthorization_SQL2016.sql",
+    "sql/459_PATCH022H_EnabledRoleAuthorization_SQL2016.sql"
+  ],
+  "expected_installed_user_tables": 21,
+  "excludes": [
+    "Legacy V1 ingestion/reporting/auth-summary objects outside this feature subset",
+    "SQL/database login and user provisioning, object/schema/database permission assignments",
+    "Production source rows, live users, role memberships, secrets and connection strings",
+    "Scheduler/ingestion/discovery stored procedures and service configuration"
+  ],
+  "validation": {
+    "cloud": "SQL Server 2016 static parser/text-preservation checks and .NET tests only; SQL execution awaits local SQL Server",
+    "test_entry_points": [
+      "tests/sql/EnabledRoleAuthorization_Regression.sql",
+      "tests/sql/ReviewAuthBaseline_Regression.sql"
+    ]
+  }
+}

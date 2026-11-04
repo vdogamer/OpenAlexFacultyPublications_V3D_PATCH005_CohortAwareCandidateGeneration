@@ -149,6 +149,7 @@ IF EXISTS
     JOIN openalex.AppRole r
         ON r.AppRoleId = ur.AppRoleId
     WHERE ur.AppUserId = @AppUserId
+      AND ur.IsEnabled = 1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled = 1
       AND r.RoleName = N'Admin'
 )
 BEGIN
@@ -162,6 +163,7 @@ IF EXISTS
     JOIN openalex.AppRole r
         ON r.AppRoleId = ur.AppRoleId
     WHERE ur.AppUserId = @AppUserId
+      AND ur.IsEnabled = 1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled = 1
       AND r.RoleName = N'Reviewer'
 )
 BEGIN

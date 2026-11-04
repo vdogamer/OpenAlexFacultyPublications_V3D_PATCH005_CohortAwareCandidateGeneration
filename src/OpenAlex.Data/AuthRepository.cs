@@ -166,7 +166,7 @@ DECLARE @AppRoleId BIGINT;
 
 SELECT @AppRoleId = AppRoleId
 FROM openalex.AppRole
-WHERE RoleName = @RoleName;
+WHERE RoleName = @RoleName AND IsEnabled = 1;
 
 IF @AppRoleId IS NOT NULL
 BEGIN
@@ -314,6 +314,7 @@ SELECT
             JOIN openalex.AppRole r
                 ON ur.AppRoleId = r.AppRoleId
             WHERE ur.AppUserId = u.AppUserId
+              AND ur.IsEnabled = 1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled = 1
             ORDER BY r.RoleName
             FOR XML PATH(''), TYPE
         ).value('.', 'NVARCHAR(MAX)'),
@@ -426,6 +427,7 @@ SELECT
             JOIN openalex.AppRole r ON r.AppRoleId = ur.AppRoleId
             WHERE u.AppUserId = @AppUserId
               AND u.IsEnabled = 1
+              AND ur.IsEnabled = 1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled = 1
               AND
               (
                   r.RoleName = N'Admin'
@@ -524,6 +526,7 @@ WHERE a.AppUserId = @AppUserId
       JOIN openalex.AppRole r ON r.AppRoleId = ur.AppRoleId
       WHERE u.AppUserId = a.AppUserId
         AND u.IsEnabled = 1
+        AND ur.IsEnabled = 1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled = 1
         AND r.RoleName = N'Reviewer'
   )
 
@@ -578,6 +581,7 @@ FROM openalex.AppUserRole ur
 JOIN openalex.AppRole r
     ON ur.AppRoleId = r.AppRoleId
 WHERE ur.AppUserId = @AppUserId
+  AND ur.IsEnabled = 1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled = 1
 ORDER BY r.RoleName;";
         command.Parameters.AddWithValue("@AppUserId", appUserId);
 

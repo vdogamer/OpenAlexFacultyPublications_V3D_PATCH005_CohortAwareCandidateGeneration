@@ -16,8 +16,8 @@ public sealed class RoleManagementRepository
         await using var command = connection.CreateCommand();
         command.CommandText = @"SELECT u.AppUserId,u.UserName,u.DisplayName,u.Email,u.IsEnabled,r.RoleName
 FROM openalex.AppUser u
-LEFT JOIN openalex.AppUserRole ur ON u.AppUserId=ur.AppUserId
-LEFT JOIN openalex.AppRole r ON ur.AppRoleId=r.AppRoleId
+LEFT JOIN openalex.AppUserRole ur ON u.AppUserId=ur.AppUserId AND ur.IsEnabled=1 AND ur.RevokedAtUtc IS NULL
+LEFT JOIN openalex.AppRole r ON ur.AppRoleId=r.AppRoleId AND r.IsEnabled=1
 ORDER BY u.UserName,r.RoleName;";
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -41,7 +41,7 @@ ORDER BY u.UserName,r.RoleName;";
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT AppRoleId, RoleName FROM openalex.AppRole ORDER BY RoleName;";
+        command.CommandText = "SELECT AppRoleId, RoleName FROM openalex.AppRole WHERE IsEnabled=1 ORDER BY RoleName;";
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken)) roles.Add(new RoleDefinition{ AppRoleId=reader.GetInt64(0), RoleName=reader.GetString(1)});
         return roles;
@@ -57,6 +57,8 @@ ORDER BY u.UserName,r.RoleName;";
             var roleLookup = await GetRoleLookupAsync(connection, tx, cancellationToken);
             var existing = await GetUserRoleIdsAsync(connection, tx, appUserId, cancellationToken);
             var selected = selectedRoleIds.Distinct().ToHashSet();
+            if (selected.Any(id => !roleLookup.ContainsKey(id)))
+                throw new InvalidOperationException("A selected role is missing or disabled.");
             var adminRoleId = roleLookup.FirstOrDefault(x=>string.Equals(x.Value,"Admin",StringComparison.OrdinalIgnoreCase)).Key;
             if (adminRoleId>0 && existing.Contains(adminRoleId) && !selected.Contains(adminRoleId) && await CountEnabledAdminsAsync(connection,tx,cancellationToken)<=1)
                 throw new InvalidOperationException("Cannot remove the Admin role from the last enabled Admin user.");
@@ -67,7 +69,7 @@ ORDER BY u.UserName,r.RoleName;";
             }
             foreach (var roleId in selected.Except(existing))
             {
-                await ExecAsync(connection,tx,"IF NOT EXISTS (SELECT 1 FROM openalex.AppUserRole WHERE AppUserId=@A AND AppRoleId=@B) INSERT INTO openalex.AppUserRole(AppUserId,AppRoleId,CreatedAtUtc) VALUES(@A,@B,SYSUTCDATETIME())", appUserId, roleId, cancellationToken);
+                await ExecAsync(connection,tx,"IF EXISTS (SELECT 1 FROM openalex.AppUserRole WHERE AppUserId=@A AND AppRoleId=@B) UPDATE openalex.AppUserRole SET IsEnabled=1, GrantedAtUtc=SYSUTCDATETIME(), RevokedBy=NULL, RevokedAtUtc=NULL WHERE AppUserId=@A AND AppRoleId=@B; ELSE INSERT INTO openalex.AppUserRole(AppUserId,AppRoleId,CreatedAtUtc) VALUES(@A,@B,SYSUTCDATETIME())", appUserId, roleId, cancellationToken);
                 await AuditAsync(connection,tx,appUserId,userName,changedBy,"RoleAdded",roleLookup.GetValueOrDefault(roleId),"NotAssigned","Assigned",changeReason,cancellationToken);
             }
             await ExecOneAsync(connection,tx,"UPDATE openalex.AppUser SET UpdatedAtUtc=SYSUTCDATETIME() WHERE AppUserId=@Id", appUserId, cancellationToken);
@@ -737,9 +739,9 @@ WHERE s.DepartmentId =
         cancellationToken);
 }
 
-    static async Task<HashSet<long>> GetUserRoleIdsAsync(SqlConnection c, SqlTransaction t, long id, CancellationToken ct){var s=new HashSet<long>(); await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText="SELECT AppRoleId FROM openalex.AppUserRole WHERE AppUserId=@Id"; cmd.Parameters.AddWithValue("@Id",id); await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct)) s.Add(r.GetInt64(0)); return s;}
-    static async Task<Dictionary<long,string>> GetRoleLookupAsync(SqlConnection c, SqlTransaction t, CancellationToken ct){var d=new Dictionary<long,string>(); await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText="SELECT AppRoleId,RoleName FROM openalex.AppRole"; await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct)) d[r.GetInt64(0)]=r.GetString(1); return d;}
-    static async Task<long> CountEnabledAdminsAsync(SqlConnection c, SqlTransaction t, CancellationToken ct){await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText="SELECT COUNT_BIG(*) FROM openalex.AppUser u JOIN openalex.AppUserRole ur ON u.AppUserId=ur.AppUserId JOIN openalex.AppRole r ON ur.AppRoleId=r.AppRoleId WHERE u.IsEnabled=1 AND r.RoleName='Admin'"; return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));}
+    static async Task<HashSet<long>> GetUserRoleIdsAsync(SqlConnection c, SqlTransaction t, long id, CancellationToken ct){var s=new HashSet<long>(); await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText="SELECT ur.AppRoleId FROM openalex.AppUserRole ur JOIN openalex.AppRole r ON r.AppRoleId=ur.AppRoleId WHERE ur.AppUserId=@Id AND ur.IsEnabled=1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled=1"; cmd.Parameters.AddWithValue("@Id",id); await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct)) s.Add(r.GetInt64(0)); return s;}
+    static async Task<Dictionary<long,string>> GetRoleLookupAsync(SqlConnection c, SqlTransaction t, CancellationToken ct){var d=new Dictionary<long,string>(); await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText="SELECT AppRoleId,RoleName FROM openalex.AppRole WHERE IsEnabled=1"; await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct)) d[r.GetInt64(0)]=r.GetString(1); return d;}
+    static async Task<long> CountEnabledAdminsAsync(SqlConnection c, SqlTransaction t, CancellationToken ct){await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText="SELECT COUNT_BIG(*) FROM openalex.AppUser u JOIN openalex.AppUserRole ur ON u.AppUserId=ur.AppUserId JOIN openalex.AppRole r ON ur.AppRoleId=r.AppRoleId WHERE u.IsEnabled=1 AND ur.IsEnabled=1 AND ur.RevokedAtUtc IS NULL AND r.IsEnabled=1 AND r.RoleName='Admin'"; return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));}
     static async Task<string?> ScalarStringAsync(SqlConnection c, SqlTransaction t, string sql, long id, CancellationToken ct){await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText=sql; cmd.Parameters.AddWithValue("@Id",id); return Convert.ToString(await cmd.ExecuteScalarAsync(ct));}
     static async Task ExecOneAsync(SqlConnection c, SqlTransaction t, string sql, long id, CancellationToken ct){await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText=sql; cmd.Parameters.AddWithValue("@Id",id); await cmd.ExecuteNonQueryAsync(ct);}    
     static async Task ExecOneAsync(SqlConnection c, SqlTransaction t, string sql, long id, bool val, CancellationToken ct){await using var cmd=c.CreateCommand(); cmd.Transaction=t; cmd.CommandText=sql; cmd.Parameters.AddWithValue("@Id",id); cmd.Parameters.AddWithValue("@Value",val); await cmd.ExecuteNonQueryAsync(ct);}    

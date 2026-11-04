@@ -27,6 +27,12 @@ public sealed class DoiSubmissionAuthorizationTests
     [InlineData("Reviewer", "RemovedUser")]
     [InlineData("Admin", "RemovedRole")]
     [InlineData("Reviewer", "RemovedRole")]
+    [InlineData("Admin", "RoleDisabled")]
+    [InlineData("Reviewer", "RoleDisabled")]
+    [InlineData("Admin", "AssignmentDisabled")]
+    [InlineData("Reviewer", "AssignmentDisabled")]
+    [InlineData("Admin", "AssignmentRevoked")]
+    [InlineData("Reviewer", "AssignmentRevoked")]
     [InlineData("Admin", "DemotedWithoutAccess")]
     [InlineData("Reviewer", "RevokedAccess")]
     [InlineData("Reviewer", "OtherDepartment")]
@@ -192,6 +198,9 @@ public sealed class DoiSubmissionAuthorizationTests
                 case "Disabled": Store.Current!.IsEnabled = false; break;
                 case "RemovedUser": Store.Current = null; break;
                 case "RemovedRole": Store.Current!.Roles = new[] { "Reader" }; break;
+                case "RoleDisabled": Store.RoleEnabled = false; break;
+                case "AssignmentDisabled": Store.AssignmentEnabled = false; break;
+                case "AssignmentRevoked": Store.RevokedAtUtc = DateTime.UtcNow; break;
                 case "DemotedWithoutAccess": Store.Current!.Roles = new[] { "Reviewer" }; Store.CanReview = false; break;
                 case "RevokedAccess": Store.CanReview = false; break;
                 case "OtherDepartment": Store.DepartmentId = 19; break;
@@ -249,9 +258,17 @@ public sealed class DoiSubmissionAuthorizationTests
         };
         public bool CanReview { get; set; } = true;
         public long DepartmentId { get; set; } = 18;
-        public Task<AppUserRoleProfile?> FindUserAsync(string userName, CancellationToken cancellationToken = default) => Task.FromResult(Current);
+        public bool RoleEnabled { get; set; } = true;
+        public bool AssignmentEnabled { get; set; } = true;
+        public DateTime? RevokedAtUtc { get; set; }
+        public Task<AppUserRoleProfile?> FindUserAsync(string userName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Current is null ? null : new AppUserRoleProfile
+            {
+                AppUserId = Current.AppUserId, UserName = Current.UserName, IsEnabled = Current.IsEnabled,
+                Roles = RoleEnabled && AssignmentEnabled && RevokedAtUtc is null ? Current.Roles : Array.Empty<string>()
+            });
         public Task<bool> UserCanReviewDepartmentAsync(long appUserId, long departmentId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Current?.IsEnabled == true && Current.AppUserId == appUserId &&
+            Task.FromResult(Current?.IsEnabled == true && Current.AppUserId == appUserId && RoleEnabled && AssignmentEnabled && RevokedAtUtc is null &&
                 (Current.Roles.Contains("Admin") || (Current.Roles.Contains("Reviewer") && CanReview && departmentId == DepartmentId)));
         public async Task<IReadOnlyList<DepartmentAccessItem>> GetReviewDepartmentsForUserAsync(long appUserId, CancellationToken cancellationToken = default) =>
             await UserCanReviewDepartmentAsync(appUserId, DepartmentId, cancellationToken)

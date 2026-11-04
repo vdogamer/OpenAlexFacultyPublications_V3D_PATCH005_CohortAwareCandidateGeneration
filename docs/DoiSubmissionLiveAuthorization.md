@@ -1,5 +1,9 @@
 # DOI submission live authorization (PATCH022G)
 
+Follow-up: the actual auth-schema export revealed enabled/revoked role state not
+represented by the original fixtures. Use SQL 459 and the updated application
+for effective role-state enforcement; see `ReviewAuthPrerequisiteBaseline.md`.
+
 Baseline: the user's published `review/patch022-authorization-baseline` commit
 `572bf12`, including the validated PATCH022 application commits and lifecycle
 fix 457. The fix branch is `fix/manual-doi-live-authorization`; it does not update

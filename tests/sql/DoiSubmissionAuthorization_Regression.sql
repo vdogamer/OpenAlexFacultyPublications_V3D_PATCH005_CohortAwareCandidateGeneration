@@ -12,10 +12,14 @@ CREATE TABLE openalex.AppUser
 (
     AppUserId bigint PRIMARY KEY, UserName nvarchar(256) UNIQUE, IsEnabled bit NOT NULL
 );
-CREATE TABLE openalex.AppRole (AppRoleId bigint PRIMARY KEY, RoleName nvarchar(100));
+CREATE TABLE openalex.AppRole
+(
+    AppRoleId bigint PRIMARY KEY, RoleName nvarchar(100), IsEnabled bit NOT NULL DEFAULT (1)
+);
 CREATE TABLE openalex.AppUserRole
 (
-    AppUserId bigint, AppRoleId bigint, PRIMARY KEY(AppUserId, AppRoleId)
+    AppUserId bigint, AppRoleId bigint, IsEnabled bit NOT NULL DEFAULT (1),
+    RevokedAtUtc datetime2 NULL, PRIMARY KEY(AppUserId, AppRoleId)
 );
 CREATE TABLE openalex.AppUserDepartmentAccess
 (
@@ -62,8 +66,8 @@ BEGIN
     DELETE openalex.AppUser;
     INSERT openalex.AppUser VALUES
         (12, N'fixture.reviewer', 1), (13, N'fixture.admin', 1), (14, N'fixture.reader', 1);
-    INSERT openalex.AppRole VALUES (1, N'Admin'), (2, N'Reviewer'), (3, N'Reader');
-    INSERT openalex.AppUserRole VALUES (12, 2), (13, 1), (14, 3);
+    INSERT openalex.AppRole(AppRoleId, RoleName) VALUES (1, N'Admin'), (2, N'Reviewer'), (3, N'Reader');
+    INSERT openalex.AppUserRole(AppUserId, AppRoleId) VALUES (12, 2), (13, 1), (14, 3);
     INSERT openalex.AppUserDepartmentAccess VALUES (12, 18, 1, 1), (14, 18, 1, 1);
 END;
 GO
@@ -123,7 +127,7 @@ EXEC academiconline._ExpectDoiAuthorizationDenial N'Reviewer role removed but ac
 EXEC academiconline._ResetDoiAuthorizationFixture;
 DELETE openalex.AppUserRole WHERE AppUserId = 13;
 EXEC academiconline._ExpectDoiAuthorizationDenial N'Admin role removed', 13, N'fixture.admin';
-INSERT openalex.AppUserRole VALUES (13, 2);
+INSERT openalex.AppUserRole(AppUserId, AppRoleId) VALUES (13, 2);
 EXEC academiconline._ExpectDoiAuthorizationDenial N'Admin demoted to Reviewer without department access', 13, N'fixture.admin';
 
 EXEC academiconline._ResetDoiAuthorizationFixture;
