@@ -27,7 +27,7 @@ jobs:
   frontend-navigation:
     runs-on: ubuntu-latest
     env:
-      UI_CHECK_OUTPUT: ${{ runner.temp }}/uva-ui
+      UI_CHECK_OUTPUT: ${{ github.workspace }}/.artifacts/uva-ui
     steps:
       - name: Checkout
         uses: actions/checkout@v4
