@@ -1,57 +1,105 @@
+@{
+    var currentPath = Context.Request.Path.Value?.TrimEnd('/') ?? "";
+    bool IsPage(string path) => string.Equals(currentPath, path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+    bool IsWithin(params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (IsPage(path) || currentPath.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+}
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>OpenAlex Faculty Publications V3D</title>
+    <title>@(ViewData["Title"] ?? "Faculty Publications") | UVA School of Medicine</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="/css/site.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script src="~/js/site-navigation.js" asp-append-version="true" defer></script>
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="topbar">
-        <div class="brand">OpenAlex V3D</div>
-        <nav>
-            <a href="/">Dashboard</a>
-            <a href="/Faculty">Faculty</a>
-            @if (User?.Identity?.IsAuthenticated == true)
-            {
-                <a href="/Faculty/MyPublications">My Publications</a>
-            }
-            <a href="/Admin/AddFaculty">Add Faculty</a>
-            <a href="/Review/Identities">Identity Review</a>
-            <a href="/Review/Authors">Author Review</a>
-            <a href="/Review/Publications">Publication Review</a>
-            <a href="/Reports/AcceptedPublications">Accepted Publications</a>
-            <a href="/Reports/DataProvenance">Data Provenance</a>
-            <a href="/Reports/AcademicOnlineFacultyLookup">UVA Publication Lookup</a>
-            <a href="/Reports/FacultyDois">Faculty DOI Lookup</a>
-            <a href="/Reports/SharedPublications">Shared Publications</a>
-            <a href="/Reports/DepartmentPublications">Department Publications</a>
-            <a href="/Operations">Operations</a>
-            <a href="/Operations/Runs">Runs</a>
-            <a href="/Admin/ExecutionWindows">Windows</a>
-            <a href="/Admin/Scheduler">Scheduler</a>
-            <a href="/Admin/AcademicOnlineDepartments">Department Catalog</a>
-            <a href="/Admin/Jobs">Jobs</a>
-            <a href="/Admin/Preflight">Preflight</a>
-            <a href="/Admin/Deployment">Deployment</a>
-            <a href="/Admin/Roles">Roles</a>
-            <a href="/Admin/Users">Admin</a>
-        </nav>
-        <div class="authbar">
-            @if (User?.Identity?.IsAuthenticated == true)
-            {
-                <span>@User.Identity.Name</span>
-                <form method="post" action="/Account/Logout" style="display:inline">
-                    <button type="submit">Logout</button>
-                </form>
-            }
-            else
-            {
-                <a href="/Account/Login">Login</a>
-            }
+        <div class="header-inner">
+            <a class="brand" href="/" aria-label="Faculty Publications home">
+                <span class="brand-institution">UVA School of Medicine</span>
+                <span class="brand-title">Faculty Publications</span>
+            </a>
+            <div class="authbar">
+                @if (User?.Identity?.IsAuthenticated == true)
+                {
+                    <span class="auth-user" title="@User.Identity.Name">@User.Identity.Name</span>
+                    <form method="post" action="/Account/Logout">
+                        <button type="submit">Log out</button>
+                    </form>
+                }
+                else
+                {
+                    <a href="/Account/Login">Log in</a>
+                }
+            </div>
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" hidden>
+                Menu <span class="nav-chevron" aria-hidden="true"></span>
+            </button>
+            <nav class="primary-nav" id="primary-navigation" aria-label="Main navigation">
+                <a class="nav-link" href="/" aria-current="@(IsPage("/") ? "page" : null)">Dashboard</a>
+                <details class="nav-group @(IsWithin("/Faculty", "/Admin/AddFaculty") ? "is-active" : null)">
+                    <summary>Faculty <span class="nav-chevron" aria-hidden="true"></span></summary>
+                    <div class="nav-dropdown">
+                        <a href="/Faculty" aria-current="@(IsPage("/Faculty") ? "page" : null)">Faculty directory</a>
+                        @if (User?.Identity?.IsAuthenticated == true)
+                        {
+                            <a href="/Faculty/MyPublications" aria-current="@(IsPage("/Faculty/MyPublications") ? "page" : null)">My publications</a>
+                        }
+                        <a href="/Admin/AddFaculty" aria-current="@(IsPage("/Admin/AddFaculty") ? "page" : null)">Add faculty</a>
+                    </div>
+                </details>
+                <a class="nav-link nav-lookup" href="/Reports/FacultyDois" aria-current="@(IsPage("/Reports/FacultyDois") ? "page" : null)">DOI Lookup</a>
+                <details class="nav-group @(IsWithin("/Reports/AcceptedPublications", "/Reports/DataProvenance", "/Reports/AcademicOnlineFacultyLookup", "/Reports/SharedPublications", "/Reports/DepartmentPublications") ? "is-active" : null)">
+                    <summary>Publications <span class="nav-chevron" aria-hidden="true"></span></summary>
+                    <div class="nav-dropdown">
+                        <a href="/Reports/AcademicOnlineFacultyLookup" aria-current="@(IsPage("/Reports/AcademicOnlineFacultyLookup") ? "page" : null)">UVA publication lookup</a>
+                        <a href="/Reports/AcceptedPublications" aria-current="@(IsPage("/Reports/AcceptedPublications") ? "page" : null)">Accepted publications</a>
+                        <a href="/Reports/SharedPublications" aria-current="@(IsPage("/Reports/SharedPublications") ? "page" : null)">Shared publications</a>
+                        <a href="/Reports/DepartmentPublications" aria-current="@(IsPage("/Reports/DepartmentPublications") ? "page" : null)">Department publications</a>
+                        <a href="/Reports/DataProvenance" aria-current="@(IsPage("/Reports/DataProvenance") ? "page" : null)">Data provenance</a>
+                    </div>
+                </details>
+                <details class="nav-group @(IsWithin("/Review") ? "is-active" : null)">
+                    <summary>Review <span class="nav-chevron" aria-hidden="true"></span></summary>
+                    <div class="nav-dropdown">
+                        <a href="/Review/Identities" aria-current="@(IsPage("/Review/Identities") ? "page" : null)">Identity review</a>
+                        <a href="/Review/Authors" aria-current="@(IsPage("/Review/Authors") ? "page" : null)">Author review</a>
+                        <a href="/Review/Publications" aria-current="@(IsPage("/Review/Publications") ? "page" : null)">Publication review</a>
+                    </div>
+                </details>
+                <details class="nav-group @(IsWithin("/Operations", "/Admin/ExecutionWindows", "/Admin/Scheduler", "/Admin/Jobs") ? "is-active" : null)">
+                    <summary>Operations <span class="nav-chevron" aria-hidden="true"></span></summary>
+                    <div class="nav-dropdown">
+                        <a href="/Operations" aria-current="@(IsPage("/Operations") ? "page" : null)">Operations overview</a>
+                        <a href="/Operations/Runs" aria-current="@(IsPage("/Operations/Runs") ? "page" : null)">Run history</a>
+                        <a href="/Admin/ExecutionWindows" aria-current="@(IsPage("/Admin/ExecutionWindows") ? "page" : null)">Execution windows</a>
+                        <a href="/Admin/Scheduler" aria-current="@(IsPage("/Admin/Scheduler") ? "page" : null)">Scheduler</a>
+                        <a href="/Admin/Jobs" aria-current="@(IsPage("/Admin/Jobs") ? "page" : null)">Jobs</a>
+                    </div>
+                </details>
+                <details class="nav-group @(IsWithin("/Admin/AcademicOnlineDepartments", "/Admin/Preflight", "/Admin/Deployment", "/Admin/Roles", "/Admin/Users") ? "is-active" : null)">
+                    <summary>Administration <span class="nav-chevron" aria-hidden="true"></span></summary>
+                    <div class="nav-dropdown nav-dropdown-end">
+                        <a href="/Admin/AcademicOnlineDepartments" aria-current="@(IsPage("/Admin/AcademicOnlineDepartments") ? "page" : null)">Department catalog</a>
+                        <a href="/Admin/Preflight" aria-current="@(IsPage("/Admin/Preflight") ? "page" : null)">Preflight checks</a>
+                        <a href="/Admin/Deployment" aria-current="@(IsPage("/Admin/Deployment") ? "page" : null)">Deployment</a>
+                        <a href="/Admin/Roles" aria-current="@(IsPage("/Admin/Roles") ? "page" : null)">Roles</a>
+                        <a href="/Admin/Users" aria-current="@(IsPage("/Admin/Users") ? "page" : null)">User administration</a>
+                    </div>
+                </details>
+            </nav>
         </div>
     </header>
-    <main class="container">
+    <main class="container" id="main-content" tabindex="-1">
         @RenderBody()
     </main>
 </body>
