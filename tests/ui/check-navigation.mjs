@@ -78,6 +78,7 @@ await page.setViewportSize({width:390,height:1000});await page.goto(base+'/Repor
 await page.locator('.nav-toggle').click();await page.locator('summary').filter({hasText:'Faculty',exact:true}).click();
 await page.screenshot({path:out+'/mobile.png',fullPage:true});
 await page.setViewportSize({width:1366,height:1000});
+await page.waitForFunction(() => document.querySelector('.nav-toggle').getAttribute('aria-expanded') === 'false');
 assert.equal(await page.locator('.nav-toggle').getAttribute('aria-expanded'),'false');
 const nojs=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:1000}});
 const fallback=await nojs.newPage();await fallback.goto(base+'/Reports/FacultyDois');
