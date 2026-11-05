@@ -24,7 +24,7 @@ jobs:
           print(p.stdout)
           lines=p.stdout.splitlines()
           start=next((i for i,line in enumerate(lines) if re.search(r"AssertionError|TimeoutError|Error:",line)),0)
-          message=re.sub(r"\s+"," "," ".join(lines[start:start+9])).strip()[:300] if p.returncode else "All browser checks passed"
+          message=re.sub(r"\s+"," "," ".join(lines)).strip()[:950] if p.returncode else "All browser checks passed"
           with open(os.environ["GITHUB_OUTPUT"],"a") as f:f.write("message="+message+"\n")
           sys.exit(p.returncode)
           PY
