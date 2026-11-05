@@ -26,10 +26,10 @@
         group.addEventListener("toggle", () => {
             if (group.open) closeGroups(group);
         });
-        group.addEventListener("focusout", () => {
-            queueMicrotask(() => {
-                if (!mobile.matches && !group.contains(document.activeElement)) group.open = false;
-            });
+        group.addEventListener("focusout", event => {
+            if (!mobile.matches && event.relatedTarget instanceof Node && !group.contains(event.relatedTarget)) {
+                group.open = false;
+            }
         });
     });
     document.addEventListener("click", event => {
