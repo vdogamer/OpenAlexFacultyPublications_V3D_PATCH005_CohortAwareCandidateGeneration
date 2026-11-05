@@ -1,0 +1,39 @@
+name: UVA frontend diagnostics
+on:
+  push:
+    branches: [ 'feature/uva-theme-navigation-validation-*' ]
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    env:
+      UI_CHECK_OUTPUT: ${{ github.workspace }}/.artifacts/uva-diagnostics
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --package-lock=false playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - name: Capture browser result
+        id: browser
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import subprocess,os,re,sys
+          p=subprocess.run(["node","tests/ui/check-navigation.mjs"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+          print(p.stdout)
+          lines=p.stdout.splitlines()
+          start=next((i for i,line in enumerate(lines) if re.search(r"AssertionError|TimeoutError|Error:",line)),0)
+          message=re.sub(r"\s+"," "," ".join(lines[start:start+9])).strip()[:300] if p.returncode else "All browser checks passed"
+          with open(os.environ["GITHUB_OUTPUT"],"a") as f:f.write("message="+message+"\n")
+          sys.exit(p.returncode)
+          PY
+      - name: "Browser result: ${{ steps.browser.outputs.message }}"
+        if: always()
+        run: test '${{ steps.browser.outcome }}' = 'success'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: uva-navigation-diagnostics
+          path: ${{ env.UI_CHECK_OUTPUT }}
+          if-no-files-found: ignore
