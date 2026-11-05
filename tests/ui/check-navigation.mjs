@@ -58,7 +58,7 @@ for(const width of widths){
  assert.equal(await page.locator('.nav-group[open]').count(),0);
  assert.equal(await page.locator(':focus').textContent().then(x=>x.trim()),'Administration');
  await page.locator('summary').filter({hasText:'Review',exact:true}).click();
- await page.locator('h1').click();assert.equal(await page.locator('.nav-group[open]').count(),0);
+ await page.locator('#faculty-userid-help').click();assert.equal(await page.locator('.nav-group[open]').count(),0);
 }
 await page.setViewportSize({width:1366,height:1000});await page.goto(base+'/Reports/FacultyDois');
 const paths=await page.locator('.primary-nav a, .authbar a').evaluateAll(a=>a.map(el=>el.getAttribute('href')));
