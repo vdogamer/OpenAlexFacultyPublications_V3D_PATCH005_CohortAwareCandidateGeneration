@@ -41,15 +41,23 @@
         <h2 id="doi-results-title">Results for @result.UserId</h2>
         @if (!result.FacultyFound)
         {
-            <p>No faculty record matches this userid in the available publication data. Check the userid or ask the administrator to confirm the faculty record has been loaded.</p>
+            <p>No faculty record matches this userid in the imported roster or available publication data. Check the userid or ask the administrator to confirm the faculty record has been loaded.</p>
         }
         else
         {
             <p>@string.Join(" / ", result.FacultyNames)</p>
+            @if (result.InImportedRoster)
+            {
+                <p class="small">Faculty found in the imported roster. <a asp-page="/Faculty" asp-route-search="@result.UserId">View faculty record</a></p>
+            }
             <p><strong>@result.Dois.Count unique DOI(s)</strong></p>
             @if (result.Dois.Count == 0)
             {
                 <p>This faculty member was found, but no valid DOIs are available in the current stored publication records.</p>
+                @if (result.InImportedRoster)
+                {
+                    <p>The faculty record is loaded. Publications may still need to be matched or collected.</p>
+                }
             }
             else
             {

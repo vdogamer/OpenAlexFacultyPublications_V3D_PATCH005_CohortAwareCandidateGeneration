@@ -104,8 +104,21 @@ source labels match the SQL sample. Publication titles and clickable DOI links
 are displayed, and the new navigation link and search form are present. This
 passes the local positive lookup comparison between SQL and the browser.
 
-The successful local screenshot is from port 5055 after the earlier app instance
-on port 5000 returned 404. Review, merge, and deployment remain
-pending. Live no-DOI/unknown-user cases and other faculty samples have not been
-supplied; this sample does not establish full publication-history completeness
-or DOI resolver availability.
+The initial successful local screenshot was from port 5055 after the earlier app
+instance on port 5000 returned 404. PR #3 was subsequently merged and the user
+confirmed successful lookups on the updated port-5000 application, including a
+larger publication sample. These controls do not establish full publication-history
+completeness or DOI resolver availability.
+
+## Imported roster recognition
+
+The lookup recognizes `openalex.FacultyRoster.ComputingId` when that optional
+table is present. A roster member without stored DOI records is a known faculty
+member with zero results. This is separate from the unknown-ComputingID state.
+The displayed name comes from the roster when available. Roster membership does
+not establish a provider identity, publication ownership or current employment.
+
+Existing publication queries still use current synchronized records and current
+accepted OpenAlex decisions. A stored `NativeFacultyId` can also identify the
+native record for accepted publications. No name-based or directory-email-alias
+matching is added. Databases without the roster retain their existing lookup.
