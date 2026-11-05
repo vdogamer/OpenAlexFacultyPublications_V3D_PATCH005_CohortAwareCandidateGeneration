@@ -1,41 +1,93 @@
 @page
 @model OpenAlex.Web.Pages.FacultyModel
+@{
+    ViewData["Title"] = "Faculty";
+}
 
 <h1>Faculty</h1>
-
-<p><a class="button" href="/Admin/AddFaculty">Add Faculty</a></p>
+@if (User.IsInRole("Admin"))
+{
+    <p><a class="button" href="/Admin/AddFaculty">Add Faculty</a></p>
+}
 
 <form method="get" class="card">
-    <label for="search">Search faculty</label><br />
-    <input id="search" name="search" type="text" value="@Model.Search" />
+    <label for="search">Search by name, ComputingID, email or department</label><br />
+    <input id="search" name="search" type="text" value="@Model.Search" maxlength="200" />
     <button type="submit">Search</button>
+    <a asp-page="/Faculty">Clear</a>
 </form>
 
-<table>
-    <thead>
-        <tr>
-            <th>Faculty</th>
-            <th>Email</th>
-            <th>Department / Division</th>
-            <th>Title</th>
-            <th>IDs</th>
-            <th>Active</th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var item in Model.Faculty)
+@if (Model.ErrorMessage is not null)
+{
+    <section class="card" role="alert"><p>@Model.ErrorMessage</p></section>
+}
+else if (Model.Result is { } result)
+{
+    <p><strong>@result.RosterCount.ToString("N0") imported roster records</strong>;
+        @result.AdditionalNativeCount.ToString("N0") additional native faculty records.</p>
+    <p class="small">The imported roster reflects the supplied primary-appointment snapshot.
+        Roster membership does not confirm current employment or publication matching.
+        Native records without a confirmed roster link remain separate.</p>
+    @if (result.TotalCount == 0)
     {
-        <tr>
-            <td><strong>@item.DisplayName</strong></td>
-            <td>@item.PrimaryEmail</td>
-            <td>@item.DepartmentName<br /><span class="small">@item.DivisionName</span></td>
-            <td>@item.AppointmentTitle</td>
-            <td>
-                <span class="small">ORCID: @(item.Orcid ?? "-")</span><br />
-                <span class="small">OpenAlex: @(item.ClaimedOpenAlexAuthorId ?? "-")</span>
-            </td>
-            <td>@item.IsActive</td>
-        </tr>
+        <p>No faculty records match this search.</p>
     }
-    </tbody>
-</table>
+    else
+    {
+        <p>Showing @(((result.PageNumber - 1) * result.PageSize + 1).ToString("N0"))–@(((result.PageNumber - 1) * result.PageSize + result.Items.Count).ToString("N0"))
+            of @result.TotalCount.ToString("N0") matching faculty records.</p>
+        <div style="overflow-x:auto">
+        <table>
+            <thead>
+                <tr><th scope="col">Faculty</th><th scope="col">ComputingID</th><th scope="col">Email</th>
+                    <th scope="col">Department / Division</th><th scope="col">Title</th>
+                    <th scope="col">Identity status at import</th><th scope="col">DOIs</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var item in result.Items)
+            {
+                <tr>
+                    <td><strong>@item.DisplayName</strong><br />
+                        <span class="small">@(item.IsRosterMember ? "Imported roster" : "Native faculty record")</span>
+                        @if (item.Orcid is not null)
+                        {
+                            <br /><span class="small">ORCID: @item.Orcid</span>
+                        }
+                        @if (item.ClaimedOpenAlexAuthorId is not null)
+                        {
+                            <br /><span class="small">Claimed OpenAlex: @item.ClaimedOpenAlexAuthorId</span>
+                        }
+                    </td>
+                    <td>@(item.ComputingId ?? "—")</td>
+                    <td>@item.PrimaryEmail</td>
+                    <td>@item.DepartmentName<br /><span class="small">@item.DivisionName</span></td>
+                    <td>@item.AppointmentTitle</td>
+                    <td>@(item.BaselineIdentityStatus ?? "—")</td>
+                    <td>
+                        @if (item.ComputingId is not null)
+                        {
+                            <a asp-page="/Reports/FacultyDois" asp-route-UserId="@item.ComputingId">View DOIs</a>
+                        }
+                        else
+                        {
+                            <span class="small">ComputingID needed</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        </div>
+        <nav aria-label="Faculty result pages">
+            @if (result.PageNumber > 1)
+            {
+                <a asp-page="/Faculty" asp-route-search="@Model.Search" asp-route-pageNumber="@(result.PageNumber - 1)">Previous</a>
+            }
+            <span>Page @result.PageNumber of @result.PageCount</span>
+            @if (result.PageNumber < result.PageCount)
+            {
+                <a asp-page="/Faculty" asp-route-search="@Model.Search" asp-route-pageNumber="@(result.PageNumber + 1)">Next</a>
+            }
+        </nav>
+    }
+}

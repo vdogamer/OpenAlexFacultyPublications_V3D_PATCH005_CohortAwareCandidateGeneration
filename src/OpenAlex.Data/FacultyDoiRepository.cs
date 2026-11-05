@@ -10,7 +10,8 @@ public interface IFacultyDoiRepository
 }
 
 public sealed record FacultyDoiSourceRow(
-    string FacultyName, string? Doi, string? Title, int? Year, string Source);
+    string FacultyName, string? Doi, string? Title, int? Year, string Source,
+    bool IsRosterMember = false);
 
 public sealed class FacultyDoiRepository : IFacultyDoiRepository
 {
@@ -30,6 +31,16 @@ public sealed class FacultyDoiRepository : IFacultyDoiRepository
         // Schema checks run separately: SQL Server binds missing objects even in
         // unexecuted IF branches. Never execute a query for an absent source.
         var queries = new List<string>();
+        var hasRoster = await HasObjectsAsync(connection, new[] { "openalex.FacultyRoster" }, cancellationToken);
+        if (hasRoster)
+        {
+            queries.Add(@"
+SELECT r.DisplayName, CAST(NULL AS nvarchar(512)) AS Doi,
+       CAST(NULL AS nvarchar(max)) AS Title, CAST(NULL AS int) AS PublicationYear,
+       N'Imported faculty roster' AS Source, CAST(1 AS bit) AS IsRosterMember
+FROM openalex.FacultyRoster r
+WHERE LOWER(LTRIM(RTRIM(r.ComputingId))) = @UserId");
+        }
         if (await HasObjectsAsync(connection, new[]
             {
                 "academiconline.Scholar", "academiconline.Department",
@@ -39,7 +50,7 @@ public sealed class FacultyDoiRepository : IFacultyDoiRepository
         {
             queries.Add(@"
 SELECT s.DisplayName, p.Doi, p.Title, p.PublicationYear,
-       N'Synchronized publications' AS Source
+       N'Synchronized publications' AS Source, CAST(0 AS bit) AS IsRosterMember
 FROM academiconline.Scholar s
 LEFT JOIN
 (
@@ -66,7 +77,7 @@ WHERE LOWER(LTRIM(RTRIM(s.UvaUserId))) = @UserId
         {
             queries.Add(@"
 SELECT rm.DisplayName, p.Doi, p.Title, p.PublicationYear,
-       N'Synchronized publications' AS Source
+       N'Synchronized publications' AS Source, CAST(0 AS bit) AS IsRosterMember
 FROM academiconline.DepartmentRosterMember rm
 LEFT JOIN
 (
@@ -96,12 +107,17 @@ WHERE rm.IsActive = 1
                 "SELECT CASE WHEN COL_LENGTH(N'openalex.Faculty', N'SourceFacultyKey') IS NULL THEN 0 ELSE 1 END;";
             var sourceKeyClause = Convert.ToInt32(
                 await columnCheck.ExecuteScalarAsync(cancellationToken)) == 1
-                ? " OR LOWER(LTRIM(RTRIM(f.SourceFacultyKey))) = @UserId"
+                ? " OR LOWER(LTRIM(RTRIM(f.SourceFacultyKey))) IN (@UserId,@Email)"
                 : string.Empty;
+            // Follow only the native link already confirmed by the roster import.
+            // Do not infer a link from a name or a directory-email alias here.
+            var rosterLinkClause = hasRoster ? @"
+ OR EXISTS (SELECT 1 FROM openalex.FacultyRoster r
+            WHERE LOWER(LTRIM(RTRIM(r.ComputingId)))=@UserId AND r.NativeFacultyId=f.FacultyId)" : string.Empty;
 
             queries.Add(@"
 SELECT f.DisplayName, p.Doi, p.Title, p.PublicationYear,
-       N'Accepted OpenAlex publications' AS Source
+       N'Accepted OpenAlex publications' AS Source, CAST(0 AS bit) AS IsRosterMember
 FROM openalex.Faculty f
 LEFT JOIN
 (
@@ -113,12 +129,12 @@ LEFT JOIN
       ON pc.FacultyPublicationCandidateId = d.FacultyPublicationCandidateId
     WHERE d.IsCurrent = 1 AND d.DecisionStatus = N'Accepted'
 ) p ON p.FacultyId = f.FacultyId
-WHERE LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email" + sourceKeyClause);
+WHERE LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email" + sourceKeyClause + rosterLinkClause);
         }
 
         if (queries.Count == 0)
         {
-            throw new InvalidOperationException("No supported local publication source is configured.");
+            throw new InvalidOperationException("No supported local faculty or publication source is configured.");
         }
 
         await using var command = connection.CreateCommand();
@@ -135,7 +151,7 @@ WHERE LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email" + sourceKeyClause);
                 reader.IsDBNull(1) ? null : reader.GetString(1),
                 reader.IsDBNull(2) ? null : reader.GetString(2),
                 reader.IsDBNull(3) ? null : reader.GetInt32(3),
-                reader.GetString(4)));
+                reader.GetString(4), reader.GetBoolean(5)));
         }
 
         return rows;

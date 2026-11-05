@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAlex.Data;
+using OpenAlex.Data.Models;
 using OpenAlex.Web.Pages.Reports;
 using OpenAlex.Web.Services;
 
@@ -72,6 +73,68 @@ public sealed class FacultyDoiPageHttpTests
     }
 
     [Fact]
+    public async Task RendersRosterFacultyWithNoPublicationsAndDirectoryLink()
+    {
+        await using var host = await PageHost.StartAsync(new MemoryRepository(
+            new FacultyDoiSourceRow("Roster Faculty", null, null, null, "Imported faculty roster", true)));
+        var html = await host.Client.GetStringAsync("/Reports/FacultyDois?UserId=cf2s");
+        Assert.Contains("Faculty found in the imported roster", html);
+        Assert.Contains("0 unique DOI(s)", html);
+        Assert.Contains("Publications may still need to be matched or collected", html);
+        Assert.Contains("href=\"/Faculty?search=cf2s\"", html);
+        Assert.DoesNotContain("No faculty record matches", html);
+    }
+
+    [Fact]
+    public async Task FacultyDirectoryRendersRosterCountsDoiLinksAndPagingWithEncodedSearch()
+    {
+        var directory = new MemoryDirectory(new FacultyDirectoryPage(new[]
+        {
+            new FacultyListItem { ComputingId="cf2s", DisplayName="Roster <script>bad</script>",
+                IsRosterMember=true, BaselineIdentityStatus="No local match found" }
+        }, 205, 200, 5, 2, 100));
+        await using var host = await PageHost.StartAsync(new MemoryRepository(), directory);
+        var html = await host.Client.GetStringAsync("/Faculty?search=Faculty%26Department&pageNumber=2");
+        Assert.Equal("Faculty&Department", directory.LastSearch);
+        Assert.Equal(2, directory.LastPageNumber);
+        Assert.Contains("200 imported roster records", html);
+        Assert.Contains("5 additional native faculty records", html);
+        Assert.Contains("Page 2 of 3", html);
+        Assert.Contains("pageNumber=1", html);
+        Assert.Contains("pageNumber=3", html);
+        Assert.Contains("search=Faculty%26Department", html);
+        Assert.Contains("href=\"/Reports/FacultyDois?UserId=cf2s\"", html);
+        Assert.Contains("Roster &lt;script&gt;bad&lt;/script&gt;", html);
+        Assert.DoesNotContain("<script>", html);
+    }
+
+    [Fact]
+    public async Task FacultyDirectoryErrorsAreDistinctFromEmptySearchResults()
+    {
+        var directory = new MemoryDirectory(new FacultyDirectoryPage(Array.Empty<FacultyListItem>(),0,0,0,1,100));
+        await using var host = await PageHost.StartAsync(new MemoryRepository(), directory);
+        var empty = await host.Client.GetStringAsync("/Faculty?search=nobody");
+        Assert.Contains("No faculty records match this search", empty);
+        directory.Error = new InvalidOperationException("Private SQL details");
+        var error = await host.Client.GetStringAsync("/Faculty");
+        Assert.Contains("Faculty records could not be loaded", error);
+        Assert.DoesNotContain("No faculty records match", error);
+        Assert.DoesNotContain("Private SQL details", error);
+    }
+
+    [Fact]
+    public async Task FacultyDirectoryRequiresReaderAccessBeforeQuerying()
+    {
+        var directory = new MemoryDirectory();
+        await using var host = await PageHost.StartAsync(new MemoryRepository(), directory);
+        host.Client.DefaultRequestHeaders.Remove("X-Test-Role");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/Faculty")).StatusCode);
+        host.Client.DefaultRequestHeaders.Add("X-Test-Role", "Faculty");
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync("/Faculty")).StatusCode);
+        Assert.Equal(0, directory.Calls);
+    }
+
+    [Fact]
     public async Task DeniesAnonymousAndNonReaderRequestsBeforeQuerying()
     {
         var repository = new MemoryRepository();
@@ -100,6 +163,24 @@ public sealed class FacultyDoiPageHttpTests
         }
     }
 
+    private sealed class MemoryDirectory : IFacultyDirectoryRepository
+    {
+        private readonly FacultyDirectoryPage _result;
+        public MemoryDirectory(FacultyDirectoryPage? result = null) =>
+            _result = result ?? new FacultyDirectoryPage(Array.Empty<FacultyListItem>(),0,0,0,1,100);
+        public int Calls { get; private set; }
+        public string? LastSearch { get; private set; }
+        public int LastPageNumber { get; private set; }
+        public Exception? Error { get; set; }
+        public Task<FacultyDirectoryPage> GetPageAsync(string? search = null, int pageNumber = 1,
+            int pageSize = 100, CancellationToken cancellationToken = default)
+        {
+            Calls++; LastSearch=search; LastPageNumber=pageNumber;
+            if (Error is not null) throw Error;
+            return Task.FromResult(_result);
+        }
+    }
+
     private sealed class PageHost : IAsyncDisposable
     {
         private readonly WebApplication _app;
@@ -112,7 +193,8 @@ public sealed class FacultyDoiPageHttpTests
             Client.DefaultRequestHeaders.Add("X-Test-Role", "Reader");
         }
 
-        public static async Task<PageHost> StartAsync(IFacultyDoiRepository repository)
+        public static async Task<PageHost> StartAsync(IFacultyDoiRepository repository,
+            IFacultyDirectoryRepository? directory = null)
         {
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             {
@@ -123,6 +205,7 @@ public sealed class FacultyDoiPageHttpTests
             builder.WebHost.UseKestrel().UseUrls("http://127.0.0.1:0");
             builder.Services.AddRazorPages().AddApplicationPart(typeof(FacultyDoisModel).Assembly);
             builder.Services.AddSingleton(repository);
+            builder.Services.AddSingleton<IFacultyDirectoryRepository>(directory ?? new MemoryDirectory());
             builder.Services.AddScoped<FacultyDoiLookupService>();
             builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", _ => { });
             builder.Services.AddAuthorization(options =>

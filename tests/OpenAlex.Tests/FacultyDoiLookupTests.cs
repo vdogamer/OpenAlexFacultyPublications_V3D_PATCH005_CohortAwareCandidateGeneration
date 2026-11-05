@@ -79,6 +79,32 @@ public sealed class FacultyDoiLookupTests
         Assert.Empty(known.Dois);
     }
 
+    [Fact]
+    public async Task RosterMembershipRecognizesFacultyWithoutInventingPublications()
+    {
+        var result = await new FacultyDoiLookupService(new StubRepository(
+            new FacultyDoiSourceRow("Roster Faculty", null, null, null, "Imported faculty roster", true)))
+            .LookupAsync("cf2s");
+        Assert.True(result.FacultyFound);
+        Assert.True(result.InImportedRoster);
+        Assert.Equal(new[] { "Roster Faculty" }, result.FacultyNames);
+        Assert.Empty(result.Dois);
+    }
+
+    [Fact]
+    public async Task UsesRosterNameWhilePreservingAndDeduplicatingPublicationResults()
+    {
+        var result = await new FacultyDoiLookupService(new StubRepository(
+            new FacultyDoiSourceRow("Roster Faculty", null, null, null, "Imported faculty roster", true),
+            new FacultyDoiSourceRow("Provider name", "10.1234/work", "Title", 2026, "Synchronized publications"),
+            new FacultyDoiSourceRow("Native name", "https://doi.org/10.1234/WORK", "Title", 2026, "Accepted OpenAlex publications")))
+            .LookupAsync("cf2s");
+        Assert.Equal(new[] { "Roster Faculty" }, result.FacultyNames);
+        var doi = Assert.Single(result.Dois);
+        Assert.Equal(2, doi.Sources.Count);
+        Assert.DoesNotContain("Imported faculty roster", doi.Sources);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]

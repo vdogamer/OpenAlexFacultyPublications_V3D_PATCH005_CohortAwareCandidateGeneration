@@ -20,6 +20,7 @@ public sealed class FacultyDoiLookupService
     {
         var normalizedUserId = AcademicOnlineUniversalFacultyLookupService.NormalizeUvaUserId(userId);
         var rows = await _repository.GetByUserIdAsync(normalizedUserId, cancellationToken);
+        var rosterRows = rows.Where(row => row.IsRosterMember).ToArray();
         var entries = rows.Select(row => new { Row = row, Doi = NormalizeDoi(row.Doi) })
             .Where(item => item.Doi is not null)
             .GroupBy(item => item.Doi!, StringComparer.OrdinalIgnoreCase)
@@ -42,9 +43,9 @@ public sealed class FacultyDoiLookupService
 
         return new FacultyDoiLookupResult(
             normalizedUserId,
-            rows.Select(row => row.FacultyName).Distinct(StringComparer.OrdinalIgnoreCase)
+            (rosterRows.Length > 0 ? rosterRows : rows).Select(row => row.FacultyName).Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray(),
-            entries);
+            entries, rosterRows.Length > 0);
     }
 
     public static string? NormalizeDoi(string? value)
@@ -71,7 +72,8 @@ public sealed record FacultyDoiEntry(
     string Doi, string Url, string Title, int? Year, IReadOnlyList<string> Sources);
 
 public sealed record FacultyDoiLookupResult(
-    string UserId, IReadOnlyList<string> FacultyNames, IReadOnlyList<FacultyDoiEntry> Dois)
+    string UserId, IReadOnlyList<string> FacultyNames, IReadOnlyList<FacultyDoiEntry> Dois,
+    bool InImportedRoster = false)
 {
     public bool FacultyFound => FacultyNames.Count > 0;
 }
