@@ -16,7 +16,7 @@ for uid,name,email in [
     ('f002','Blair Example','alias.blair@virginia.edu'),
     ('f003','Casey Example',''),
     ('f004','Dana Example',''),
-    ('f005','Emery Example','f005'),
+    ('f005',"Émery O'Neil",'f005'),
     ('service_test','User Test','')
 ]:
     pid=str(len(profiles)+1)

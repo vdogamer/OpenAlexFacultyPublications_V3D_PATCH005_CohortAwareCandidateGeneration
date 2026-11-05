@@ -9,6 +9,13 @@ Preview creates no permanent objects. Apply is atomic and can be rerun.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+SET ANSI_WARNINGS ON;
+SET ANSI_PADDING ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET NUMERIC_ROUNDABORT OFF;
 IF @@TRANCOUNT <> 0 THROW 51400, 'Run the roster loader outside an existing transaction.', 1;
 IF DB_NAME() <> N'OpenAlexIngestion_Test' THROW 51401, 'Select OpenAlexIngestion_Test.', 1;
 IF OBJECT_ID(N'tempdb..#SomRosterContext') IS NULL OR OBJECT_ID(N'tempdb..#SomRosterInput') IS NULL

@@ -69,7 +69,7 @@ jobs:
             const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
             const errors = [];
             for (let i = 0; i < lines.length; i++) {
-              if (/^Msg \d+/.test(lines[i])) errors.push(lines.slice(i, i + 3).join(' '));
+              if (/^Msg \d+/.test(lines[i])) errors.push((lines[i].match(/^Msg \d+/)?.[0] || 'SQL') + ': ' + (lines[i + 1] || ''));
             }
             const ok = process.env.SQL_JOB_RESULT === 'success';
             const description = ok ? 'Preview, import, rerun and rollback assertions passed.' :
