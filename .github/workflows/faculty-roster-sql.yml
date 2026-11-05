@@ -1,0 +1,84 @@
+name: Faculty roster SQL integration
+on:
+  pull_request:
+    branches: [main, 'release/**']
+    paths:
+      - 'sql/453_*'
+      - 'sql/454_*'
+      - 'sql/455_*'
+      - 'scripts/build-som-roster-import.py'
+      - 'tests/sql/build_roster_import_fixtures.py'
+      - '.github/workflows/faculty-roster-sql.yml'
+  workflow_dispatch:
+jobs:
+  roster-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      statuses: write
+    env:
+      ROSTER_TEST_PASSWORD: 'Synthetic_SQL_Test_51789!'
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'Synthetic_SQL_Test_51789!'
+        ports: ['1433:1433']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build synthetic fixtures
+        run: python3 tests/sql/build_roster_import_fixtures.py "$RUNNER_TEMP/roster-fixtures"
+      - name: Exercise SQL Server import at compatibility level 130
+        env:
+          SQL_CONTAINER: ${{ job.services.sqlserver.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql() {
+            docker exec -e SQLCMDPASSWORD="$ROSTER_TEST_PASSWORD" "$SQL_CONTAINER" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b "$@" 2>&1 | tee -a "$RUNNER_TEMP/roster-sql.log"
+          }
+          ready=0
+          for attempt in {1..60}; do
+            if sql -Q 'SELECT 1' >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1
+          docker cp "$RUNNER_TEMP/roster-fixtures/." "$SQL_CONTAINER:/tmp/roster-fixtures"
+          sql -i /tmp/roster-fixtures/setup.sql
+          sql -i /tmp/roster-fixtures/preview.sql
+          sql -i /tmp/roster-fixtures/assert-preview.sql
+          sql -i /tmp/roster-fixtures/apply.sql
+          sql -i /tmp/roster-fixtures/assert-first.sql
+          sql -i /tmp/roster-fixtures/apply.sql
+          if sql -i /tmp/roster-fixtures/bad-fingerprint.sql; then echo 'Tampered payload unexpectedly succeeded'; exit 1; fi
+          if sql -i /tmp/roster-fixtures/conflicting-source.sql; then echo 'Conflicting source unexpectedly succeeded'; exit 1; fi
+          sql -i /tmp/roster-fixtures/add-failing-constraint.sql
+          if sql -i /tmp/roster-fixtures/constraint-failure.sql; then echo 'Constraint failure unexpectedly committed'; exit 1; fi
+          sql -i /tmp/roster-fixtures/assert-final.sql
+      - name: Report concise SQL result
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/github-script@v7
+        env:
+          SQL_JOB_RESULT: ${{ job.status }}
+        with:
+          script: |
+            const fs = require('fs');
+            const file = process.env.RUNNER_TEMP + '/roster-sql.log';
+            const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
+            const errors = [];
+            for (let i = 0; i < lines.length; i++) {
+              if (/^Msg \d+/.test(lines[i])) errors.push((lines[i].match(/^Msg \d+/)?.[0] || 'SQL') + ': ' + (lines[i + 1] || ''));
+            }
+            const ok = process.env.SQL_JOB_RESULT === 'success';
+            const description = ok ? 'Preview, import, rerun and rollback assertions passed.' :
+              (errors.at(-1) || 'SQL integration failed before a query result was available.').replace(/\s+/g, ' ').slice(0, 140);
+            await github.rest.repos.createCommitStatus({
+              ...context.repo,
+              sha: context.payload.pull_request?.head.sha || context.sha,
+              state: ok ? 'success' : 'failure',
+              context: 'Faculty roster SQL result',
+              description,
+              target_url: 'https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId
+            });
