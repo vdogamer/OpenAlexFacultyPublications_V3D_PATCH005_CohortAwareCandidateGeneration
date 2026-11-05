@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [ main, 'release/**', 'feature/som-faculty-roster-import-*', 'feature/som-faculty-roster-pages-*' ]
   push:
-    branches: [ main ]
+    branches: [ main, 'feature/uva-theme-navigation-*' ]
 
 jobs:
   build-and-test:
