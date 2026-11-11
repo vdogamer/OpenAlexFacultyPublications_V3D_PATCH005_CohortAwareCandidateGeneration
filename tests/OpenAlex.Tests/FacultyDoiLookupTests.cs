@@ -105,6 +105,33 @@ public sealed class FacultyDoiLookupTests
         Assert.DoesNotContain("Imported faculty roster", doi.Sources);
     }
 
+    [Fact]
+    public async Task ImportedUnknownYearDoesNotDisplaceAnExistingTitleWithUnknownYear()
+    {
+        var result = await new FacultyDoiLookupService(new StubRepository(
+            new FacultyDoiSourceRow("Provider name", "10.1234/work", "Known title", null, "Synchronized publications"),
+            new FacultyDoiSourceRow("Import name", "10.1234/work", null, null, "Academic Online import", InRebuildImport:true)))
+            .LookupAsync("cf2s");
+        Assert.True(result.InRebuildImport);
+        Assert.False(result.InImportedRoster);
+        var doi = Assert.Single(result.Dois);
+        Assert.Equal("Known title",doi.Title);
+        Assert.Null(doi.Year);
+        Assert.Equal(2,doi.Sources.Count);
+    }
+
+    [Fact]
+    public async Task ImportOnlyFacultyWithNoDoisIsKnownWithoutClaimingRosterMembership()
+    {
+        var result = await new FacultyDoiLookupService(new StubRepository(
+            new FacultyDoiSourceRow("Imported Faculty", null, null, null, "Academic Online import", InRebuildImport:true)))
+            .LookupAsync("cf2s");
+        Assert.True(result.FacultyFound);
+        Assert.True(result.InRebuildImport);
+        Assert.False(result.InImportedRoster);
+        Assert.Empty(result.Dois);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]

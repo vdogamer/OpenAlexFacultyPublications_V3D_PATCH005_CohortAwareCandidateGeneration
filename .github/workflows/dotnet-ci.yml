@@ -3,7 +3,7 @@ name: OpenAlex .NET CI
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ main, 'release/**', 'feature/som-faculty-roster-import-*', 'feature/som-faculty-roster-pages-*' ]
+    branches: [ main, 'release/**', 'feature/som-faculty-roster-import-*', 'feature/som-faculty-roster-pages-*', 'feature/uva-theme-navigation-*' ]
   push:
     branches: [ main ]
 

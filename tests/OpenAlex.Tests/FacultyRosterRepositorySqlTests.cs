@@ -118,6 +118,146 @@ public sealed class FacultyRosterRepositorySqlTests
         Assert.Equal("Professor",row.AppointmentTitle);
     }
 
+    [SqlServerFact]
+    public async Task RebuildImportAddsOnlyUnrepresentedRowsAndRetainsAlternateNamesForSearch()
+    {
+        await using var db = await TestDatabase.CreateAsync(publications:true);
+        await db.AddRebuildImportAsync();
+        var repository = new FacultyDirectoryRepository(db.Factory);
+        var all = await repository.GetPageAsync();
+        Assert.Equal(7, all.TotalCount);
+        Assert.Equal(3, all.RosterCount);
+        Assert.Equal(2, all.AdditionalNativeCount);
+        Assert.Equal(2, all.AdditionalImportedCount);
+        var roster = Assert.Single(all.Items.Where(row => row.ComputingId == "r001"));
+        Assert.Equal("Alex Roster", roster.DisplayName);
+        Assert.True(roster.InRebuildImport);
+        Assert.Equal("Alternate source Alex", roster.ImportedDisplayName);
+        Assert.Equal("r001", Assert.Single((await repository.GetPageAsync("Alternate source Alex")).Items).ComputingId);
+        Assert.Equal(3, (await repository.GetPageAsync("Alternate source department")).TotalCount);
+        var legacy = Assert.Single(all.Items.Where(row => row.ComputingId == "r009"));
+        Assert.Equal(103L, legacy.FacultyId);
+        Assert.True(legacy.InRebuildImport);
+        var imported = Assert.Single((await repository.GetPageAsync("i001")).Items);
+        Assert.True(imported.InRebuildImport);
+        Assert.False(imported.IsRosterMember);
+        Assert.Null(imported.FacultyId);
+        Assert.Null(imported.PrimaryEmail);
+        Assert.Null(imported.IsActive);
+        Assert.Equal("Imported source department", imported.DepartmentName);
+        Assert.Equal(0, (await repository.GetPageAsync("%_[]' OR 1=1--")).TotalCount);
+    }
+
+    [SqlServerFact]
+    public async Task RebuildImportSupportsImportOnlySchemaAndSearchBeforePagination()
+    {
+        await using var db = await TestDatabase.CreateAsync(roster:false,native:false);
+        await db.AddRebuildImportAsync(seed:false);
+        var values = Enumerable.Range(1,205).Select(i =>
+            $"(N'i{i:0000}',N'Imported pagination {i:0000}',N'Imported department')");
+        await db.ExecuteAsync("INSERT academiconline.RebuildImportedFaculty VALUES " + string.Join(",",values));
+        var repository = new FacultyDirectoryRepository(db.Factory);
+        var first = await repository.GetPageAsync("Imported pagination",1,100);
+        var second = await repository.GetPageAsync("Imported pagination",2,100);
+        var last = await repository.GetPageAsync("Imported pagination",3,100);
+        Assert.Equal(205, first.TotalCount);
+        Assert.Equal(205, first.AdditionalImportedCount);
+        Assert.Equal(0, first.RosterCount);
+        Assert.Equal(0, first.AdditionalNativeCount);
+        Assert.Equal(100, first.Items.Count);
+        Assert.Equal(100, second.Items.Count);
+        Assert.Equal(5, last.Items.Count);
+        Assert.Equal(205, first.Items.Concat(second.Items).Concat(last.Items).Select(row => row.ComputingId).Distinct().Count());
+        Assert.Equal("i0205", Assert.Single((await repository.GetPageAsync("i0205")).Items).ComputingId);
+        Assert.Equal(3, (await repository.GetPageAsync("Imported pagination",int.MaxValue)).PageNumber);
+        await db.ExecuteAsync("INSERT academiconline.RebuildImportedFaculty VALUES(N'literal01',N'Literal %_[] marker',N'Literal department');");
+        Assert.Equal("literal01", Assert.Single((await repository.GetPageAsync("%_[]")).Items).ComputingId);
+    }
+
+    [SqlServerFact]
+    public async Task RebuildDoisMergeWithEligibleSourcesAndKeepUnknownMetadataAndZeroStates()
+    {
+        await using var db = await TestDatabase.CreateAsync(publications:true);
+        await db.AddRebuildImportAsync();
+        var service = new FacultyDoiLookupService(new FacultyDoiRepository(db.Factory));
+        var merged = await service.LookupAsync("r001");
+        Assert.True(merged.InImportedRoster);
+        Assert.True(merged.InRebuildImport);
+        Assert.Equal(new[] { "Alex Roster" }, merged.FacultyNames);
+        Assert.Equal(new[] { "10.1234/roster", "10.1234/shared", "10.1234/imported" }, merged.Dois.Select(row => row.Doi));
+        Assert.Equal(3, merged.Dois.Single(row => row.Doi == "10.1234/shared").Sources.Count);
+        Assert.DoesNotContain(merged.Dois, row => row.Doi is "10.1234/stale" or "10.1234/inactive" or "10.1234/rejected");
+        var imported = await service.LookupAsync("i001");
+        Assert.True(imported.FacultyFound);
+        Assert.True(imported.InRebuildImport);
+        Assert.False(imported.InImportedRoster);
+        Assert.Equal(2, imported.Dois.Count); // The shared DOI is still associated with each coauthor.
+        Assert.All(imported.Dois, row =>
+        {
+            Assert.Null(row.Year);
+            Assert.Equal("(Title not supplied)",row.Title);
+            Assert.Equal("Academic Online import",Assert.Single(row.Sources));
+        });
+        var zero = await service.LookupAsync("i002");
+        Assert.True(zero.FacultyFound);
+        Assert.True(zero.InRebuildImport);
+        Assert.Empty(zero.Dois);
+        var rosterZero = await service.LookupAsync("r003");
+        Assert.True(rosterZero.InImportedRoster);
+        Assert.True(rosterZero.InRebuildImport);
+        Assert.Empty(rosterZero.Dois);
+        Assert.False((await service.LookupAsync("unknown99")).FacultyFound);
+        var legacy = await service.LookupAsync("r009");
+        var legacyDoi = Assert.Single(legacy.Dois);
+        Assert.Equal("Legacy",legacyDoi.Title);
+        Assert.Equal(2026,legacyDoi.Year);
+        Assert.Equal(2,legacyDoi.Sources.Count);
+    }
+
+    [SqlServerFact]
+    public async Task RebuildImportDoesNotMergeByNameOrAnUnconfirmedNativeSourceKey()
+    {
+        await using var db = await TestDatabase.CreateAsync(publications:true);
+        await db.AddRebuildImportAsync();
+        await db.ExecuteAsync(@"UPDATE openalex.Faculty SET SourceFacultyKey=N'i001' WHERE FacultyId=102;
+            INSERT academiconline.RebuildImportedFaculty VALUES(N'i003',N'Casey Roster',N'Imported source department');");
+        var result = await new FacultyDirectoryRepository(db.Factory).GetPageAsync();
+        Assert.Equal(3,result.AdditionalImportedCount);
+        Assert.Equal(3,result.Items.Count(row => row.DisplayName == "Casey Roster"));
+        Assert.False(Assert.Single(result.Items.Where(row => row.FacultyId == 102)).InRebuildImport);
+        Assert.Null(Assert.Single(result.Items.Where(row => row.FacultyId == 102)).ComputingId);
+        Assert.Single(result.Items.Where(row => row.ComputingId == "i001"));
+        Assert.Single(result.Items.Where(row => row.ComputingId == "i001" && row.FacultyId is null));
+        var dois = await new FacultyDoiLookupService(new FacultyDoiRepository(db.Factory)).LookupAsync("i001");
+        Assert.DoesNotContain(dois.Dois,row => row.Doi == "10.1234/name-only");
+        Assert.All(dois.Dois,row => Assert.Equal("Academic Online import",Assert.Single(row.Sources)));
+    }
+
+    [SqlServerFact]
+    public async Task RebuildImportDoesNotAttachCanonicalEmailToAContradictoryNativeComputingId()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        await db.AddRebuildImportAsync();
+        await db.ExecuteAsync("ALTER TABLE openalex.Faculty ADD ComputingId nvarchar(100);");
+        await db.ExecuteAsync("UPDATE openalex.Faculty SET ComputingId=N'r777' WHERE FacultyId=103;");
+        var result = await new FacultyDirectoryRepository(db.Factory).GetPageAsync();
+        var native = Assert.Single(result.Items.Where(row => row.FacultyId == 103));
+        Assert.Equal("r777",native.ComputingId);
+        Assert.False(native.InRebuildImport);
+        Assert.Null(Assert.Single(result.Items.Where(row => row.ComputingId == "r009")).FacultyId);
+        Assert.Equal(3,result.AdditionalImportedCount);
+    }
+
+    [SqlServerFact]
+    public async Task PartialRebuildSourceIsAnErrorInsteadOfAnUnknownFacultyResult()
+    {
+        await using var db = await TestDatabase.CreateAsync(roster:false,native:false);
+        await db.AddRebuildImportAsync();
+        await db.ExecuteAsync("DROP TABLE academiconline.RebuildImportedFacultyDoi;");
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new FacultyDoiLookupService(new FacultyDoiRepository(db.Factory)).LookupAsync("i001"));
+    }
+
     private sealed class TestDatabase : IAsyncDisposable
     {
         private readonly string _master;
@@ -197,6 +337,29 @@ INSERT academiconline.TestPublication VALUES
 (1,N'inactive',N'10.1234/inactive',N'Inactive work',2026),
 (2,N'roster',N'10.1234/roster',N'Roster publication',2026);");
             await ExecuteAsync("CREATE VIEW academiconline.vw_DepartmentNewestPublication AS SELECT * FROM academiconline.TestPublication;");
+        }
+
+        public async Task AddRebuildImportAsync(bool seed=true)
+        {
+            await ExecuteAsync("IF SCHEMA_ID(N'academiconline') IS NULL EXEC(N'CREATE SCHEMA academiconline;');");
+            await ExecuteAsync(@"
+CREATE TABLE academiconline.RebuildImportedFaculty(
+    UserId nvarchar(32) COLLATE Latin1_General_100_CI_AS PRIMARY KEY,
+    FacultyName nvarchar(200) NOT NULL,PrimaryDepartment nvarchar(200) NOT NULL);
+CREATE TABLE academiconline.RebuildImportedFacultyDoi(
+    UserId nvarchar(32) COLLATE Latin1_General_100_CI_AS NOT NULL,
+    Doi nvarchar(400) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    PRIMARY KEY(UserId,Doi));");
+            if (seed) await ExecuteAsync(@"
+INSERT academiconline.RebuildImportedFaculty VALUES
+(N'r001',N'Alternate source Alex',N'Alternate source department'),
+(N'r003',N'Alternate source Unlinked',N'Alternate source department'),
+(N'r009',N'Alternate source Legacy',N'Alternate source department'),
+(N'i001',N'Imported Faculty',N'Imported source department'),
+(N'i002',N'Imported Zero Faculty',N'Imported source department');
+INSERT academiconline.RebuildImportedFacultyDoi VALUES
+(N'r001',N'10.1234/shared'),(N'r001',N'10.1234/imported'),
+(N'r009',N'10.1234/legacy'),(N'i001',N'10.1234/import-only'),(N'i001',N'10.1234/shared');");
         }
 
         public async Task ExecuteAsync(string sql)

@@ -27,12 +27,13 @@ public sealed class FacultyDoiLookupService
             .Select(group =>
             {
                 var newest = group.OrderByDescending(item => item.Row.Year)
+                    .ThenBy(item => string.IsNullOrWhiteSpace(item.Row.Title))
                     .ThenBy(item => item.Row.Title, StringComparer.OrdinalIgnoreCase).First();
                 var doi = group.Key;
                 return new FacultyDoiEntry(
                     doi,
                     "https://doi.org/" + string.Join("/", doi.Split('/').Select(Uri.EscapeDataString)),
-                    AcademicOnlineTextCleaner.ToPlainText(newest.Row.Title, "(Untitled publication)"),
+                    AcademicOnlineTextCleaner.ToPlainText(newest.Row.Title, "(Title not supplied)"),
                     newest.Row.Year,
                     group.Select(item => item.Row.Source).Distinct(StringComparer.Ordinal)
                         .OrderBy(source => source, StringComparer.Ordinal).ToArray());
@@ -45,7 +46,8 @@ public sealed class FacultyDoiLookupService
             normalizedUserId,
             (rosterRows.Length > 0 ? rosterRows : rows).Select(row => row.FacultyName).Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray(),
-            entries, rosterRows.Length > 0);
+            entries, rosterRows.Length > 0)
+            { InRebuildImport = rows.Any(row => row.InRebuildImport) };
     }
 
     public static string? NormalizeDoi(string? value)
@@ -75,5 +77,6 @@ public sealed record FacultyDoiLookupResult(
     string UserId, IReadOnlyList<string> FacultyNames, IReadOnlyList<FacultyDoiEntry> Dois,
     bool InImportedRoster = false)
 {
+    public bool InRebuildImport { get; init; }
     public bool FacultyFound => FacultyNames.Count > 0;
 }

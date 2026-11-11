@@ -11,7 +11,7 @@ public interface IFacultyDoiRepository
 
 public sealed record FacultyDoiSourceRow(
     string FacultyName, string? Doi, string? Title, int? Year, string Source,
-    bool IsRosterMember = false);
+    bool IsRosterMember = false, bool InRebuildImport = false);
 
 public sealed class FacultyDoiRepository : IFacultyDoiRepository
 {
@@ -37,9 +37,28 @@ public sealed class FacultyDoiRepository : IFacultyDoiRepository
             queries.Add(@"
 SELECT r.DisplayName, CAST(NULL AS nvarchar(512)) AS Doi,
        CAST(NULL AS nvarchar(max)) AS Title, CAST(NULL AS int) AS PublicationYear,
-       N'Imported faculty roster' AS Source, CAST(1 AS bit) AS IsRosterMember
+       N'Imported faculty roster' AS Source, CAST(1 AS bit) AS IsRosterMember,
+       CAST(0 AS bit) AS InRebuildImport
 FROM openalex.FacultyRoster r
 WHERE LOWER(LTRIM(RTRIM(r.ComputingId))) = @UserId");
+        }
+        var hasImportedFaculty = await HasObjectsAsync(connection,
+            new[] { "academiconline.RebuildImportedFaculty" }, cancellationToken);
+        var hasImportedDois = await HasObjectsAsync(connection,
+            new[] { "academiconline.RebuildImportedFacultyDoi" }, cancellationToken);
+        if (hasImportedFaculty != hasImportedDois)
+            throw new InvalidOperationException("The Academic Online import source is incomplete.");
+        if (hasImportedFaculty)
+        {
+            queries.Add(@"
+SELECT f.FacultyName COLLATE DATABASE_DEFAULT AS DisplayName,
+       d.Doi COLLATE DATABASE_DEFAULT AS Doi,
+       CAST(NULL AS nvarchar(max)) AS Title, CAST(NULL AS int) AS PublicationYear,
+       N'Academic Online import' AS Source, CAST(0 AS bit) AS IsRosterMember,
+       CAST(1 AS bit) AS InRebuildImport
+FROM academiconline.RebuildImportedFaculty f
+LEFT JOIN academiconline.RebuildImportedFacultyDoi d ON d.UserId=f.UserId
+WHERE f.UserId=@UserId");
         }
         if (await HasObjectsAsync(connection, new[]
             {
@@ -50,7 +69,8 @@ WHERE LOWER(LTRIM(RTRIM(r.ComputingId))) = @UserId");
         {
             queries.Add(@"
 SELECT s.DisplayName, p.Doi, p.Title, p.PublicationYear,
-       N'Synchronized publications' AS Source, CAST(0 AS bit) AS IsRosterMember
+       N'Synchronized publications' AS Source, CAST(0 AS bit) AS IsRosterMember,
+       CAST(0 AS bit) AS InRebuildImport
 FROM academiconline.Scholar s
 LEFT JOIN
 (
@@ -77,7 +97,8 @@ WHERE LOWER(LTRIM(RTRIM(s.UvaUserId))) = @UserId
         {
             queries.Add(@"
 SELECT rm.DisplayName, p.Doi, p.Title, p.PublicationYear,
-       N'Synchronized publications' AS Source, CAST(0 AS bit) AS IsRosterMember
+       N'Synchronized publications' AS Source, CAST(0 AS bit) AS IsRosterMember,
+       CAST(0 AS bit) AS InRebuildImport
 FROM academiconline.DepartmentRosterMember rm
 LEFT JOIN
 (
@@ -105,9 +126,21 @@ WHERE rm.IsActive = 1
             await using var columnCheck = connection.CreateCommand();
             columnCheck.CommandText =
                 "SELECT CASE WHEN COL_LENGTH(N'openalex.Faculty', N'SourceFacultyKey') IS NULL THEN 0 ELSE 1 END;";
-            var sourceKeyClause = Convert.ToInt32(
-                await columnCheck.ExecuteScalarAsync(cancellationToken)) == 1
-                ? " OR LOWER(LTRIM(RTRIM(f.SourceFacultyKey))) IN (@UserId,@Email)"
+            var hasSourceKey = Convert.ToInt32(await columnCheck.ExecuteScalarAsync(cancellationToken)) == 1;
+            columnCheck.CommandText =
+                "SELECT CASE WHEN COL_LENGTH(N'openalex.Faculty', N'ComputingId') IS NULL THEN 0 ELSE 1 END;";
+            var hasNativeComputingId = Convert.ToInt32(await columnCheck.ExecuteScalarAsync(cancellationToken)) == 1;
+            // The rebuild confirms a ComputingID, not an arbitrary native source
+            // key. Preserve legacy fallback for users outside the rebuild only.
+            var importedIdentityGuard = hasImportedFaculty ? @"
+ AND NOT EXISTS (SELECT 1 FROM academiconline.RebuildImportedFaculty i WHERE i.UserId=@UserId)" : string.Empty;
+            var sourceKeyClause = hasSourceKey
+                ? " OR (LOWER(LTRIM(RTRIM(f.SourceFacultyKey))) IN (@UserId,@Email)" + importedIdentityGuard + ")"
+                : string.Empty;
+            var computingIdClause = hasNativeComputingId
+                ? " OR LOWER(LTRIM(RTRIM(f.ComputingId)))=@UserId" : string.Empty;
+            var emailIdGuard = hasNativeComputingId
+                ? " AND (NULLIF(LTRIM(RTRIM(f.ComputingId)),N'') IS NULL OR LOWER(LTRIM(RTRIM(f.ComputingId)))=@UserId)"
                 : string.Empty;
             // Follow only the native link already confirmed by the roster import.
             // Do not infer a link from a name or a directory-email alias here.
@@ -117,7 +150,8 @@ WHERE rm.IsActive = 1
 
             queries.Add(@"
 SELECT f.DisplayName, p.Doi, p.Title, p.PublicationYear,
-       N'Accepted OpenAlex publications' AS Source, CAST(0 AS bit) AS IsRosterMember
+       N'Accepted OpenAlex publications' AS Source, CAST(0 AS bit) AS IsRosterMember,
+       CAST(0 AS bit) AS InRebuildImport
 FROM openalex.Faculty f
 LEFT JOIN
 (
@@ -129,7 +163,7 @@ LEFT JOIN
       ON pc.FacultyPublicationCandidateId = d.FacultyPublicationCandidateId
     WHERE d.IsCurrent = 1 AND d.DecisionStatus = N'Accepted'
 ) p ON p.FacultyId = f.FacultyId
-WHERE LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email" + sourceKeyClause + rosterLinkClause);
+WHERE (LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email" + emailIdGuard + ")" + computingIdClause + sourceKeyClause + rosterLinkClause);
         }
 
         if (queries.Count == 0)
@@ -151,7 +185,7 @@ WHERE LOWER(LTRIM(RTRIM(f.PrimaryEmail))) = @Email" + sourceKeyClause + rosterLi
                 reader.IsDBNull(1) ? null : reader.GetString(1),
                 reader.IsDBNull(2) ? null : reader.GetString(2),
                 reader.IsDBNull(3) ? null : reader.GetInt32(3),
-                reader.GetString(4), reader.GetBoolean(5)));
+                reader.GetString(4), reader.GetBoolean(5), reader.GetBoolean(6)));
         }
 
         return rows;

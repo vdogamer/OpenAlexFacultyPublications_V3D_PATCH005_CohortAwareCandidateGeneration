@@ -109,6 +109,47 @@ public sealed class FacultyDoiPageHttpTests
     }
 
     [Fact]
+    public async Task RendersImportedDoiProvenanceAndKnownZeroWithoutInventingMetadata()
+    {
+        await using var withDoi = await PageHost.StartAsync(new MemoryRepository(
+            new FacultyDoiSourceRow("Imported <script>name</script>","10.1234/imported",null,null,
+                "Academic Online import",InRebuildImport:true)));
+        var html = await withDoi.Client.GetStringAsync("/Reports/FacultyDois?UserId=cf2s");
+        Assert.Contains("Faculty found in the Academic Online import",html);
+        Assert.Contains("separate from accepted OpenAlex matches",html);
+        Assert.Contains("(Title not supplied)",html);
+        Assert.Contains("Imported &lt;script&gt;",html);
+        Assert.Contains("href=\"/Faculty?search=cf2s\"",html);
+        Assert.DoesNotContain("<script>",html);
+        await using var zero = await PageHost.StartAsync(new MemoryRepository(
+            new FacultyDoiSourceRow("Imported Zero",null,null,null,"Academic Online import",InRebuildImport:true)));
+        var zeroHtml = await zero.Client.GetStringAsync("/Reports/FacultyDois?UserId=cf2s");
+        Assert.Contains("0 unique DOI(s)",zeroHtml);
+        Assert.Contains("This faculty member was found, but no valid DOIs",zeroHtml);
+        Assert.DoesNotContain("Faculty found in the imported roster",zeroHtml);
+        Assert.DoesNotContain("No faculty record matches",zeroHtml);
+    }
+
+    [Fact]
+    public async Task FacultyDirectoryLabelsImportOnlyRowsAndEncodesAlternateNames()
+    {
+        var directory = new MemoryDirectory(new FacultyDirectoryPage(new[]
+        {
+            new FacultyListItem { ComputingId="cf2s", DisplayName="Roster Name",IsRosterMember=true,
+                InRebuildImport=true,ImportedDisplayName="Alternate <script>name</script>" },
+            new FacultyListItem { ComputingId="import01",DisplayName="Imported <script>name</script>",InRebuildImport=true }
+        },2,1,0,1,100) { AdditionalImportedCount=1 });
+        await using var host = await PageHost.StartAsync(new MemoryRepository(),directory);
+        var html = await host.Client.GetStringAsync("/Faculty");
+        Assert.Contains("1 additional Academic Online import records",html);
+        Assert.Contains("Academic Online import also available",html);
+        Assert.Contains("Academic Online name: Alternate &lt;script&gt;",html);
+        Assert.Contains("Imported &lt;script&gt;",html);
+        Assert.Contains("href=\"/Reports/FacultyDois?UserId=import01\"",html);
+        Assert.DoesNotContain("<script>",html);
+    }
+
+    [Fact]
     public async Task FacultyDirectoryErrorsAreDistinctFromEmptySearchResults()
     {
         var directory = new MemoryDirectory(new FacultyDirectoryPage(Array.Empty<FacultyListItem>(),0,0,0,1,100));
