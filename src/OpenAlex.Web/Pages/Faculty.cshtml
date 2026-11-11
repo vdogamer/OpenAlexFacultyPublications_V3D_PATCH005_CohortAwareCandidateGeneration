@@ -67,6 +67,11 @@ else if (Model.Result is { } result)
                         {
                             <br /><span class="small">Claimed OpenAlex: @item.ClaimedOpenAlexAuthorId</span>
                         }
+                        @if (item.ComputingId is not null)
+                        {
+                            <br /><a asp-page="/Faculty/Photo" asp-route-UserId="@item.ComputingId"
+                                target="_blank" rel="noopener noreferrer" aria-label="View UVA photo for @item.DisplayName">View UVA photo</a>
+                        }
                     </td>
                     <td>@(item.ComputingId ?? "—")</td>
                     <td>@item.PrimaryEmail</td>
@@ -101,3 +106,4 @@ else if (Model.Result is { } result)
         </nav>
     }
 }
+

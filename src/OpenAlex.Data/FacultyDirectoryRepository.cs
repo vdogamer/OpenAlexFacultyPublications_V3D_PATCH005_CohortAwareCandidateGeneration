@@ -50,6 +50,8 @@ public sealed class FacultyDirectoryRepository : IFacultyDirectoryRepository, IF
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         var hasRoster = await ExistsAsync(connection, "openalex.FacultyRoster", cancellationToken);
+        var hasDirectoryPersonId = hasRoster &&
+            (await ColumnsAsync(connection, cancellationToken, "openalex.FacultyRoster")).Contains("DirectoryPersonId");
         var hasNative = await ExistsAsync(connection, "openalex.Faculty", cancellationToken);
         var hasRebuildImport = await ExistsAsync(connection, "academiconline.RebuildImportedFaculty", cancellationToken);
         if (!hasRoster && !hasNative && !hasRebuildImport)
@@ -65,14 +67,16 @@ public sealed class FacultyDirectoryRepository : IFacultyDirectoryRepository, IF
                 CAST(NULL AS nvarchar(256)) Orcid, CAST(NULL AS nvarchar(64)) ClaimedOpenAlexAuthorId,
                 CAST(NULL AS bit) IsActive, CAST(0 AS bit) IsRosterMember,
                 CAST(NULL AS nvarchar(40)) BaselineIdentityStatus,
-                CAST(NULL AS nvarchar(512)) NativeSourceKeyFallback WHERE 1=0";
-        var directory = hasRoster ? @"
+                CAST(NULL AS nvarchar(512)) NativeSourceKeyFallback,
+                CAST(NULL AS int) DirectoryPersonId WHERE 1=0";
+        var directory = hasRoster ? $@"
 SELECT r.NativeFacultyId FacultyId, r.ComputingId, r.DisplayName, r.DirectoryEmail PrimaryEmail,
        COALESCE(r.OrganizationName,r.DepartmentCode) DepartmentName, r.DepartmentCode,
        n.DivisionName, COALESCE(r.AppointmentTitle,r.AcademicRank) AppointmentTitle,
        n.Orcid, n.ClaimedOpenAlexAuthorId, n.IsActive,
        CAST(1 AS bit) IsRosterMember, r.BaselineIdentityStatus,
-       CAST(NULL AS nvarchar(512)) NativeSourceKeyFallback
+       CAST(NULL AS nvarchar(512)) NativeSourceKeyFallback,
+       {(hasDirectoryPersonId ? "r.DirectoryPersonId" : "CAST(NULL AS int)")} DirectoryPersonId
 FROM openalex.FacultyRoster r
 LEFT JOIN NativeFaculty n ON n.FacultyId=r.NativeFacultyId
 UNION ALL
@@ -99,7 +103,7 @@ SELECT CAST(NULL AS bigint), i.UserId COLLATE DATABASE_DEFAULT, i.FacultyName,
        CAST(NULL AS nvarchar(512)), CAST(NULL AS nvarchar(512)),
        CAST(NULL AS nvarchar(256)), CAST(NULL AS nvarchar(64)),
        CAST(NULL AS bit), CAST(0 AS bit), CAST(NULL AS nvarchar(40)),
-       CAST(NULL AS nvarchar(512)), CAST(1 AS bit), i.FacultyName, i.PrimaryDepartment
+       CAST(NULL AS nvarchar(512)), CAST(NULL AS int), CAST(1 AS bit), i.FacultyName, i.PrimaryDepartment
 FROM academiconline.RebuildImportedFaculty i
 WHERE NOT EXISTS (SELECT 1 FROM BaseDirectory b WHERE {importMatch})"
             : @"SELECT b.*, CAST(0 AS bit) InRebuildImport,
@@ -171,8 +175,9 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
                 ClaimedOpenAlexAuthorId = Text(reader, 9),
                 IsActive = reader.IsDBNull(10) ? null : reader.GetBoolean(10),
                 IsRosterMember = isRosterMember, BaselineIdentityStatus = Text(reader, 12),
-                InRebuildImport = reader.GetBoolean(14),
-                ImportedDisplayName = Text(reader, 15), ImportedDepartmentName = Text(reader, 16)
+                DirectoryPersonId = reader.IsDBNull(14) ? null : reader.GetInt32(14),
+                InRebuildImport = reader.GetBoolean(15),
+                ImportedDisplayName = Text(reader, 16), ImportedDepartmentName = Text(reader, 17)
             });
         }
         return new FacultyDirectoryPage(rows, total, roster, additionalNative, currentPage, pageSize)
@@ -201,7 +206,8 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
             {Field("nvarchar(64)", "ClaimedOpenAlexAuthorId", "OpenAlexAuthorId", "AuthorOpenAlexId")} ClaimedOpenAlexAuthorId,
             {Field("bit", "IsActive", "Active")} IsActive, CAST(0 AS bit) IsRosterMember,
             CAST(NULL AS nvarchar(40)) BaselineIdentityStatus,
-            {Field("nvarchar(512)", "SourceFacultyKey")} NativeSourceKeyFallback FROM openalex.Faculty";
+            {Field("nvarchar(512)", "SourceFacultyKey")} NativeSourceKeyFallback,
+            CAST(NULL AS int) DirectoryPersonId FROM openalex.Faculty";
     }
 
     private static string? NormalizeNativeUserId(string? value)
@@ -221,13 +227,16 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
         return Convert.ToInt32(await command.ExecuteScalarAsync(token)) == 1;
     }
 
-    private static async Task<HashSet<string>> ColumnsAsync(SqlConnection connection, CancellationToken token)
+    private static async Task<HashSet<string>> ColumnsAsync(SqlConnection connection, CancellationToken token,
+        string tableName = "openalex.Faculty")
     {
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT name FROM sys.columns WHERE object_id=OBJECT_ID(N'openalex.Faculty')";
+        command.CommandText = "SELECT name FROM sys.columns WHERE object_id=OBJECT_ID(@TableName)";
+        command.Parameters.Add("@TableName", SqlDbType.NVarChar, 256).Value = tableName;
         var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         await using var reader = await command.ExecuteReaderAsync(token);
         while (await reader.ReadAsync(token)) columns.Add(reader.GetString(0));
         return columns;
     }
 }
+
