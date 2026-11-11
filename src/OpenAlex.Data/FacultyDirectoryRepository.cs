@@ -11,15 +11,36 @@ public interface IFacultyDirectoryRepository
         int pageSize = 100, CancellationToken cancellationToken = default);
 }
 
+public interface IFacultyIdentityLookup
+{
+    Task<IReadOnlyList<FacultyListItem>> GetByComputingIdAsync(string computingId,
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>A read-only directory; roster membership does not enroll anyone in matching jobs.</summary>
-public sealed class FacultyDirectoryRepository : IFacultyDirectoryRepository
+public sealed class FacultyDirectoryRepository : IFacultyDirectoryRepository, IFacultyIdentityLookup
 {
     private readonly SqlConnectionFactory _connectionFactory;
 
     public FacultyDirectoryRepository(SqlConnectionFactory connectionFactory) => _connectionFactory = connectionFactory;
 
-    public async Task<FacultyDirectoryPage> GetPageAsync(string? search = null, int pageNumber = 1,
+    public Task<FacultyDirectoryPage> GetPageAsync(string? search = null, int pageNumber = 1,
         int pageSize = 100, CancellationToken cancellationToken = default)
+        => GetPageCoreAsync(search, pageNumber, pageSize, null, cancellationToken);
+
+    public async Task<IReadOnlyList<FacultyListItem>> GetByComputingIdAsync(string computingId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeNativeUserId(computingId)
+            ?? throw new ArgumentException("A valid ComputingID is required.", nameof(computingId));
+        var page = await GetPageCoreAsync(null, 1, 200, normalized, cancellationToken);
+        if (page.TotalCount != page.Items.Count)
+            throw new InvalidOperationException("Too many directory records share this ComputingID. Review the identity records first.");
+        return page.Items;
+    }
+
+    private async Task<FacultyDirectoryPage> GetPageCoreAsync(string? search, int pageNumber,
+        int pageSize, string? exactUserId, CancellationToken cancellationToken)
     {
         pageSize = Math.Clamp(pageSize, 1, 200);
         pageNumber = Math.Max(1, pageNumber);
@@ -86,7 +107,12 @@ WHERE NOT EXISTS (SELECT 1 FROM BaseDirectory b WHERE {importMatch})"
                 CAST(NULL AS nvarchar(200)) ImportedDepartmentName FROM BaseDirectory b";
         var cte = $@"WITH NativeFaculty AS ({native}), BaseDirectory AS ({directory}),
 Directory AS ({importedDirectory}),
-Filtered AS (SELECT * FROM Directory WHERE @Search IS NULL
+Filtered AS (SELECT * FROM Directory WHERE
+    (@ExactUserId IS NULL
+     OR LOWER(LTRIM(RTRIM(ComputingId))) COLLATE Latin1_General_100_CI_AS IN (@ExactUserId,@ExactEmail)
+     OR (IsRosterMember=0 AND NULLIF(LTRIM(RTRIM(ComputingId)),N'') IS NULL
+         AND LOWER(LTRIM(RTRIM(PrimaryEmail))) COLLATE Latin1_General_100_CI_AS=@ExactEmail))
+    AND (@Search IS NULL
     OR DisplayName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
     OR ComputingId COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
     OR PrimaryEmail COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
@@ -94,7 +120,7 @@ Filtered AS (SELECT * FROM Directory WHERE @Search IS NULL
     OR DepartmentCode COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
     OR NativeSourceKeyFallback COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
     OR ImportedDisplayName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
-    OR ImportedDepartmentName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~')";
+    OR ImportedDepartmentName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'))";
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
@@ -116,6 +142,9 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
             escaped is null ? DBNull.Value : "%" + escaped + "%";
         command.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
         command.Parameters.Add("@PageSize", SqlDbType.Int).Value = pageSize;
+        command.Parameters.Add("@ExactUserId", SqlDbType.NVarChar, 32).Value = (object?)exactUserId ?? DBNull.Value;
+        command.Parameters.Add("@ExactEmail", SqlDbType.NVarChar, 64).Value =
+            exactUserId is null ? DBNull.Value : exactUserId + "@virginia.edu";
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
