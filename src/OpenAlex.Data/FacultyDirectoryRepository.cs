@@ -30,7 +30,8 @@ public sealed class FacultyDirectoryRepository : IFacultyDirectoryRepository
         await connection.OpenAsync(cancellationToken);
         var hasRoster = await ExistsAsync(connection, "openalex.FacultyRoster", cancellationToken);
         var hasNative = await ExistsAsync(connection, "openalex.Faculty", cancellationToken);
-        if (!hasRoster && !hasNative)
+        var hasRebuildImport = await ExistsAsync(connection, "academiconline.RebuildImportedFaculty", cancellationToken);
+        if (!hasRoster && !hasNative && !hasRebuildImport)
             return new FacultyDirectoryPage(Array.Empty<FacultyListItem>(), 0, 0, 0, 1, pageSize);
 
         // Build only queries for existing tables. SQL Server binds absent objects even in IF branches.
@@ -42,37 +43,70 @@ public sealed class FacultyDirectoryRepository : IFacultyDirectoryRepository
                 CAST(NULL AS nvarchar(512)) DivisionName, CAST(NULL AS nvarchar(512)) AppointmentTitle,
                 CAST(NULL AS nvarchar(256)) Orcid, CAST(NULL AS nvarchar(64)) ClaimedOpenAlexAuthorId,
                 CAST(NULL AS bit) IsActive, CAST(0 AS bit) IsRosterMember,
-                CAST(NULL AS nvarchar(40)) BaselineIdentityStatus WHERE 1=0";
+                CAST(NULL AS nvarchar(40)) BaselineIdentityStatus,
+                CAST(NULL AS nvarchar(512)) NativeSourceKeyFallback WHERE 1=0";
         var directory = hasRoster ? @"
 SELECT r.NativeFacultyId FacultyId, r.ComputingId, r.DisplayName, r.DirectoryEmail PrimaryEmail,
        COALESCE(r.OrganizationName,r.DepartmentCode) DepartmentName, r.DepartmentCode,
        n.DivisionName, COALESCE(r.AppointmentTitle,r.AcademicRank) AppointmentTitle,
        n.Orcid, n.ClaimedOpenAlexAuthorId, n.IsActive,
-       CAST(1 AS bit) IsRosterMember, r.BaselineIdentityStatus
+       CAST(1 AS bit) IsRosterMember, r.BaselineIdentityStatus,
+       CAST(NULL AS nvarchar(512)) NativeSourceKeyFallback
 FROM openalex.FacultyRoster r
 LEFT JOIN NativeFaculty n ON n.FacultyId=r.NativeFacultyId
 UNION ALL
 SELECT n.* FROM NativeFaculty n
 WHERE NOT EXISTS (SELECT 1 FROM openalex.FacultyRoster r WHERE r.NativeFacultyId=n.FacultyId)"
             : "SELECT * FROM NativeFaculty";
-        var cte = $@"WITH NativeFaculty AS ({native}), Directory AS ({directory}),
+        // Import evidence shares a display row only through a roster ComputingID,
+        // a native ComputingID, or an exact canonical email when the native ID
+        // is absent. A name, directory-email alias or SourceFacultyKey is not a link.
+        const string importMatch = @"
+((b.IsRosterMember=1 AND LOWER(LTRIM(RTRIM(b.ComputingId))) COLLATE Latin1_General_100_CI_AS=i.UserId)
+ OR (b.IsRosterMember=0 AND
+     (LOWER(LTRIM(RTRIM(b.ComputingId))) COLLATE Latin1_General_100_CI_AS=i.UserId
+      OR (NULLIF(LTRIM(RTRIM(b.ComputingId)),N'') IS NULL
+          AND LOWER(LTRIM(RTRIM(b.PrimaryEmail))) COLLATE Latin1_General_100_CI_AS=i.UserId+N'@virginia.edu'))))";
+        var importedDirectory = hasRebuildImport ? $@"
+SELECT b.*, CONVERT(bit,CASE WHEN i.UserId IS NULL THEN 0 ELSE 1 END) InRebuildImport,
+       i.FacultyName ImportedDisplayName, i.PrimaryDepartment ImportedDepartmentName
+FROM BaseDirectory b
+LEFT JOIN academiconline.RebuildImportedFaculty i ON {importMatch}
+UNION ALL
+SELECT CAST(NULL AS bigint), i.UserId COLLATE DATABASE_DEFAULT, i.FacultyName,
+       CAST(NULL AS nvarchar(512)), i.PrimaryDepartment, CAST(NULL AS nvarchar(100)),
+       CAST(NULL AS nvarchar(512)), CAST(NULL AS nvarchar(512)),
+       CAST(NULL AS nvarchar(256)), CAST(NULL AS nvarchar(64)),
+       CAST(NULL AS bit), CAST(0 AS bit), CAST(NULL AS nvarchar(40)),
+       CAST(NULL AS nvarchar(512)), CAST(1 AS bit), i.FacultyName, i.PrimaryDepartment
+FROM academiconline.RebuildImportedFaculty i
+WHERE NOT EXISTS (SELECT 1 FROM BaseDirectory b WHERE {importMatch})"
+            : @"SELECT b.*, CAST(0 AS bit) InRebuildImport,
+                CAST(NULL AS nvarchar(200)) ImportedDisplayName,
+                CAST(NULL AS nvarchar(200)) ImportedDepartmentName FROM BaseDirectory b";
+        var cte = $@"WITH NativeFaculty AS ({native}), BaseDirectory AS ({directory}),
+Directory AS ({importedDirectory}),
 Filtered AS (SELECT * FROM Directory WHERE @Search IS NULL
     OR DisplayName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
     OR ComputingId COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
     OR PrimaryEmail COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
     OR DepartmentName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
-    OR DepartmentCode COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~')";
+    OR DepartmentCode COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
+    OR NativeSourceKeyFallback COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
+    OR ImportedDisplayName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~'
+    OR ImportedDepartmentName COLLATE Latin1_General_100_CI_AS LIKE @Search ESCAPE N'~')";
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
-DECLARE @Total int, @Roster int, @Native int;
+DECLARE @Total int, @Roster int, @Native int, @Imported int;
 {cte}
 SELECT @Total=(SELECT COUNT(*) FROM Filtered),
        @Roster=(SELECT COUNT(*) FROM Directory WHERE IsRosterMember=1),
-       @Native=(SELECT COUNT(*) FROM Directory WHERE IsRosterMember=0);
+       @Native=(SELECT COUNT(*) FROM Directory WHERE IsRosterMember=0 AND FacultyId IS NOT NULL),
+       @Imported=(SELECT COUNT(*) FROM Directory WHERE IsRosterMember=0 AND FacultyId IS NULL AND InRebuildImport=1);
 DECLARE @LastPage int=CASE WHEN @Total=0 THEN 1 ELSE (@Total-1)/@PageSize+1 END;
 DECLARE @CurrentPage int=CASE WHEN @PageNumber>@LastPage THEN @LastPage ELSE @PageNumber END;
-SELECT @Total,@Roster,@Native,@CurrentPage;
+SELECT @Total,@Roster,@Native,@CurrentPage,@Imported;
 {cte}
 SELECT * FROM Filtered
 ORDER BY DisplayName,ComputingId,FacultyId
@@ -89,6 +123,7 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
         var roster = reader.GetInt32(1);
         var additionalNative = reader.GetInt32(2);
         var currentPage = reader.GetInt32(3);
+        var additionalImported = reader.GetInt32(4);
         await reader.NextResultAsync(cancellationToken);
         var rows = new List<FacultyListItem>();
         while (await reader.ReadAsync(cancellationToken))
@@ -99,16 +134,20 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
             rows.Add(new FacultyListItem
             {
                 FacultyId = reader.IsDBNull(0) ? null : reader.GetInt64(0),
-                ComputingId = isRosterMember ? computingId : NormalizeNativeUserId(computingId) ?? NormalizeNativeUserId(email),
+                ComputingId = isRosterMember ? computingId : NormalizeNativeUserId(computingId)
+                    ?? NormalizeNativeUserId(email),
                 DisplayName = Text(reader, 2) ?? string.Empty,
                 PrimaryEmail = email, DepartmentName = Text(reader, 4), DivisionName = Text(reader, 6),
                 AppointmentTitle = Text(reader, 7), Orcid = Text(reader, 8),
                 ClaimedOpenAlexAuthorId = Text(reader, 9),
                 IsActive = reader.IsDBNull(10) ? null : reader.GetBoolean(10),
-                IsRosterMember = isRosterMember, BaselineIdentityStatus = Text(reader, 12)
+                IsRosterMember = isRosterMember, BaselineIdentityStatus = Text(reader, 12),
+                InRebuildImport = reader.GetBoolean(14),
+                ImportedDisplayName = Text(reader, 15), ImportedDepartmentName = Text(reader, 16)
             });
         }
-        return new FacultyDirectoryPage(rows, total, roster, additionalNative, currentPage, pageSize);
+        return new FacultyDirectoryPage(rows, total, roster, additionalNative, currentPage, pageSize)
+            { AdditionalImportedCount = additionalImported };
     }
 
     private static string BuildNativeSelect(HashSet<string> columns)
@@ -122,7 +161,7 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
         if (name is null || !columns.Contains("FacultyId"))
             throw new InvalidOperationException("The native faculty schema is not supported.");
         return $@"SELECT CAST(FacultyId AS bigint) FacultyId,
-            {Field("nvarchar(512)", "SourceFacultyKey")} ComputingId,
+            {Field("nvarchar(512)", "ComputingId")} ComputingId,
             {Field("nvarchar(512)", name)} DisplayName,
             {Field("nvarchar(512)", "PrimaryEmail", "Email")} PrimaryEmail,
             {Field("nvarchar(512)", "DepartmentName", "Department")} DepartmentName,
@@ -132,7 +171,8 @@ OFFSET ((@CurrentPage-1)*@PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;";
             {Field("nvarchar(256)", "Orcid", "ORCID")} Orcid,
             {Field("nvarchar(64)", "ClaimedOpenAlexAuthorId", "OpenAlexAuthorId", "AuthorOpenAlexId")} ClaimedOpenAlexAuthorId,
             {Field("bit", "IsActive", "Active")} IsActive, CAST(0 AS bit) IsRosterMember,
-            CAST(NULL AS nvarchar(40)) BaselineIdentityStatus FROM openalex.Faculty";
+            CAST(NULL AS nvarchar(40)) BaselineIdentityStatus,
+            {Field("nvarchar(512)", "SourceFacultyKey")} NativeSourceKeyFallback FROM openalex.Faculty";
     }
 
     private static string? NormalizeNativeUserId(string? value)

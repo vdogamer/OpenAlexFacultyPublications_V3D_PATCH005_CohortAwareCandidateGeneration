@@ -22,7 +22,7 @@
         You can also enter a userid@@virginia.edu email address. Matching is exact and ignores capitalization.
     </p>
     <p class="small">
-        Results include all unique DOIs in current synchronized publications and accepted OpenAlex records.
+        Results include unique DOIs from Academic Online imports, current synchronized publications and accepted OpenAlex records.
         Coverage depends on the publications and years already collected. Publications without a valid DOI are omitted.
     </p>
 </section>
@@ -50,6 +50,13 @@
             {
                 <p class="small">Faculty found in the imported roster. <a asp-page="/Faculty" asp-route-search="@result.UserId">View faculty record</a></p>
             }
+            @if (result.InRebuildImport)
+            {
+                <p class="small">Faculty found in the Academic Online import.
+                    Imported DOI associations retain their source attribution; they are separate from accepted OpenAlex matches.
+                    Titles and publication years may not have been supplied.
+                    <a asp-page="/Faculty" asp-route-search="@result.UserId">View faculty record</a></p>
+            }
             <p><strong>@result.Dois.Count unique DOI(s)</strong></p>
             @if (result.Dois.Count == 0)
             {
@@ -63,7 +70,7 @@
             {
                 <div style="overflow-x:auto">
                     <table>
-                        <caption>Faculty DOIs, newest publications first</caption>
+                        <caption>Faculty DOIs; known publication years shown newest first</caption>
                         <thead>
                             <tr><th scope="col">DOI</th><th scope="col">Publication</th><th scope="col">Year</th><th scope="col">Source</th></tr>
                         </thead>

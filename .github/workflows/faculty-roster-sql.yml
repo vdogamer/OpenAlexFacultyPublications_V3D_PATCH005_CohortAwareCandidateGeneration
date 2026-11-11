@@ -1,7 +1,7 @@
 name: Faculty roster SQL integration
 on:
   pull_request:
-    branches: [main, 'release/**', 'feature/som-faculty-roster-import-*']
+    branches: [main, 'release/**', 'feature/som-faculty-roster-import-*', 'feature/uva-theme-navigation-*']
     paths:
       - 'sql/453_*'
       - 'sql/454_*'

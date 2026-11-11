@@ -24,10 +24,12 @@
 else if (Model.Result is { } result)
 {
     <p><strong>@result.RosterCount.ToString("N0") imported roster records</strong>;
-        @result.AdditionalNativeCount.ToString("N0") additional native faculty records.</p>
+        @result.AdditionalNativeCount.ToString("N0") additional native faculty records;
+        @result.AdditionalImportedCount.ToString("N0") additional Academic Online import records.</p>
     <p class="small">The imported roster reflects the supplied primary-appointment snapshot.
         Roster membership does not confirm current employment or publication matching.
-        Native records without a confirmed roster link remain separate.</p>
+        Native records without a confirmed roster link remain separate.
+        Academic Online import records retain their source names and departments and do not establish current appointments.</p>
     @if (result.TotalCount == 0)
     {
         <p>No faculty records match this search.</p>
@@ -48,7 +50,15 @@ else if (Model.Result is { } result)
             {
                 <tr>
                     <td><strong>@item.DisplayName</strong><br />
-                        <span class="small">@(item.IsRosterMember ? "Imported roster" : "Native faculty record")</span>
+                        <span class="small">@(item.IsRosterMember ? "Imported roster" : item.FacultyId is not null ? "Native faculty record" : "Academic Online import")</span>
+                        @if (item.InRebuildImport && (item.IsRosterMember || item.FacultyId is not null))
+                        {
+                            <br /><span class="small">Academic Online import also available</span>
+                        }
+                        @if (item.HasAlternateImportedName)
+                        {
+                            <br /><span class="small">Academic Online name: @item.ImportedDisplayName</span>
+                        }
                         @if (item.Orcid is not null)
                         {
                             <br /><span class="small">ORCID: @item.Orcid</span>
