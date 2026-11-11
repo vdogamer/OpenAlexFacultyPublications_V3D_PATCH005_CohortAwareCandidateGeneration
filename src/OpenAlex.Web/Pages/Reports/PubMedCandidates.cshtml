@@ -1,0 +1,167 @@
+@page
+@model OpenAlex.Web.Pages.Reports.PubMedCandidatesModel
+@using OpenAlex.Web.Services.PubMed
+@{
+    ViewData["Title"] = "PubMed Candidate Lookup";
+}
+
+<h1>PubMed Candidate Lookup</h1>
+<p>Find citations for manual authorship review. These are read-only candidates; they do not change stored publications, accepted matches, or DOI totals.</p>
+
+<form method="get" class="card">
+    <label for="pubmed-userid">Faculty ComputingID or UVA email</label><br />
+    <input id="pubmed-userid" name="UserId" value="@Model.UserId" maxlength="64" required autocomplete="off" />
+    <button type="submit">Load faculty</button>
+    <a asp-page="/Reports/PubMedCandidates">Clear</a>
+</form>
+
+@if (Model.ErrorMessage is not null)
+{
+    <section class="card" role="alert"><h2>Lookup could not be completed</h2><p>@Model.ErrorMessage</p></section>
+}
+@if (Model.FacultyNotFound)
+{
+    <section class="card"><p>No faculty directory record matches this ComputingID. Confirm the identity in the <a asp-page="/Faculty" asp-route-search="@Model.UserId">Faculty directory</a> before searching PubMed.</p></section>
+}
+@if (Model.Faculty is { } faculty)
+{
+    <section class="card">
+        <h2>Faculty record: @faculty.UserId</h2>
+        <p>@string.Join(" / ",faculty.Names)</p>
+        <p>@string.Join("; ",faculty.Departments)</p>
+        <p><a asp-page="/Faculty" asp-route-search="@faculty.UserId">View faculty directory record</a></p>
+        @if (faculty.StoredOrcids.Count > 0)
+        {
+            <p class="small">ORCID values stored with the local identity: @string.Join("; ",faculty.StoredOrcids). Confirm the faculty identity before using a value below.</p>
+        }
+    </section>
+
+    <form method="get" class="card">
+        <input type="hidden" name="UserId" value="@faculty.UserId" />
+        <input type="hidden" name="Search" value="true" />
+        <p><label for="pubmed-mode">Search by</label><br />
+            <select id="pubmed-mode" asp-for="Mode">
+                <option value="Author">Author-name variants</option>
+                <option value="Orcid">ORCID</option>
+                <option value="Identifiers">Known PMIDs / PMCIDs</option>
+            </select></p>
+        <p><label for="pubmed-authors">Author terms: surname and initials, separated by semicolons</label><br />
+            <textarea id="pubmed-authors" name="AuthorTerms" rows="2" maxlength="600" style="width:100%;max-width:42rem" aria-describedby="pubmed-authors-help">@Model.AuthorTerms</textarea></p>
+        <p id="pubmed-authors-help" class="small">For example: Rollando A; Rollando AE. Suggested surname/initials forms are editable search hypotheses. Check names with multiple family-name words or suffixes. This lookup searches each form exactly; add variants for different initials or bylines.</p>
+        <p><label for="pubmed-orcid">Faculty ORCID (optional except in ORCID mode)</label><br />
+            <input id="pubmed-orcid" name="Orcid" value="@Model.Orcid" maxlength="64" placeholder="0000-0000-0000-0000" style="width:100%;max-width:30rem" /></p>
+        <p class="small">Use an ORCID confirmed against a reliable faculty profile. In other search modes it highlights matching contributor identifiers. An ORCID search can miss older papers or records without author identifiers.</p>
+        <p><label for="pubmed-identifiers">Known PMIDs / PMCIDs: up to ten, separated by commas or spaces</label><br />
+            <input id="pubmed-identifiers" name="Identifiers" value="@Model.Identifiers" maxlength="500" placeholder="12345678, PMC1234567" style="width:100%;max-width:42rem" /></p>
+        <p><label for="pubmed-affiliation">Affiliation phrase (optional)</label><br />
+            <input id="pubmed-affiliation" name="Affiliation" value="@Model.Affiliation" maxlength="160" style="width:100%;max-width:42rem" /></p>
+        <p class="small">Leave this blank to include prior institutions. This filter searches all affiliations on a citation; it may match a coauthor. Affiliation and year filters apply to author/ORCID searches, not known-identifier lookup.</p>
+        <p><label for="pubmed-from">Publication year from</label>
+            <input id="pubmed-from" name="YearFrom" type="number" min="1000" max="9999" value="@Model.YearFrom" style="width:7rem" />
+            <label for="pubmed-to">through</label>
+            <input id="pubmed-to" name="YearTo" type="number" min="1000" max="9999" value="@Model.YearTo" style="width:7rem" /></p>
+        <p><label for="pubmed-limit">Maximum candidates</label>
+            <select id="pubmed-limit" asp-for="Limit"><option>10</option><option>25</option><option>50</option></select></p>
+        <button type="submit">Search PubMed</button>
+    </form>
+}
+
+@if (Model.Query is { } query)
+{
+    <section class="card">
+        <h2>Search used</h2>
+        <p style="overflow-wrap:anywhere"><code>@query.Term</code></p>
+        <p><a href="@query.SearchUrl" target="_blank" rel="noopener noreferrer">Open the same search in PubMed</a></p>
+        @if (query.RequestedIdentifiers.Count > 0)
+        {
+            <p class="small">Supplied identifiers identify papers, not their authors. A PMCID with no returned PubMed citation may still have a PMC record to inspect.</p>
+            <ul>
+            @foreach (var identifier in query.RequestedIdentifiers)
+            {
+                var link = identifier.StartsWith("PMC",StringComparison.Ordinal)
+                    ? "https://pmc.ncbi.nlm.nih.gov/articles/" + identifier + "/"
+                    : "https://pubmed.ncbi.nlm.nih.gov/" + identifier + "/";
+                <li><a href="@link" target="_blank" rel="noopener noreferrer">Open supplied @identifier</a></li>
+            }
+            </ul>
+        }
+    </section>
+}
+
+@if (Model.Result is { } result)
+{
+    <section class="card">
+        <h2>PubMed candidates</h2>
+        <p><strong>@result.Candidates.Count candidate citation(s) retrieved</strong> from @result.TotalFound.ToString("N0") matching PubMed record(s); maximum @result.Query.Limit, newest publication dates first.</p>
+        <p class="small">Retrieved @result.RetrievedAtUtc.ToString("u"). This is a bounded query result, not a faculty publication total. PubMed coverage and older affiliation/identifier metadata are incomplete.</p>
+        @if (result.TotalFound > result.Candidates.Count)
+        { <p>Only part of the matching set is shown. Refine the query or inspect the complete search in PubMed.</p> }
+        @foreach (var notice in result.Notices)
+        { <p class="small">PubMed notice: @notice</p> }
+        @if (!string.Equals(result.Query.Term,result.QueryTranslation,StringComparison.Ordinal))
+        { <details><summary>PubMed query translation</summary><p style="overflow-wrap:anywhere">@result.QueryTranslation</p></details> }
+        @if (result.Candidates.Count == 0)
+        { <p>No PubMed citations were returned for this query. This does not establish that the faculty member has never published.</p> }
+    </section>
+
+    @foreach (var candidate in result.Candidates)
+    {
+        var article = candidate.Article;
+        <article class="card">
+            <h3><a href="@article.PubMedUrl" target="_blank" rel="noopener noreferrer">@article.Title</a></h3>
+            <p><strong>Candidate — authorship not confirmed</strong></p>
+            <p>PMID: <a href="@article.PubMedUrl" target="_blank" rel="noopener noreferrer">@article.Pmid</a>
+                @if (article.PmcUrl is not null)
+                { <span> · PMCID: <a href="@article.PmcUrl" target="_blank" rel="noopener noreferrer">@article.Pmcid</a></span> }
+                @if (article.DoiUrl is not null)
+                { <span> · DOI: <a href="@article.DoiUrl" target="_blank" rel="noopener noreferrer" style="overflow-wrap:anywhere">@article.Doi</a></span> }
+                else
+                { <span> · DOI not supplied</span> }</p>
+            <p>@article.Journal · @(article.Year?.ToString() ?? "Year not supplied")</p>
+            <p class="small">@string.Join("; ",article.PublicationTypes)</p>
+            <details>
+                <summary>Contributor evidence: showing @candidate.ContributorEvidence.Count of @candidate.TotalContributorCount entries</summary>
+                <p class="small">ORCID matches and name similarities are review evidence, not an acceptance decision. Check the specific contributor's role and affiliations, including appointment history. Investigator/collaborator entries are labeled separately from authors.</p>
+                @if (candidate.TotalContributorCount == 0)
+                { <p>No contributor details were supplied in the returned record.</p> }
+                else
+                {
+                    <div style="overflow-x:auto">
+                    <table>
+                        <caption>Contributor details from this PubMed citation</caption>
+                        <thead><tr><th scope="col">Name / role</th><th scope="col">ORCID</th><th scope="col">Affiliations</th><th scope="col">Evidence</th></tr></thead>
+                        <tbody>
+                        @foreach (var evidence in candidate.ContributorEvidence)
+                        {
+                            var contributor = evidence.Contributor;
+                            <tr>
+                                <td>@contributor.Name<br /><span class="small">@contributor.Role</span></td>
+                                <td>
+                                    @foreach (var id in contributor.Orcids)
+                                    { <p><a href="@("https://orcid.org/" + id)" target="_blank" rel="noopener noreferrer">@id</a></p> }
+                                    @if (contributor.Orcids.Count == 0) { <span>Not supplied</span> }
+                                </td>
+                                <td>@foreach (var affiliation in contributor.Affiliations) { <p>@affiliation</p> }
+                                    @if (contributor.Affiliations.Count == 0) { <span>Not supplied</span> }</td>
+                                <td>
+                                    @if (evidence.OrcidMatches) { <p>ORCID matches supplied identifier</p> }
+                                    @if (evidence.NameCompatible) { <p>Name text compatible</p> }
+                                    @if (evidence.AffiliationContainsFilter) { <p>Affiliation contains filter text</p> }
+                                    @if (!evidence.OrcidMatches && !evidence.NameCompatible && !evidence.AffiliationContainsFilter)
+                                    { <span>No correspondence established from these fields</span> }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                    </div>
+                }
+                @if (candidate.TotalContributorCount > candidate.ContributorEvidence.Count)
+                { <p>Matching evidence is shown first. Inspect the PubMed record for the remaining contributor entries.</p> }
+            </details>
+        </article>
+    }
+}
+
+<p class="small">Source: <a href="https://pubmed.ncbi.nlm.nih.gov/about/" target="_blank" rel="noopener noreferrer">NCBI PubMed</a> ·
+    <a href="https://www.ncbi.nlm.nih.gov/home/about/policies/" target="_blank" rel="noopener noreferrer">NCBI policies and disclaimers</a>.</p>

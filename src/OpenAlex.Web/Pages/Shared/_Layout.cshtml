@@ -58,10 +58,11 @@
                     </div>
                 </details>
                 <a class="nav-link nav-lookup" href="/Reports/FacultyDois" aria-current="@(IsPage("/Reports/FacultyDois") ? "page" : null)">DOI Lookup</a>
-                <details class="nav-group @(IsWithin("/Reports/AcceptedPublications", "/Reports/DataProvenance", "/Reports/AcademicOnlineFacultyLookup", "/Reports/SharedPublications", "/Reports/DepartmentPublications") ? "is-active" : null)">
+                <details class="nav-group @(IsWithin("/Reports/AcceptedPublications", "/Reports/DataProvenance", "/Reports/AcademicOnlineFacultyLookup", "/Reports/SharedPublications", "/Reports/DepartmentPublications", "/Reports/PubMedCandidates") ? "is-active" : null)">
                     <summary>Publications <span class="nav-chevron" aria-hidden="true"></span></summary>
                     <div class="nav-dropdown">
                         <a href="/Reports/AcademicOnlineFacultyLookup" aria-current="@(IsPage("/Reports/AcademicOnlineFacultyLookup") ? "page" : null)">UVA publication lookup</a>
+                        <a href="/Reports/PubMedCandidates" aria-current="@(IsPage("/Reports/PubMedCandidates") ? "page" : null)">PubMed candidates</a>
                         <a href="/Reports/AcceptedPublications" aria-current="@(IsPage("/Reports/AcceptedPublications") ? "page" : null)">Accepted publications</a>
                         <a href="/Reports/SharedPublications" aria-current="@(IsPage("/Reports/SharedPublications") ? "page" : null)">Shared publications</a>
                         <a href="/Reports/DepartmentPublications" aria-current="@(IsPage("/Reports/DepartmentPublications") ? "page" : null)">Department publications</a>

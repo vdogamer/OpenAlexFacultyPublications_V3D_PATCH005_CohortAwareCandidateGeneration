@@ -58,6 +58,7 @@
                     <a asp-page="/Faculty" asp-route-search="@result.UserId">View faculty record</a></p>
             }
             <p><strong>@result.Dois.Count unique DOI(s)</strong></p>
+            <p><a asp-page="/Reports/PubMedCandidates" asp-route-UserId="@result.UserId">Look for publication candidates in PubMed</a></p>
             @if (result.Dois.Count == 0)
             {
                 <p>This faculty member was found, but no valid DOIs are available in the current stored publication records.</p>

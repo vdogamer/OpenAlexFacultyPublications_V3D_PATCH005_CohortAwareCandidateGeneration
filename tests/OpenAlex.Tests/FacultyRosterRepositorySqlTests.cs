@@ -258,6 +258,26 @@ public sealed class FacultyRosterRepositorySqlTests
             new FacultyDoiLookupService(new FacultyDoiRepository(db.Factory)).LookupAsync("i001"));
     }
 
+    [SqlServerFact]
+    public async Task ExactFacultyIdentityLookupIsNotALimitedSubstringSearchOrASourceKeyGuess()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        await db.AddRebuildImportAsync(seed:false);
+        var values = Enumerable.Range(1,205).Select(i =>
+            $"(N'z{i:0000}',N'Name mentioning target01 {i:0000}',N'Fixture department')");
+        await db.ExecuteAsync("INSERT academiconline.RebuildImportedFaculty VALUES " + string.Join(",",values)
+            + ",(N'target01',N'Actual Target Faculty',N'Fixture department');");
+        await db.ExecuteAsync("UPDATE openalex.Faculty SET SourceFacultyKey=N'target02' WHERE FacultyId=102;");
+        var repository = new FacultyDirectoryRepository(db.Factory);
+        var exact = Assert.Single(await repository.GetByComputingIdAsync("TARGET01@Virginia.edu"));
+        Assert.Equal("Actual Target Faculty",exact.DisplayName);
+        Assert.Equal("target01",exact.ComputingId);
+        Assert.Empty(await repository.GetByComputingIdAsync("target02"));
+        Assert.Equal(103L,Assert.Single(await repository.GetByComputingIdAsync("r009")).FacultyId);
+        Assert.Equal("Alex Roster",Assert.Single(await repository.GetByComputingIdAsync("r001")).DisplayName);
+        await Assert.ThrowsAsync<ArgumentException>(() => repository.GetByComputingIdAsync("bad input!"));
+    }
+
     private sealed class TestDatabase : IAsyncDisposable
     {
         private readonly string _master;

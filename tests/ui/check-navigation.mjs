@@ -6,7 +6,7 @@ const repo=process.cwd();
 const out=process.env.UI_CHECK_OUTPUT || '/tmp/openalex-frontend-checks';
 await fs.mkdir(out,{recursive:true});
 const template=await fs.readFile(repo+'/src/OpenAlex.Web/Pages/Shared/_Layout.cshtml','utf8');
-const previousPaths=["/","/Faculty","/Faculty/MyPublications","/Admin/AddFaculty","/Review/Identities","/Review/Authors","/Review/Publications","/Reports/AcceptedPublications","/Reports/DataProvenance","/Reports/AcademicOnlineFacultyLookup","/Reports/FacultyDois","/Reports/SharedPublications","/Reports/DepartmentPublications","/Operations","/Operations/Runs","/Admin/ExecutionWindows","/Admin/Scheduler","/Admin/AcademicOnlineDepartments","/Admin/Jobs","/Admin/Preflight","/Admin/Deployment","/Admin/Roles","/Admin/Users","/Account/Login"];
+const previousPaths=["/","/Faculty","/Faculty/MyPublications","/Admin/AddFaculty","/Review/Identities","/Review/Authors","/Review/Publications","/Reports/AcceptedPublications","/Reports/DataProvenance","/Reports/AcademicOnlineFacultyLookup","/Reports/FacultyDois","/Reports/PubMedCandidates","/Reports/SharedPublications","/Reports/DepartmentPublications","/Operations","/Operations/Runs","/Admin/ExecutionWindows","/Admin/Scheduler","/Admin/AcademicOnlineDepartments","/Admin/Jobs","/Admin/Preflight","/Admin/Deployment","/Admin/Roles","/Admin/Users","/Account/Login"];
 const css=await fs.readFile(repo+'/src/OpenAlex.Web/wwwroot/css/site.css','utf8');
 const js=await fs.readFile(repo+'/src/OpenAlex.Web/wwwroot/js/site-navigation.js','utf8');
 const doi=await fs.readFile(repo+'/src/OpenAlex.Web/Pages/Reports/FacultyDois.cshtml','utf8');
@@ -49,6 +49,7 @@ for(const width of widths){
  await page.locator('.nav-group').filter({has:page.locator('summary',{hasText:'Publications'})}).locator('summary').click();
  assert.equal(await page.locator('.nav-group[open]').count(),1);
  assert(await page.getByRole('link',{name:'Accepted publications',exact:true}).isVisible());
+ assert(await page.getByRole('link',{name:'PubMed candidates',exact:true}).isVisible());
  await page.locator('summary').filter({hasText:'Administration'}).click();
  await page.waitForTimeout(40);
  assert.equal(await page.locator('.nav-group[open]').count(),1);
@@ -68,6 +69,9 @@ assert(await page.getByRole('link',{name:'Faculty directory',exact:true}).isVisi
 await page.keyboard.press('Tab');assert.equal(await page.locator(':focus').textContent(),'Faculty directory');
 await page.keyboard.press('Escape');assert.equal(await page.locator(':focus').textContent().then(x=>x.trim()),'Faculty');
 await page.goto(base+'/Admin/Jobs');assert.equal(await page.locator('.nav-group.is-active summary').textContent().then(x=>x.trim()),'Operations');
+await page.goto(base+'/Reports/PubMedCandidates');
+assert.equal(await page.locator('a[aria-current="page"]').getAttribute('href'),'/Reports/PubMedCandidates');
+assert.equal(await page.locator('.nav-group.is-active summary').textContent().then(x=>x.trim()),'Publications');
 await page.goto(base+'/Reports/FacultyDois?anonymous=1');
 assert(await page.getByRole('link',{name:'Log in',exact:true}).isVisible());assert.equal(await page.getByRole('link',{name:'My publications',exact:true}).count(),0);
 await page.goto(base+'/Reports/FacultyDois');
@@ -84,6 +88,7 @@ const nojs=await browser.newContext({javaScriptEnabled:false,viewport:{width:390
 const fallback=await nojs.newPage();await fallback.goto(base+'/Reports/FacultyDois');
 assert(await fallback.getByRole('link',{name:'DOI Lookup',exact:true}).isVisible());
 await fallback.locator('summary').filter({hasText:'Publications',exact:true}).click();assert(await fallback.getByRole('link',{name:'Accepted publications',exact:true}).isVisible());
+assert(await fallback.getByRole('link',{name:'PubMed candidates',exact:true}).isVisible());
 assert.equal(errors.length,0,errors.join('\n'));
 await fs.writeFile(out+'/browser-checks.json',JSON.stringify({widths,routeCount:previousPaths.length,keyboard:'Enter, Tab, Escape',outsideClick:true,signedOut:true,noJavaScriptFallback:true,javascriptErrors:errors,scope:'Browser fixture generated from actual Razor layout, stylesheet, navigation script and initial DOI page. Not a live ASP.NET/SQL test.'},null,2));
 console.log('Browser checks passed at '+widths.join(', ')+' px; preserved all '+previousPaths.length+' navigation routes.');

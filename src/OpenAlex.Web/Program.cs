@@ -7,6 +7,7 @@ using OpenAlex.Reporting;
 using OpenAlex.Web.Auth;
 using OpenAlex.Web.Diagnostics;
 using OpenAlex.Web.Services;
+using OpenAlex.Web.Services.PubMed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 // logging for the OpenAlex client because the API credential is query-string based.
 builder.Logging.AddFilter("System.Net.Http.HttpClient.OpenAlexApiClient.LogicalHandler", LogLevel.Warning);
 builder.Logging.AddFilter("System.Net.Http.HttpClient.OpenAlexApiClient.ClientHandler", LogLevel.Warning);
+builder.Logging.AddFilter("System.Net.Http.HttpClient.IPubMedClient.LogicalHandler", LogLevel.Warning);
+builder.Logging.AddFilter("System.Net.Http.HttpClient.IPubMedClient.ClientHandler", LogLevel.Warning);
 
 builder.Services.AddRazorPages(options =>
 {
@@ -58,6 +61,11 @@ builder.Services.AddScoped<AcademicOnlineFacultyPublicationsService>();
 builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
 builder.Services.AddScoped<AcademicOnlineUniversalFacultyLookupService>();
 builder.Services.AddScoped<FacultyDoiLookupService>();
+builder.Services.AddScoped<IFacultyIdentityLookup, FacultyDirectoryRepository>();
+builder.Services.Configure<PubMedOptions>(builder.Configuration.GetSection("PubMed"));
+builder.Services.AddSingleton<PubMedRequestGate>();
+builder.Services.AddHttpClient<IPubMedClient, PubMedClient>(client => client.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<PubMedCandidateLookupService>();
 builder.Services.AddScoped<SharedPublicationsService>();
 builder.Services.AddScoped<FacultyProfileHandoffService>();
 builder.Services.AddScoped<PublicationKeywordFilterService>();
