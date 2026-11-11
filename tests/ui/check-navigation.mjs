@@ -31,7 +31,8 @@ const server=http.createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base='http://127.0.0.1:'+server.address().port;
-const browser=await chromium.launch({headless:true});
+const browserChannel=process.env.UI_CHECK_BROWSER_CHANNEL;
+const browser=await chromium.launch({headless:true,...(browserChannel?{channel:browserChannel}:{})});
 const page=await browser.newPage();
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const widths=[1920,1366,1024,841,840,768,640,390,320];
@@ -93,3 +94,4 @@ assert.equal(errors.length,0,errors.join('\n'));
 await fs.writeFile(out+'/browser-checks.json',JSON.stringify({widths,routeCount:previousPaths.length,keyboard:'Enter, Tab, Escape',outsideClick:true,signedOut:true,noJavaScriptFallback:true,javascriptErrors:errors,scope:'Browser fixture generated from actual Razor layout, stylesheet, navigation script and initial DOI page. Not a live ASP.NET/SQL test.'},null,2));
 console.log('Browser checks passed at '+widths.join(', ')+' px; preserved all '+previousPaths.length+' navigation routes.');
 await browser.close();server.close();
+

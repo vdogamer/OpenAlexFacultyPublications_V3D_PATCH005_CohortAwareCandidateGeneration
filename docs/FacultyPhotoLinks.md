@@ -29,6 +29,8 @@ Configured profile links remain available as a fallback when a provider check fa
 
 Synthetic service and production-Razor HTTP tests cover identity selection, authorized redirects, URL restrictions, missing-image and provider-error states, HEAD fallback, and cancellation. SQL integration tests cover the optional directory ID, its roster provenance, and existing schemas without the column at compatibility level 130. Live requests to UVA hosts are blocked by this implementation workspace's outbound policy; public page/image references were inspected through web retrieval, and application-server access must be checked locally.
 
+The responsive navigation workflow uses the preinstalled Chrome channel on the GitHub Ubuntu 24.04 runner. This avoids the separate Chromium installation step that failed before any browser assertions ran on the PubMed branch. Local browser checks retain the default Playwright Chromium unless `UI_CHECK_BROWSER_CHANNEL` is set. See [Playwright browser channels](https://playwright.dev/docs/browsers) and the [GitHub runner image inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md).
+
 ## Public profile sources
 
 - [James E. Casanova](https://med.virginia.edu/researchers/James-Casanova-P0000039)
