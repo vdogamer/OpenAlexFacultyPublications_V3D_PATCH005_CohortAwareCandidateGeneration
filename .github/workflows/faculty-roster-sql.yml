@@ -1,7 +1,7 @@
 name: Faculty roster SQL integration
 on:
   pull_request:
-    branches: [main, 'release/**', 'feature/som-faculty-roster-import-*', 'feature/uva-theme-navigation-*', 'feature/rebuild-import-pages-*']
+    branches: [main, 'release/**', 'feature/som-faculty-roster-import-*', 'feature/uva-theme-navigation-*', 'feature/rebuild-import-pages-*', 'feature/pubmed-candidates-*']
     paths:
       - 'sql/453_*'
       - 'sql/454_*'
@@ -101,3 +101,4 @@ jobs:
               description,
               target_url: 'https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId
             });
+

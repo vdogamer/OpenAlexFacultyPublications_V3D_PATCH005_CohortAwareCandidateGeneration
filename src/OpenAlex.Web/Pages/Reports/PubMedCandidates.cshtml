@@ -30,6 +30,7 @@
         <p>@string.Join(" / ",faculty.Names)</p>
         <p>@string.Join("; ",faculty.Departments)</p>
         <p><a asp-page="/Faculty" asp-route-search="@faculty.UserId">View faculty directory record</a></p>
+        <p><a asp-page="/Faculty/Photo" asp-route-UserId="@faculty.UserId" target="_blank" rel="noopener noreferrer">View UVA photo</a></p>
         @if (faculty.StoredOrcids.Count > 0)
         {
             <p class="small">ORCID values stored with the local identity: @string.Join("; ",faculty.StoredOrcids). Confirm the faculty identity before using a value below.</p>
@@ -165,3 +166,4 @@
 
 <p class="small">Source: <a href="https://pubmed.ncbi.nlm.nih.gov/about/" target="_blank" rel="noopener noreferrer">NCBI PubMed</a> ·
     <a href="https://www.ncbi.nlm.nih.gov/home/about/policies/" target="_blank" rel="noopener noreferrer">NCBI policies and disclaimers</a>.</p>
+

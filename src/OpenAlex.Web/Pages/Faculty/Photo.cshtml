@@ -1,0 +1,14 @@
+@page
+@model OpenAlex.Web.Pages.Faculty.PhotoModel
+@{
+    ViewData["Title"] = "Faculty photo";
+}
+<h1>Faculty photo</h1>
+<section class="card">
+    <p role="status">@Model.Message</p>
+    @if (Model.ProfileUrl is not null)
+    {
+        <p><a href="@Model.ProfileUrl" target="_blank" rel="noopener noreferrer">View the official UVA faculty profile</a></p>
+    }
+    <p><a asp-page="/Faculty" asp-route-search="@Model.UserId">Return to faculty directory</a></p>
+</section>

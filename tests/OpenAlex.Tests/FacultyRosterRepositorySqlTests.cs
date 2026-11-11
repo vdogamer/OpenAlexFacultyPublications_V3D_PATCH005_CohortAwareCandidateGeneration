@@ -278,6 +278,21 @@ public sealed class FacultyRosterRepositorySqlTests
         await Assert.ThrowsAsync<ArgumentException>(() => repository.GetByComputingIdAsync("bad input!"));
     }
 
+    [SqlServerFact]
+    public async Task DirectoryPhotoPersonIdIsOptionalAndStaysWithItsRosterIdentity()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var repository = new FacultyDirectoryRepository(db.Factory);
+        Assert.Null(Assert.Single(await repository.GetByComputingIdAsync("r001")).DirectoryPersonId);
+        await db.ExecuteAsync("ALTER TABLE openalex.FacultyRoster ADD DirectoryPersonId int NULL;");
+        await db.ExecuteAsync("UPDATE openalex.FacultyRoster SET DirectoryPersonId=123 WHERE ComputingId=N'r001';");
+        Assert.Equal(123,Assert.Single(await repository.GetByComputingIdAsync("r001")).DirectoryPersonId);
+        Assert.Equal(123,Assert.Single((await repository.GetPageAsync("Alex Roster")).Items).DirectoryPersonId);
+        Assert.Null(Assert.Single(await repository.GetByComputingIdAsync("r009")).DirectoryPersonId);
+        await db.AddRebuildImportAsync();
+        Assert.Null(Assert.Single(await repository.GetByComputingIdAsync("i001")).DirectoryPersonId);
+    }
+
     private sealed class TestDatabase : IAsyncDisposable
     {
         private readonly string _master;
@@ -402,3 +417,4 @@ INSERT academiconline.RebuildImportedFacultyDoi VALUES
         }
     }
 }
+

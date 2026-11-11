@@ -62,6 +62,9 @@ builder.Services.AddScoped<AcademicOnlinePublicationHtmlFormatter>();
 builder.Services.AddScoped<AcademicOnlineUniversalFacultyLookupService>();
 builder.Services.AddScoped<FacultyDoiLookupService>();
 builder.Services.AddScoped<IFacultyIdentityLookup, FacultyDirectoryRepository>();
+builder.Services.Configure<FacultyPhotoOptions>(builder.Configuration.GetSection("FacultyPhotos"));
+builder.Services.AddHttpClient<FacultyPhotoService>(client => client.Timeout = TimeSpan.FromSeconds(12))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.Configure<PubMedOptions>(builder.Configuration.GetSection("PubMed"));
 builder.Services.AddSingleton<PubMedRequestGate>();
 builder.Services.AddHttpClient<IPubMedClient, PubMedClient>(client => client.Timeout = TimeSpan.FromSeconds(20));
@@ -86,3 +89,4 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 app.Run();
+

@@ -4,6 +4,7 @@ public sealed class FacultyListItem
 {
     public long? FacultyId { get; set; }
     public string? ComputingId { get; set; }
+    public int? DirectoryPersonId { get; set; }
     public bool IsRosterMember { get; set; }
     public bool InRebuildImport { get; set; }
     public string? ImportedDisplayName { get; set; }
@@ -28,3 +29,4 @@ public sealed record FacultyDirectoryPage(
     public int AdditionalImportedCount { get; init; }
     public int PageCount => Math.Max(1, (int)Math.Ceiling(TotalCount / (double)PageSize));
 }
+
