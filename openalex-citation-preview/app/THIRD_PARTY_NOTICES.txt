@@ -1,0 +1,47 @@
+Faculty citation preview — third-party sources
+
+Renderer adapter and local file handling: OpenAlexIngestion citation pilot.
+The bundled third-party components below are unmodified upstream sources.
+Exact immutable revisions, paths, Git blob hashes, and SHA-256 digests are
+recorded in vendor-manifest.json at the package root.
+
+citeproc-js
+Copyright (c) 2009-2019 Frank Bennett.
+Attribution Copyright Notice: (c) Frank Bennett
+Attribution Phrase: citeproc-js implements the Citation Style Language
+Attribution URL: https://citationstyles.org/
+Source: https://github.com/Juris-M/citeproc-js
+Revision: 56e7ef310154748368665cc8a2be124e3c141832
+Package version: 2.4.63; internal processor version: 1.4.63.
+This distribution uses the CPAL 1.0 option provided by the upstream dual
+license. The upstream CPAL / AGPLv3-or-later choice is retained with the
+complete original LICENSE, CPAL, and AGPLv3 notices in app/vendor/.
+The source files and attribution have not been removed or minified.
+The npm package metadata uses a different AGPL label; the bundled upstream
+source license and full license text are included verbatim for inspection.
+
+Citation Style Language styles
+Source: https://github.com/citation-style-language/styles
+Revision: bcae404e9f8130cc2b94b0749d53514212a15a4a
+Files:
+- american-medical-association.csl — AMA Manual of Style 11th edition
+- nlm-citation-sequence.csl — NLM/Vancouver: Citing Medicine 2nd edition
+  (citation-sequence)
+- apa.csl — APA Style 7th edition
+Copyright their respective authors and contributors as listed in each file.
+License: Creative Commons Attribution-ShareAlike 3.0 Unported.
+https://creativecommons.org/licenses/by-sa/3.0/
+The original style metadata and contributor credits are retained.
+
+Citation Style Language US English locale
+Source: https://github.com/citation-style-language/locales
+Revision: 14940e56f7c783e4173cafbd92e0f5856f2caa14
+File: locales-en-US.xml
+Copyright the contributors and translators listed in the locale file.
+License: Creative Commons Attribution-ShareAlike 3.0 Unported.
+https://creativecommons.org/licenses/by-sa/3.0/
+
+The CSL project: https://citationstyles.org/
+The bibliographic records selected by the user remain separate from the
+style rules and processor. Attribution here does not verify authorship or
+establish that a paper exists in the user's local database.

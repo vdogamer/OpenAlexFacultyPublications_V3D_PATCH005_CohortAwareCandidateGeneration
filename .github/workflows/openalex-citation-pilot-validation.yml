@@ -1,0 +1,173 @@
+name: OpenAlex citation pilot validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, 'feature/faculty-photo-links-*']
+    paths:
+      - 'tools/OpenAlex.CitationPilot/**'
+      - 'openalex-citation-preview/**'
+      - 'tests/openalex-citation-pilot/**'
+      - 'tests/OpenAlex.CitationPilot.SqlChecks/**'
+      - '.github/workflows/openalex-citation-pilot-validation.yml'
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: openalex-citation-pilot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet-self-checks:
+    name: OpenAlex citation .NET checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+      DOTNET_CLI_UI_LANGUAGE: en
+      CITATION_CHECK_LOG: ${{ github.workspace }}/openalex-citation-dotnet.log
+      CITATION_RENDERER_ROOT: openalex-citation-preview
+    steps:
+      - name: Checkout public validation source
+        uses: actions/checkout@v4
+      - name: Set up Node for the pinned offline renderer build
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch and verify immutable public renderer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/openalex-citation-pilot/bootstrap-renderer.cjs 2>&1 | tee "$CITATION_CHECK_LOG"
+      - name: Build the offline template used by the citation utility
+        shell: bash
+        run: |
+          set -euo pipefail
+          node openalex-citation-preview/build-preview.cjs --output "$GITHUB_WORKSPACE/tools/OpenAlex.CitationPilot/assets/preview-template.html" 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore only the independent citation utility
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore tools/OpenAlex.CitationPilot/OpenAlex.CitationPilot.csproj 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Build only the independent citation utility
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build tools/OpenAlex.CitationPilot/OpenAlex.CitationPilot.csproj --configuration Release --no-restore 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Run synthetic checks without SQL or metadata access
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project tools/OpenAlex.CitationPilot/OpenAlex.CitationPilot.csproj --configuration Release --no-build -- --self-test 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Report concise .NET result
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/github-script@v7
+        env:
+          CITATION_JOB_RESULT: ${{ job.status }}
+          CITATION_CHECK_NAME: OpenAlex citation .NET ${{ matrix.os }}
+        with:
+          script: |
+            const report = require('./tests/openalex-citation-pilot/report-status.cjs');
+            await report({github, context, core});
+
+  renderer-and-browser:
+    name: OpenAlex citation renderer and offline browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CITATION_CHECK_LOG: ${{ github.workspace }}/openalex-citation-renderer.log
+      UI_CHECK_BROWSER_CHANNEL: chrome
+      CITATION_RENDERER_ROOT: openalex-citation-preview
+    steps:
+      - name: Checkout public validation source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch and verify immutable public renderer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/openalex-citation-pilot/bootstrap-renderer.cjs 2>&1 | tee "$CITATION_CHECK_LOG"
+      - name: Build offline preview assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node openalex-citation-preview/build-preview.cjs 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Check pinned CSL engine and styles with synthetic records
+        shell: bash
+        run: |
+          set -euo pipefail
+          node openalex-citation-preview/tests/engine-checks.cjs 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Install browser test library
+        run: npm install --no-save --package-lock=false playwright@1.62.1
+      - name: Check installed Chrome
+        run: google-chrome --version
+      - name: Check the offline preview in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/openalex-citation-pilot/check-browser.cjs 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Report concise rendering result
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/github-script@v7
+        env:
+          CITATION_JOB_RESULT: ${{ job.status }}
+          CITATION_CHECK_NAME: OpenAlex citation renderer and browser
+        with:
+          script: |
+            const report = require('./tests/openalex-citation-pilot/report-status.cjs');
+            await report({github, context, core});
+
+  sql-source-integration:
+    name: OpenAlex citation SQL source integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+      DOTNET_CLI_UI_LANGUAGE: en
+      OPENALEX_CITATION_DISPOSABLE_SQL: '1'
+      OPENALEX_CITATION_SQL_TEST_CONNECTION: 'Server=127.0.0.1,1433;Initial Catalog=master;User ID=sa;Password=Synthetic_Citation_Admin_98765!;TrustServerCertificate=True;Encrypt=True'
+      CITATION_CHECK_LOG: ${{ github.workspace }}/openalex-citation-sql.log
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'Synthetic_Citation_Admin_98765!'
+        ports: ['1433:1433']
+    steps:
+      - name: Checkout public synthetic validation source
+        uses: actions/checkout@v4
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Validate source reads using a SELECT-only login in a fresh disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project tests/OpenAlex.CitationPilot.SqlChecks/OpenAlex.CitationPilot.SqlChecks.csproj --configuration Release 2>&1 | tee "$CITATION_CHECK_LOG"
+      - name: Report concise SQL source result
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/github-script@v7
+        env:
+          CITATION_JOB_RESULT: ${{ job.status }}
+          CITATION_CHECK_NAME: OpenAlex citation SQL
+        with:
+          script: |
+            const report = require('./tests/openalex-citation-pilot/report-status.cjs');
+            await report({github, context, core});
