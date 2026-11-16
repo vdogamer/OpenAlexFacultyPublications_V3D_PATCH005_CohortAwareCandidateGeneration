@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Faculty citation preview · UVA pilot</title>
+  <link rel="stylesheet" href="assets/preview.css">
+  <script defer src="vendor/citeproc.js"></script>
+  <script defer src="assets/resources.js"></script>
+  <script defer src="assets/citation-engine.js"></script>
+  <script defer src="assets/preview.js"></script>
+</head>
+<body>
+  <header><div class="wrap"><p class="eyebrow">Faculty publications · local pilot</p><h1>One data set. Three citation styles.</h1><p>Compare AMA, Vancouver, and APA without changing your publication records.</p></div></header>
+  <main class="wrap">
+    <section class="panel" aria-labelledby="load-title">
+      <h2 id="load-title">Open your publication JSON</h2>
+      <p>Choose the file produced by the read-only citation export. The file stays in this browser; this preview makes no network requests.</p>
+      <label class="file-label" for="publication-file">Publication export or CSL-JSON example</label>
+      <input id="publication-file" type="file" accept=".json,application/json">
+      <p class="hint">Maximum file size: 25 MB. Up to 2,000 eligible citations. Extract the package before opening this page.</p>
+      <noscript><p class="notice">JavaScript is required to format citations locally. The export remains readable as JSON without it.</p></noscript>
+      <p id="load-status" class="status" role="status" aria-live="polite">No file loaded.</p>
+      <p id="load-error" class="error" role="alert" hidden></p>
+    </section>
+    <section id="dataset" class="panel" aria-labelledby="dataset-title" hidden>
+      <h2 id="dataset-title"></h2>
+      <p id="dataset-kind" class="notice"></p>
+      <p id="dataset-counts"></p>
+      <p id="dataset-snapshot" class="hint"></p>
+      <details><summary>Source file and integrity</summary><p id="dataset-file" class="mono"></p><p id="dataset-hash" class="mono"></p></details>
+      <p class="hint">Formatting does not verify authorship. Held, incomplete, invalid, and duplicate records stay outside these previews. Each style uses the same eligible citation set and preserves source author order; bibliography sorting follows the selected style.</p>
+      <ul id="dataset-notices" class="hint"></ul>
+    </section>
+    <div id="styles" class="styles" hidden></div>
+    <section id="excluded" class="panel" hidden>
+      <h2>Records outside the citation preview</h2><p class="hint">These rows remain in your JSON export for review. No citation metadata has been invented for them.</p>
+      <div class="table-scroll"><table><thead><tr><th scope="col">Stored DOI</th><th scope="col">Status</th><th scope="col">Review / metadata notes</th></tr></thead><tbody id="excluded-body"></tbody></table></div>
+    </section>
+  </main>
+  <footer class="wrap">
+    <p><strong>Attribution:</strong> © Frank Bennett. <a href="https://citationstyles.org/" target="_blank" rel="noopener noreferrer">citeproc-js implements the Citation Style Language</a>.</p>
+    <p class="hint">CSL styles and locale data © their contributors, licensed CC BY-SA 3.0. Bundled source, revision hashes, and license notices are in this package. <a href="THIRD_PARTY_NOTICES.txt">Third-party notices</a>.</p>
+  </footer>
+</body>
+</html>
