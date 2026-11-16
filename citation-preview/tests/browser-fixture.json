@@ -1,0 +1,280 @@
+{
+  "schemaVersion": "AcademicOnline.CitationPilot/1",
+  "sourceKind": "PublicExternalExample",
+  "testFixture": true,
+  "faculty": {
+    "userId": "demo01",
+    "facultyName": "Synthetic Faculty — test data only"
+  },
+  "databaseSnapshot": null,
+  "summary": {
+    "sourceAssociationRows": 4,
+    "readyCitationCount": 2
+  },
+  "publications": [
+    {
+      "rawDoi": "10.5555/synthetic-a",
+      "normalizedDoi": "10.5555/synthetic-a",
+      "status": "Ready",
+      "reviewDisposition": "StoredAssociationNotIndependentlyReviewed",
+      "previewEligible": true,
+      "csl": {
+        "id": "doi:10.5555/synthetic-a",
+        "type": "article-journal",
+        "title": "A synthetic journal article for citation testing",
+        "author": [
+          {
+            "family": "AuthorA",
+            "given": "Person A"
+          },
+          {
+            "family": "AuthorB",
+            "given": "Person B"
+          },
+          {
+            "family": "AuthorC",
+            "given": "Person C"
+          },
+          {
+            "family": "AuthorD",
+            "given": "Person D"
+          },
+          {
+            "family": "AuthorE",
+            "given": "Person E"
+          },
+          {
+            "family": "AuthorF",
+            "given": "Person F"
+          },
+          {
+            "family": "AuthorG",
+            "given": "Person G"
+          },
+          {
+            "family": "AuthorH",
+            "given": "Person H"
+          },
+          {
+            "family": "AuthorI",
+            "given": "Person I"
+          },
+          {
+            "family": "AuthorJ",
+            "given": "Person J"
+          },
+          {
+            "family": "AuthorK",
+            "given": "Person K"
+          },
+          {
+            "family": "AuthorL",
+            "given": "Person L"
+          },
+          {
+            "family": "AuthorM",
+            "given": "Person M"
+          }
+        ],
+        "container-title": "Synthetic Journal of Formatting",
+        "container-title-short": "Synth J Format",
+        "issued": {
+          "date-parts": [
+            [
+              2025,
+              11,
+              10
+            ]
+          ]
+        },
+        "volume": "12",
+        "issue": "2",
+        "page": "101-109",
+        "DOI": "10.5555/synthetic-a"
+      },
+      "metadataSource": {
+        "provider": "SyntheticFixture",
+        "url": "https://example.invalid/test-only"
+      },
+      "errors": [],
+      "reviewReasons": []
+    },
+    {
+      "rawDoi": "10.5555/synthetic-b",
+      "normalizedDoi": "10.5555/synthetic-b",
+      "status": "Ready",
+      "reviewDisposition": "StoredAssociationNotIndependentlyReviewed",
+      "previewEligible": true,
+      "csl": {
+        "id": "doi:10.5555/synthetic-b",
+        "type": "article-journal",
+        "title": "Payload <img src=\"https://example.invalid/leak\"><script>window.__citationXss=true</script> & literal text",
+        "author": [
+          {
+            "family": "<script>window.__citationXss=true</script>Malice",
+            "given": "Alex"
+          }
+        ],
+        "container-title": "Synthetic Journal of Formatting",
+        "container-title-short": "Synth J Format",
+        "issued": {
+          "date-parts": [
+            [
+              2025,
+              11,
+              10
+            ]
+          ]
+        },
+        "volume": "12",
+        "issue": "2",
+        "page": "101-109",
+        "DOI": "10.5555/synthetic-b"
+      },
+      "metadataSource": {
+        "provider": "SyntheticFixture",
+        "url": "https://example.invalid/test-only"
+      },
+      "errors": [],
+      "reviewReasons": []
+    },
+    {
+      "rawDoi": "10.5555/held-record",
+      "normalizedDoi": "10.5555/held-record",
+      "status": "Held",
+      "reviewDisposition": "Held",
+      "previewEligible": false,
+      "csl": null,
+      "metadataSource": null,
+      "errors": [],
+      "reviewReasons": [
+        "Synthetic held association. Must not appear in an ordinary citation preview."
+      ]
+    },
+    {
+      "rawDoi": "10.5555/incomplete",
+      "normalizedDoi": "10.5555/incomplete",
+      "status": "MetadataIncomplete",
+      "reviewDisposition": "StoredAssociationNotIndependentlyReviewed",
+      "previewEligible": false,
+      "csl": {
+        "id": "doi:10.5555/incomplete",
+        "type": "article-journal",
+        "DOI": "10.5555/incomplete"
+      },
+      "metadataSource": null,
+      "errors": [
+        "No ordered author list supplied."
+      ],
+      "reviewReasons": []
+    }
+  ],
+  "cslItems": [
+    {
+      "id": "doi:10.5555/synthetic-a",
+      "type": "article-journal",
+      "title": "A synthetic journal article for citation testing",
+      "author": [
+        {
+          "family": "AuthorA",
+          "given": "Person A"
+        },
+        {
+          "family": "AuthorB",
+          "given": "Person B"
+        },
+        {
+          "family": "AuthorC",
+          "given": "Person C"
+        },
+        {
+          "family": "AuthorD",
+          "given": "Person D"
+        },
+        {
+          "family": "AuthorE",
+          "given": "Person E"
+        },
+        {
+          "family": "AuthorF",
+          "given": "Person F"
+        },
+        {
+          "family": "AuthorG",
+          "given": "Person G"
+        },
+        {
+          "family": "AuthorH",
+          "given": "Person H"
+        },
+        {
+          "family": "AuthorI",
+          "given": "Person I"
+        },
+        {
+          "family": "AuthorJ",
+          "given": "Person J"
+        },
+        {
+          "family": "AuthorK",
+          "given": "Person K"
+        },
+        {
+          "family": "AuthorL",
+          "given": "Person L"
+        },
+        {
+          "family": "AuthorM",
+          "given": "Person M"
+        }
+      ],
+      "container-title": "Synthetic Journal of Formatting",
+      "container-title-short": "Synth J Format",
+      "issued": {
+        "date-parts": [
+          [
+            2025,
+            11,
+            10
+          ]
+        ]
+      },
+      "volume": "12",
+      "issue": "2",
+      "page": "101-109",
+      "DOI": "10.5555/synthetic-a"
+    },
+    {
+      "id": "doi:10.5555/synthetic-b",
+      "type": "article-journal",
+      "title": "Payload <img src=\"https://example.invalid/leak\"><script>window.__citationXss=true</script> & literal text",
+      "author": [
+        {
+          "family": "<script>window.__citationXss=true</script>Malice",
+          "given": "Alex"
+        }
+      ],
+      "container-title": "Synthetic Journal of Formatting",
+      "container-title-short": "Synth J Format",
+      "issued": {
+        "date-parts": [
+          [
+            2025,
+            11,
+            10
+          ]
+        ]
+      },
+      "volume": "12",
+      "issue": "2",
+      "page": "101-109",
+      "DOI": "10.5555/synthetic-b"
+    }
+  ],
+  "notices": [
+    "Synthetic automated-test data. These identifiers and people are not actual publication claims."
+  ],
+  "sqlWrites": 0,
+  "authorshipReview": "NotPerformed",
+  "readOnly": true
+}

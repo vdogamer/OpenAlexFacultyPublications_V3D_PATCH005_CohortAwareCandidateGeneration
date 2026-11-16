@@ -1,0 +1,131 @@
+name: Citation pilot validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, 'feature/faculty-photo-links-*']
+    paths:
+      - 'tools/AcademicOnline.CitationPilot/**'
+      - 'citation-preview/**'
+      - 'tests/citation-pilot/**'
+      - '.github/workflows/citation-pilot-validation.yml'
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: citation-pilot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet-self-checks:
+    name: Citation .NET checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+      DOTNET_CLI_UI_LANGUAGE: en
+      CITATION_CHECK_LOG: ${{ runner.temp }}/citation-dotnet.log
+      CITATION_RENDERER_ROOT: citation-preview
+    steps:
+      - name: Checkout public validation source
+        uses: actions/checkout@v4
+      - name: Set up Node for the pinned offline renderer build
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch and verify immutable public renderer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/citation-pilot/bootstrap-renderer.cjs 2>&1 | tee "$CITATION_CHECK_LOG"
+      - name: Build the offline template used by the citation utility
+        shell: bash
+        run: |
+          set -euo pipefail
+          node citation-preview/build-preview.cjs --output "$GITHUB_WORKSPACE/tools/AcademicOnline.CitationPilot/assets/preview-template.html" 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore only the independent citation utility
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore tools/AcademicOnline.CitationPilot/AcademicOnline.CitationPilot.csproj 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Build only the independent citation utility
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build tools/AcademicOnline.CitationPilot/AcademicOnline.CitationPilot.csproj --configuration Release --no-restore 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Run synthetic checks without SQL or metadata access
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project tools/AcademicOnline.CitationPilot/AcademicOnline.CitationPilot.csproj --configuration Release --no-build -- --self-test 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Report concise .NET result
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/github-script@v7
+        env:
+          CITATION_JOB_RESULT: ${{ job.status }}
+          CITATION_CHECK_NAME: Citation .NET ${{ matrix.os }}
+        with:
+          script: |
+            const report = require('./tests/citation-pilot/report-status.cjs');
+            await report({github, context, core});
+
+  renderer-and-browser:
+    name: Citation renderer and offline browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CITATION_CHECK_LOG: ${{ runner.temp }}/citation-renderer.log
+      UI_CHECK_BROWSER_CHANNEL: chrome
+      CITATION_RENDERER_ROOT: citation-preview
+    steps:
+      - name: Checkout public validation source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch and verify immutable public renderer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/citation-pilot/bootstrap-renderer.cjs 2>&1 | tee "$CITATION_CHECK_LOG"
+      - name: Build offline preview assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node citation-preview/build-preview.cjs 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Check pinned CSL engine and styles with synthetic records
+        shell: bash
+        run: |
+          set -euo pipefail
+          node citation-preview/tests/engine-checks.cjs 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Install browser test library
+        run: npm install --no-save --package-lock=false playwright@1.62.1
+      - name: Check installed Chrome
+        run: google-chrome --version
+      - name: Check the offline preview in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/citation-pilot/check-browser.cjs 2>&1 | tee -a "$CITATION_CHECK_LOG"
+      - name: Report concise rendering result
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/github-script@v7
+        env:
+          CITATION_JOB_RESULT: ${{ job.status }}
+          CITATION_CHECK_NAME: Citation renderer and browser
+        with:
+          script: |
+            const report = require('./tests/citation-pilot/report-status.cjs');
+            await report({github, context, core});
