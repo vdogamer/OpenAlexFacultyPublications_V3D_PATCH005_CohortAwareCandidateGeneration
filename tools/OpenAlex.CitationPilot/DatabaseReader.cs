@@ -239,7 +239,7 @@ internal static class DatabaseReader
                     ON pc.FacultyPublicationCandidateId=d.FacultyPublicationCandidateId
                   WHERE d.IsCurrent=1 AND d.DecisionStatus=N'Accepted'
                 ) p ON p.FacultyId=f.FacultyId WHERE
-                """ + predicate;
+                """ + " " + predicate;
         })
     ];
 
