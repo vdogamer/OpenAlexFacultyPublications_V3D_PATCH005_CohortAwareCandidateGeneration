@@ -31,7 +31,7 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
       DOTNET_CLI_UI_LANGUAGE: en
-      CITATION_CHECK_LOG: ${{ runner.temp }}/citation-dotnet.log
+      CITATION_CHECK_LOG: ${{ github.workspace }}/citation-dotnet.log
       CITATION_RENDERER_ROOT: citation-preview
     steps:
       - name: Checkout public validation source
@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      CITATION_CHECK_LOG: ${{ runner.temp }}/citation-renderer.log
+      CITATION_CHECK_LOG: ${{ github.workspace }}/citation-renderer.log
       UI_CHECK_BROWSER_CHANNEL: chrome
       CITATION_RENDERER_ROOT: citation-preview
     steps:

@@ -127,6 +127,20 @@ internal static class SelfChecks
                 var (csl, errors) = CrossrefMetadataReader.Parse("""{"DOI":"10.1234/paper","DOI":"10.1234/paper"}""", "10.1234/paper");
                 True(csl is null); True(errors.Single().Contains("duplicate field"));
             });
+            await Check("Malformed optional editors and translators cannot become ready citations", () =>
+            {
+                foreach (var field in new[] { "editor", "translator", "container-author", "collection-editor" })
+                {
+                    using var document = JsonDocument.Parse(Metadata());
+                    var values = document.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value.Clone());
+                    values[field] = new object[] { new { family = new { bad = true }, given = "Synthetic Editor" } };
+                    var (_, errors) = CrossrefMetadataReader.Parse(JsonSerializer.Serialize(values), "10.1234/paper");
+                    True(errors.Any(value => value.Contains("optional contributor")));
+                    values[field] = new { family = "WrongShape" };
+                    var (_, shapeErrors) = CrossrefMetadataReader.Parse(JsonSerializer.Serialize(values), "10.1234/paper");
+                    True(shapeErrors.Any(value => value.Contains("optional contributor list")));
+                }
+            });
             await Check("Crossref uses one fixed HTTPS endpoint and public DOI only", async () =>
             {
                 var handler = new Handler(HttpStatusCode.OK, Metadata());

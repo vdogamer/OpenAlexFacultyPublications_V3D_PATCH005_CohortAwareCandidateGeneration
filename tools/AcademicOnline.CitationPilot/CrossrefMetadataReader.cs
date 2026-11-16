@@ -120,6 +120,22 @@ internal sealed class CrossrefMetadataReader
                     if (author.TryGetProperty(field, out var value) && value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))
                         errors.Add("An author name field has an unsupported value type and was not guessed.");
             }
+        foreach (var role in new[] { "editor", "translator", "container-author", "collection-editor", "composer", "director", "illustrator", "interviewer", "recipient", "reviewed-author", "original-author", "editorial-director", "chair", "compiler", "contributor", "curator", "executive-producer", "guest", "host", "narrator", "organizer", "performer", "producer", "script-writer", "series-creator" })
+        {
+            if (!root.TryGetProperty(role, out var people) || people.ValueKind == JsonValueKind.Null) continue;
+            if (people.ValueKind != JsonValueKind.Array)
+            { errors.Add("An optional contributor list has an unsupported value type."); continue; }
+            foreach (var person in people.EnumerateArray())
+            {
+                if (person.ValueKind != JsonValueKind.Object
+                    || !new[] { "family", "literal" }.Any(field => person.TryGetProperty(field, out var value)
+                        && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())))
+                { errors.Add("An optional contributor lacks a usable family or collective/literal name."); break; }
+                foreach (var field in new[] { "family", "given", "literal", "suffix", "non-dropping-particle", "dropping-particle" })
+                    if (person.TryGetProperty(field, out var value) && value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))
+                        errors.Add("An optional contributor name field has an unsupported value type.");
+            }
+        }
         if (!root.TryGetProperty("issued", out var issued) || !ValidDate(issued))
             errors.Add("A usable publication year/date was not supplied. Deposited/indexed dates were not substituted.");
         foreach (var field in new[] { "accessed", "event-date", "original-date", "submitted" })

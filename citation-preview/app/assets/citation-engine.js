@@ -11,6 +11,14 @@
     { key: 'vancouver', title: 'Vancouver · NLM citation-sequence', source: 'nlm-citation-sequence.csl' },
     { key: 'apa', title: 'APA · 7th edition', source: 'apa.csl' }
   ]);
+  // CSL name variables, including the two extensions supported by the pinned
+  // citeproc-js NAME_VARIABLES list. Never infer surnames from display strings.
+  const NAME_VARIABLES = Object.freeze(['author', 'chair', 'collection-editor', 'compiler', 'composer',
+    'container-author', 'contributor', 'curator', 'director', 'editor', 'editor-translator',
+    'editorial-director', 'executive-producer', 'guest', 'host', 'illustrator', 'interviewer',
+    'narrator', 'organizer', 'original-author', 'performer', 'producer', 'recipient',
+    'reviewed-author', 'script-writer', 'series-creator', 'translator', 'commenter']);
+  const NAME_PARTS = Object.freeze(['family', 'given', 'literal', 'suffix', 'dropping-particle', 'non-dropping-particle']);
   const clean = value => typeof value === 'string' ? value.trim() : '';
   const clone = value => JSON.parse(JSON.stringify(value));
   const stable = value => {
@@ -25,8 +33,19 @@
     if (!['string', 'number'].includes(typeof item.id) || !String(item.id).trim()) fail(name + ' has no identifier.');
     if (!clean(item.type) || !clean(item.title)) fail(name + ' is missing its publication type or title.');
     if (!Array.isArray(item.author) || item.author.length === 0) fail(name + ' has no ordered author list.');
-    if (item.author.some(author => !author || typeof author !== 'object' || Array.isArray(author)
-      || (!clean(author.literal) && !clean(author.family)))) fail(name + ' has an incomplete author name.');
+    for (const role of NAME_VARIABLES) {
+      if (item[role] === undefined || item[role] === null) continue;
+      if (!Array.isArray(item[role])) fail(name + ' has an invalid ' + role + ' contributor list.');
+      for (const contributor of item[role]) {
+        if (!contributor || typeof contributor !== 'object' || Array.isArray(contributor))
+          fail(name + ' has an invalid ' + role + ' contributor.');
+        for (const field of NAME_PARTS)
+          if (contributor[field] !== undefined && contributor[field] !== null && typeof contributor[field] !== 'string')
+            fail(name + ' has an invalid ' + role + ' name field: ' + field + '.');
+        if (!clean(contributor.literal) && !clean(contributor.family))
+          fail(name + ' has an incomplete ' + role + ' name.');
+      }
+    }
     const dates = item.issued && item.issued['date-parts'];
     if (!Array.isArray(dates) || !Array.isArray(dates[0]) || !Number.isInteger(dates[0][0])
       || dates[0][0] < 1000 || dates[0][0] > 9999) fail(name + ' has no usable publication year.');

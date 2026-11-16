@@ -95,6 +95,17 @@ check('invalid calendar dates are rejected instead of formatted', () => {
     assert.throws(() => Engine.prepare([item]), /invalid/);
   }
 });
+check('malformed optional contributors are rejected before entering the CSL processor', () => {
+  for (const role of ['editor', 'translator', 'container-author', 'collection-editor']) {
+    const item = clone(fixture.cslItems[0]); item.type = 'chapter';
+    item[role] = [{ family:{bad:true}, given:'Editor' }];
+    assert.throws(() => Engine.prepare([item]), new RegExp('invalid ' + role + ' name field'));
+    item[role] = 'Unstructured Display Name';
+    assert.throws(() => Engine.prepare([item]), new RegExp('invalid ' + role + ' contributor list'));
+  }
+  const author = clone(fixture.cslItems[0]); author.author[0].given={bad:true};
+  assert.throws(() => Engine.prepare([author]), /invalid author name field/);
+});
 check('source text with HTML-like payloads is escaped by the CSL HTML output', () => {
   const result = Engine.render(CSL, resources, Engine.prepare(fixture), 'apa');
   const html = result.htmlEntries.join('');
