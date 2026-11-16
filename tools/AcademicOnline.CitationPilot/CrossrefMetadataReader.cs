@@ -120,7 +120,7 @@ internal sealed class CrossrefMetadataReader
                     if (author.TryGetProperty(field, out var value) && value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))
                         errors.Add("An author name field has an unsupported value type and was not guessed.");
             }
-        foreach (var role in new[] { "editor", "translator", "container-author", "collection-editor", "composer", "director", "illustrator", "interviewer", "recipient", "reviewed-author", "original-author", "editorial-director", "chair", "compiler", "contributor", "curator", "executive-producer", "guest", "host", "narrator", "organizer", "performer", "producer", "script-writer", "series-creator" })
+        foreach (var role in new[] { "editor", "translator", "container-author", "collection-editor", "composer", "director", "illustrator", "interviewer", "recipient", "reviewed-author", "original-author", "editorial-director", "chair", "compiler", "contributor", "curator", "executive-producer", "guest", "host", "narrator", "organizer", "performer", "producer", "script-writer", "series-creator", "editor-translator", "commenter" })
         {
             if (!root.TryGetProperty(role, out var people) || people.ValueKind == JsonValueKind.Null) continue;
             if (people.ValueKind != JsonValueKind.Array)

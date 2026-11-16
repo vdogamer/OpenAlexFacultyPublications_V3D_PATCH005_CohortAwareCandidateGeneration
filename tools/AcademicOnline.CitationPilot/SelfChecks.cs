@@ -129,7 +129,7 @@ internal static class SelfChecks
             });
             await Check("Malformed optional editors and translators cannot become ready citations", () =>
             {
-                foreach (var field in new[] { "editor", "translator", "container-author", "collection-editor" })
+                foreach (var field in new[] { "editor", "translator", "container-author", "collection-editor", "editor-translator", "commenter" })
                 {
                     using var document = JsonDocument.Parse(Metadata());
                     var values = document.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value.Clone());
