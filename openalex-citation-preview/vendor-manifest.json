@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "CitationPilot.VendorManifest/1",
+  "files": [
+    {
+      "path": "app/vendor/citeproc.js",
+      "url": "https://raw.githubusercontent.com/Juris-M/citeproc-js/56e7ef310154748368665cc8a2be124e3c141832/citeproc.js",
+      "gitBlobSha": "31b4f533c4bb4816d91dd61f79b4aa54ff520ac2",
+      "repository": "Juris-M/citeproc-js",
+      "revision": "56e7ef310154748368665cc8a2be124e3c141832",
+      "license": "CPAL-1.0 OR AGPL-3.0-or-later",
+      "sha256": "8d80b2d4ad5d249178ddfa4c535bb72bbd1883521a88e9362686558e2f82029d"
+    },
+    {
+      "path": "app/vendor/LICENSE.citeproc",
+      "url": "https://raw.githubusercontent.com/Juris-M/citeproc-js/56e7ef310154748368665cc8a2be124e3c141832/LICENSE",
+      "gitBlobSha": "dbc0a018c367d83f061e706d52007d988d083d2a",
+      "repository": "Juris-M/citeproc-js",
+      "revision": "56e7ef310154748368665cc8a2be124e3c141832",
+      "license": "CPAL-1.0 OR AGPL-3.0-or-later",
+      "sha256": "b96ca8e1716f93449b480083c7510c18d129fa9afa4644d62c6347c06177ce30"
+    },
+    {
+      "path": "app/vendor/CPAL",
+      "url": "https://raw.githubusercontent.com/Juris-M/citeproc-js/56e7ef310154748368665cc8a2be124e3c141832/CPAL",
+      "gitBlobSha": "ff98dbf084cd8e8428976d84e9056e9876a4bec1",
+      "repository": "Juris-M/citeproc-js",
+      "revision": "56e7ef310154748368665cc8a2be124e3c141832",
+      "license": "CPAL-1.0",
+      "sha256": "a953615139d8c767eb5e95f14215bf5c356ea23397a15137f6e119babf3fe69b"
+    },
+    {
+      "path": "app/vendor/AGPLv3",
+      "url": "https://raw.githubusercontent.com/Juris-M/citeproc-js/56e7ef310154748368665cc8a2be124e3c141832/AGPLv3",
+      "gitBlobSha": "dba13ed2ddf783ee8118c6a581dbf75305f816a3",
+      "repository": "Juris-M/citeproc-js",
+      "revision": "56e7ef310154748368665cc8a2be124e3c141832",
+      "license": "AGPL-3.0",
+      "sha256": "57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6"
+    },
+    {
+      "path": "app/styles/american-medical-association.csl",
+      "url": "https://raw.githubusercontent.com/citation-style-language/styles/bcae404e9f8130cc2b94b0749d53514212a15a4a/american-medical-association.csl",
+      "gitBlobSha": "ef052da4c9995c1ae2ed8421e044b1aaa331cf8d",
+      "repository": "citation-style-language/styles",
+      "revision": "bcae404e9f8130cc2b94b0749d53514212a15a4a",
+      "license": "CC-BY-SA-3.0",
+      "sha256": "d70f843d93c2b1e8c59c0e26e2396bea4ed99fb4a1aac69b6dddc249a10fadf7"
+    },
+    {
+      "path": "app/styles/nlm-citation-sequence.csl",
+      "url": "https://raw.githubusercontent.com/citation-style-language/styles/bcae404e9f8130cc2b94b0749d53514212a15a4a/nlm-citation-sequence.csl",
+      "gitBlobSha": "1285bd9316ccfda091777881d65d38552449913c",
+      "repository": "citation-style-language/styles",
+      "revision": "bcae404e9f8130cc2b94b0749d53514212a15a4a",
+      "license": "CC-BY-SA-3.0",
+      "sha256": "492f7935df42054b33d515f7275122f419780df990ea35925dcbbff0fecf1137"
+    },
+    {
+      "path": "app/styles/apa.csl",
+      "url": "https://raw.githubusercontent.com/citation-style-language/styles/bcae404e9f8130cc2b94b0749d53514212a15a4a/apa.csl",
+      "gitBlobSha": "d663d1e1b728c5fbc70dea233e1c0d09121e8909",
+      "repository": "citation-style-language/styles",
+      "revision": "bcae404e9f8130cc2b94b0749d53514212a15a4a",
+      "license": "CC-BY-SA-3.0",
+      "sha256": "3917def5fc951b104d64216c3373096042368b9704ba269ca83c14ebaba889fc"
+    },
+    {
+      "path": "app/styles/locales-en-US.xml",
+      "url": "https://raw.githubusercontent.com/citation-style-language/locales/14940e56f7c783e4173cafbd92e0f5856f2caa14/locales-en-US.xml",
+      "gitBlobSha": "0d74676be4376660f43f2fdb4bf7cade9cf15fe6",
+      "repository": "citation-style-language/locales",
+      "revision": "14940e56f7c783e4173cafbd92e0f5856f2caa14",
+      "license": "CC-BY-SA-3.0",
+      "sha256": "ac864c7c21166b4390d82c31792cdc509400727fa0060b43d8aa17e07f9cb079"
+    },
+    {
+      "path": "app/styles/README.styles.md",
+      "url": "https://raw.githubusercontent.com/citation-style-language/styles/bcae404e9f8130cc2b94b0749d53514212a15a4a/README.md",
+      "gitBlobSha": "d8eacace4110a4abb693fb4ca9c653654595a8cf",
+      "repository": "citation-style-language/styles",
+      "revision": "bcae404e9f8130cc2b94b0749d53514212a15a4a",
+      "license": "CC-BY-SA-3.0",
+      "sha256": "eeda35e6ab1c71ef74ba98e8d63f3f5c07e1b1c458b92d54cdd7515afcb1b04e"
+    },
+    {
+      "path": "app/styles/README.locales.md",
+      "url": "https://raw.githubusercontent.com/citation-style-language/locales/14940e56f7c783e4173cafbd92e0f5856f2caa14/README.md",
+      "gitBlobSha": "3dba681bd510d36184f317dc2431aeeb2b7cfb1f",
+      "repository": "citation-style-language/locales",
+      "revision": "14940e56f7c783e4173cafbd92e0f5856f2caa14",
+      "license": "CC-BY-SA-3.0",
+      "sha256": "f8e1b34d3e1b66f101b45bc45e5fca0397aa923fe4abeab6f98139c8f731c320"
+    }
+  ]
+}
