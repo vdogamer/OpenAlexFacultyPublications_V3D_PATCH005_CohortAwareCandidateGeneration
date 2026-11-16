@@ -106,6 +106,32 @@ check('malformed optional contributors are rejected before entering the CSL proc
   const author = clone(fixture.cslItems[0]); author.author[0].given={bad:true};
   assert.throws(() => Engine.prepare([author]), /invalid author name field/);
 });
+check('realistic provider ISBN and ISSN array shapes and their normalized strings render in all styles', () => {
+  const authors = [{family:'Zeta',given:'Morgan B'},{family:'Alpha',given:'Casey R'}];
+  const items = [
+    { id:'doi:10.5555/synthetic-issn', type:'article-journal', title:'Synthetic provider journal response',
+      author:authors, 'container-title':'Synthetic Journal', issued:{'date-parts':[[2025]]},
+      volume:'12', page:'123-130', ISSN:['1234-5678','8765-4321'], DOI:'10.5555/synthetic-issn' },
+    { id:'doi:10.5555/synthetic-isbn', type:'book', title:'Synthetic provider book response',
+      author:authors, publisher:'Synthetic Press', 'publisher-place':'Example City', issued:{'date-parts':[[2024]]},
+      ISBN:['9781234567897','9781234567880'], DOI:'10.5555/synthetic-isbn' }
+  ];
+  for (const item of items) {
+    const before = JSON.stringify(item);
+    const raw = Engine.prepare([item]);
+    const normalized = clone(item);
+    for (const field of ['ISBN','ISSN']) if (Array.isArray(normalized[field])) normalized[field] = normalized[field].join(', ');
+    for (const style of Engine.STYLES) {
+      const fromRaw = Engine.render(CSL, resources, raw, style.key);
+      const fromNormalized = Engine.render(CSL, resources, Engine.prepare([normalized]), style.key);
+      assert.deepEqual(fromRaw.textEntries, fromNormalized.textEntries);
+      assert.equal(fromRaw.count, 1);
+      assert(fromRaw.textEntries[0].indexOf('Zeta') < fromRaw.textEntries[0].indexOf('Alpha'));
+    }
+    assert.equal(JSON.stringify(item), before);
+    assert.deepEqual(raw.items[0].author, authors);
+  }
+});
 check('source text with HTML-like payloads is escaped by the CSL HTML output', () => {
   const result = Engine.render(CSL, resources, Engine.prepare(fixture), 'apa');
   const html = result.htmlEntries.join('');
@@ -131,5 +157,34 @@ check('the same known citation produces distinct standard punctuation', () => {
   assert(ama.includes('Example AB.')); assert(ama.includes('2025;12:123.'));
   assert(van.includes('2025 Nov 10;12:123.'));
   assert(apa.includes('Example, A. B. (2025).')); assert(apa.includes('https://doi.org/10.5555/example'));
+});
+check('an explicitly supplied article number receives the style-specific article locator label', () => {
+  const item = { id:'doi:10.5555/synthetic-article-number', type:'article-journal', title:'Synthetic article-number example',
+    author:[{family:'Example',given:'Alex B'}], 'container-title':'Synthetic Journal',
+    'container-title-short':'Synth J', issued:{'date-parts':[[2025,11,10]]}, volume:'12',
+    number:'1699266', 'article-number':'1699266', DOI:'10.5555/synthetic-article-number' };
+  const before = JSON.stringify(item);
+  const data = Engine.prepare([item]);
+  const ama = Engine.render(CSL, resources, data, 'ama').textEntries[0];
+  const van = Engine.render(CSL, resources, data, 'vancouver').textEntries[0];
+  const apa = Engine.render(CSL, resources, data, 'apa').textEntries[0];
+  assert(ama.includes('2025;12:1699266.'));
+  assert(van.includes('2025 Nov 10;12:1699266.'));
+  assert(apa.includes('Article 1699266'));
+  assert.equal(JSON.stringify(item), before);
+});
+check('the built standalone HTML contains unchanged, syntactically valid inline source', () => {
+  const html = fs.readFileSync(path.join(root, 'preview-template.html'), 'utf8');
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+    .filter(match => !/type\s*=\s*["']application\/json["']/i.test(match[1]));
+  assert.equal(scripts.length, 4);
+  const sources = ['app/vendor/citeproc.js', 'app/assets/resources.js',
+    'app/assets/citation-engine.js', 'app/assets/preview.js'];
+  for (let i = 0; i < scripts.length; i++) {
+    const expected = '\n' + fs.readFileSync(path.join(root, sources[i]), 'utf8') + '\n';
+    assert.equal(scripts[i][2], expected, 'Bundling must not change ' + sources[i]);
+    assert.doesNotThrow(() => new vm.Script(scripts[i][2], { filename:sources[i] }));
+  }
+  assert.equal(html.split('__CITATION_EXPORT_JSON__').length, 2);
 });
 console.log('Citation rendering checks passed: ' + checks + '.');

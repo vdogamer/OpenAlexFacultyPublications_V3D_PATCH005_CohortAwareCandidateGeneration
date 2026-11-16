@@ -18,7 +18,26 @@ async function main() {
   assert.equal(expectedIds.length, 2, 'The browser fixture should exercise two eligible records.');
   const checks = [];
   const failures = [];
+  const consoleErrors = [];
   const outsideRequests = [];
+  async function waitForProof(target, label, predicate, argument) {
+    try { await target.waitForFunction(predicate, argument, { timeout: 10000 }); }
+    catch (error) {
+      const details = await target.evaluate(() => ({
+        loadError: document.querySelector('#load-error')?.textContent || '',
+        loadStatus: document.querySelector('#load-status')?.textContent || '',
+        cards: document.querySelectorAll('.style-card').length,
+        engine: typeof CitationPilot, processor: typeof CSL, resources: typeof CITATION_RESOURCES
+      })).catch(() => ({ loadError: '', loadStatus: 'The page could not be inspected.' }));
+      console.error('BROWSER DIAGNOSTIC ' + JSON.stringify({ label, ...details, failures, consoleErrors }));
+      const primary = details.loadError || failures[0] || consoleErrors[0] || details.loadStatus || error.message;
+      throw new Error(label + ': ' + primary.replace(/\s+/g, ' ') + ' (cards=' + details.cards + ').');
+    }
+  }
+  function observe(target) {
+    target.on('pageerror', error => failures.push(error.message));
+    target.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+  }
   const contentTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.txt': 'text/plain' };
   const server = http.createServer(async (req, res) => {
     try {
@@ -38,6 +57,8 @@ async function main() {
   try {
     browser = await chromium.launch({ headless: true, channel: process.env.UI_CHECK_BROWSER_CHANNEL || 'chrome' });
     const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1366, height: 1000 } });
+    context.setDefaultTimeout(10000);
+    context.setDefaultNavigationTimeout(15000);
     await context.route('**/*', route => {
       const url = new URL(route.request().url());
       if ((url.protocol === 'http:' || url.protocol === 'https:') && url.origin !== base) {
@@ -45,10 +66,10 @@ async function main() {
       } else route.continue();
     });
     const page = await context.newPage();
-    page.on('pageerror', error => failures.push(error.message));
+    observe(page);
     await page.goto(base);
     await page.locator('#publication-file').setInputFiles({ name: 'synthetic-citation-fixture.json', mimeType: 'application/json', buffer: fixture });
-    await page.waitForFunction(() => document.querySelectorAll('.style-card').length === 3);
+    await waitForProof(page, 'Folder upload', () => document.querySelectorAll('.style-card').length === 3);
     assert.equal(await page.locator('#load-error').isVisible(), false);
     assert.match(await page.locator('#dataset-kind').textContent(), /NOT a local database export/);
     assert.match(await page.locator('#dataset-title').textContent(), /Synthetic Faculty/);
@@ -77,7 +98,7 @@ async function main() {
     checks.push('Source HTML and script text cannot create executable citation elements');
 
     const expectedHash = crypto.createHash('sha256').update(fixture).digest('hex');
-    await page.waitForFunction(hash => document.querySelector('#dataset-hash').textContent.includes(hash), expectedHash);
+    await waitForProof(page, 'Input hash', hash => document.querySelector('#dataset-hash').textContent.includes(hash), expectedHash);
     checks.push('Displayed input SHA-256 identifies the original uploaded bytes');
 
     const [download] = await Promise.all([
@@ -99,7 +120,7 @@ async function main() {
     checks.push('Preview fits 320, 390, 768, and 1366 px viewports');
 
     await page.locator('#publication-file').setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from('{ invalid JSON') });
-    await page.waitForFunction(() => !document.querySelector('#load-error').hidden);
+    await waitForProof(page, 'Invalid replacement', () => !document.querySelector('#load-error').hidden);
     assert.equal(await page.locator('.style-card').count(), 0);
     assert.equal(await page.locator('#styles').isVisible(), false);
     checks.push('Invalid replacement input clears the previous bibliography');
@@ -110,9 +131,9 @@ async function main() {
     const output = path.join(temporary, 'synthetic-preview.html');
     await fs.writeFile(output, template.replace('__CITATION_EXPORT_JSON__', escaped));
     const offline = await context.newPage();
-    offline.on('pageerror', error => failures.push(error.message));
+    observe(offline);
     await offline.goto(pathToFileURL(output).href);
-    await offline.waitForFunction(() => document.querySelectorAll('.style-card').length === 3);
+    await waitForProof(offline, 'Offline file', () => document.querySelectorAll('.style-card').length === 3);
     await checkStyleSets(offline);
     checks.push('Self-contained exported preview loads the same data from a local file');
     assert.deepEqual(outsideRequests, [], 'The preview must not attempt external metadata or image requests.');

@@ -13,7 +13,8 @@ internal sealed record DatabaseReadResult(DatabaseSnapshot Snapshot, FacultyIden
 
 internal sealed record DoiReviewRule(string UserId, string Doi, string Reason, string? ReferenceUrl);
 
-internal sealed record MetadataSource(string Provider, string Url, DateTimeOffset ReadUtc, string BodySha256);
+internal sealed record MetadataSource(string Provider, string Url, DateTimeOffset ReadUtc, string BodySha256,
+    string[]? NormalizationNotes = null);
 
 internal sealed record PublicationEntry(int SourceRow, string? RawDoi, string? NormalizedDoi,
     string Status, string ReviewDisposition, bool PreviewEligible, string[] ReviewReasons,

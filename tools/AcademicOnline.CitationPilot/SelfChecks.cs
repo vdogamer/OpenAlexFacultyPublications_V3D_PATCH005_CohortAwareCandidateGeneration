@@ -152,6 +152,44 @@ internal static class SelfChecks
                 True(!handler.Requests[0].AbsoluteUri.Contains("demo01", StringComparison.Ordinal));
                 True(result.MetadataSource!.BodySha256.Length == 64); Equal(1, source.Requests.Count);
             });
+            await Check("Crossref identifier arrays are adapted without losing identifiers", async () =>
+            {
+                using var document = JsonDocument.Parse(Metadata());
+                var values = document.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value.Clone());
+                values["ISSN"] = new[] { "1234-5678", "9876-5432" };
+                values["ISBN"] = new[] { "9781234567890", "123456789X" };
+                var json = JsonSerializer.Serialize(values);
+                var (csl, errors) = CrossrefMetadataReader.Parse(json, "10.1234/paper", out var notes);
+                Equal(0, errors.Length); Equal(2, notes.Length);
+                Equal("1234-5678, 9876-5432", csl!.Value.GetProperty("ISSN").GetString());
+                Equal("9781234567890, 123456789X", csl.Value.GetProperty("ISBN").GetString());
+                using var http = new HttpClient(new Handler(HttpStatusCode.OK, json));
+                var source = new CrossrefMetadataReader(http, spacing: TimeSpan.Zero);
+                var result = await source.EnrichAsync(Entry(), CancellationToken.None);
+                Equal("Ready", result.Status); True(result.PreviewEligible);
+                Equal(2, result.MetadataSource!.NormalizationNotes!.Length);
+                values["ISSN"] = new object[] { "1234-5678", new { bad = true } };
+                var (_, badErrors) = CrossrefMetadataReader.Parse(JsonSerializer.Serialize(values), "10.1234/paper");
+                True(badErrors.Any(value => value.Contains("nonstring array member")));
+            });
+            await Check("Journal article locators map to CSL number without inventing pages", () =>
+            {
+                using var document = JsonDocument.Parse(Metadata());
+                var values = document.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value.Clone());
+                values.Remove("page"); values["article-number"] = "e123456";
+                var (csl, errors) = CrossrefMetadataReader.Parse(JsonSerializer.Serialize(values), "10.1234/paper", out var notes);
+                Equal(0, errors.Length); Equal(1, notes.Length);
+                Equal("e123456", csl!.Value.GetProperty("number").GetString());
+                Equal("e123456", csl.Value.GetProperty("article-number").GetString());
+                True(!csl.Value.TryGetProperty("page", out _));
+                values["number"] = "native-locator";
+                var (native, nativeErrors) = CrossrefMetadataReader.Parse(JsonSerializer.Serialize(values), "10.1234/paper", out var nativeNotes);
+                Equal(0, nativeErrors.Length); Equal("native-locator", native!.Value.GetProperty("number").GetString());
+                Equal(0, nativeNotes.Length);
+                values.Remove("number"); values["article-number"] = new[] { "wrong-shape" };
+                var (_, invalidErrors) = CrossrefMetadataReader.Parse(JsonSerializer.Serialize(values), "10.1234/paper");
+                True(invalidErrors.Any(value => value.Contains("electronic locator")));
+            });
             await Check("Held associations cannot be passed to metadata enrichment", async () =>
             {
                 var handler = new Handler(HttpStatusCode.OK, Metadata());

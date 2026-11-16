@@ -63,8 +63,8 @@ internal sealed class CrossrefMetadataReader
             }
             var body = buffer.ToArray();
             hash = Convert.ToHexString(SHA256.HashData(body)).ToLowerInvariant();
-            var (csl, errors) = Parse(Encoding.UTF8.GetString(body), doi);
-            var metadataSource = new MetadataSource("Crossref", url, DateTimeOffset.UtcNow, hash);
+            var (csl, errors) = Parse(Encoding.UTF8.GetString(body), doi, out var normalizationNotes);
+            var metadataSource = new MetadataSource("Crossref", url, DateTimeOffset.UtcNow, hash, normalizationNotes);
             if (errors.Length > 0) return Finish("MetadataIncomplete", string.Join(" ", errors), csl, metadataSource);
             return Finish("Ready", "Bibliographic metadata was retrieved; faculty authorship was not independently reviewed.", csl, metadataSource);
         }
@@ -90,7 +90,12 @@ internal sealed class CrossrefMetadataReader
     }
 
     internal static (JsonElement? Csl, string[] Errors) Parse(string json, string expectedDoi)
+        => Parse(json, expectedDoi, out _);
+
+    internal static (JsonElement? Csl, string[] Errors) Parse(string json, string expectedDoi,
+        out string[] normalizationNotes)
     {
+        normalizationNotes = [];
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object) return (null, ["The metadata response is not a CSL-JSON item."]);
@@ -141,7 +146,7 @@ internal sealed class CrossrefMetadataReader
         foreach (var field in new[] { "accessed", "event-date", "original-date", "submitted" })
             if (root.TryGetProperty(field, out var date) && date.ValueKind != JsonValueKind.Null && !ValidDate(date))
                 errors.Add("An optional bibliographic date has unsupported or invalid values.");
-        foreach (var field in new[] { "title", "title-short", "container-title", "container-title-short", "journalAbbreviation", "publisher", "publisher-place", "collection-title", "event", "event-place", "genre", "status", "language", "ISBN", "ISSN", "URL" })
+        foreach (var field in new[] { "title", "title-short", "container-title", "container-title-short", "journalAbbreviation", "publisher", "publisher-place", "collection-title", "event", "event-place", "genre", "status", "language", "URL" })
             if (root.TryGetProperty(field, out var value) && value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))
                 errors.Add("A bibliographic text field has an unsupported value type.");
         foreach (var field in new[] { "volume", "issue", "page", "number", "edition", "chapter-number", "collection-number" })
@@ -151,10 +156,40 @@ internal sealed class CrossrefMetadataReader
             && Text("container-title").Length == 0)
             errors.Add("The journal, book or conference title was not supplied.");
         var node = JsonNode.Parse(json)!.AsObject();
+        var notes = new List<string>();
+        foreach (var field in new[] { "ISBN", "ISSN" })
+        {
+            if (!root.TryGetProperty(field, out var identifiers) || identifiers.ValueKind == JsonValueKind.Null) continue;
+            if (identifiers.ValueKind == JsonValueKind.String) continue;
+            if (identifiers.ValueKind == JsonValueKind.Array && identifiers.EnumerateArray().All(value =>
+                    value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())))
+            {
+                var values = identifiers.EnumerateArray().Select(value => value.GetString()!).ToArray();
+                if (values.Length == 0) node.Remove(field);
+                else node[field] = string.Join(", ", values);
+                notes.Add(field + " was supplied by Crossref as a string array. It was adapted to a CSL string using comma-space separators, preserving every supplied identifier in its source order; the original response hash is retained.");
+            }
+            else errors.Add("An ISBN/ISSN identifier has an unsupported value type or a nonstring array member.");
+        }
+        var hasNumber = root.TryGetProperty("number", out var number)
+            && number.ValueKind != JsonValueKind.Null
+            && !(number.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(number.GetString()));
+        if (type == "article-journal" && !hasNumber && root.TryGetProperty("article-number", out var locator)
+            && locator.ValueKind != JsonValueKind.Null)
+        {
+            if (locator.ValueKind == JsonValueKind.Number
+                || (locator.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(locator.GetString())))
+            {
+                node["number"] = JsonNode.Parse(locator.GetRawText());
+                notes.Add("Crossref article-number was copied to CSL number as the journal article/electronic locator. The original article-number field was retained; no page range was inferred.");
+            }
+            else errors.Add("The article/electronic locator has an unsupported value type.");
+        }
         // Abstract text is not needed to render a reference and is not retained in this export.
         node.Remove("abstract");
         node["id"] = "doi:" + expectedDoi;
         node["DOI"] = expectedDoi;
+        normalizationNotes = notes.ToArray();
         return (JsonSerializer.SerializeToElement(node), errors.ToArray());
     }
 

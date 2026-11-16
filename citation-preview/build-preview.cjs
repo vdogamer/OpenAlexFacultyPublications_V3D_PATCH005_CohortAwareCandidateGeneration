@@ -30,24 +30,26 @@ const resourcesJs = '/* Generated from pinned, unmodified CSL source files. */\n
   + JSON.stringify(resources).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026') + ';\n';
 fs.writeFileSync(path.join(root, 'app/assets/resources.js'), resourcesJs);
 let html = read('app/index.html');
-html = html.replace("script-src 'self'; style-src 'self' 'unsafe-inline'", "script-src 'unsafe-inline'; style-src 'unsafe-inline'");
-html = html.replace('  <link rel="stylesheet" href="assets/preview.css">', '<style>\n' + read('app/assets/preview.css') + '\n</style>');
+html = html.replace("script-src 'self'; style-src 'self' 'unsafe-inline'", () => "script-src 'unsafe-inline'; style-src 'unsafe-inline'");
+// Source text can contain JavaScript replacement metacharacters such as $'.
+// Callback replacers preserve literal source bytes instead of expanding them.
+html = html.replace('  <link rel="stylesheet" href="assets/preview.css">', () => '<style>\n' + read('app/assets/preview.css') + '\n</style>');
 const scripts = ['vendor/citeproc.js', 'assets/resources.js', 'assets/citation-engine.js', 'assets/preview.js'];
-for (const script of scripts) html = html.replace('  <script defer src="' + script + '"></script>\n', '');
+for (const script of scripts) html = html.replace('  <script defer src="' + script + '"></script>\n', () => '');
 const escapeHtml = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const notices = read('app/THIRD_PARTY_NOTICES.txt') + '\n\n'
   + read('app/vendor/LICENSE.citeproc') + '\n\n'
   + read('app/vendor/CPAL') + '\n\n'
   + read('app/vendor/AGPLv3');
-html = html.replace('<a href="THIRD_PARTY_NOTICES.txt">Third-party notices</a>', '<a href="#third-party-notices">Third-party notices</a>');
-html = html.replace('</footer>', '<details id="third-party-notices"><summary>Bundled source and license notices</summary><pre style="white-space:pre-wrap;font-size:.75rem">' + escapeHtml(notices) + '</pre></details>\n</footer>');
+html = html.replace('<a href="THIRD_PARTY_NOTICES.txt">Third-party notices</a>', () => '<a href="#third-party-notices">Third-party notices</a>');
+html = html.replace('</footer>', () => '<details id="third-party-notices"><summary>Bundled source and license notices</summary><pre style="white-space:pre-wrap;font-size:.75rem">' + escapeHtml(notices) + '</pre></details>\n</footer>');
 let inline = '\n<script type="application/json" id="citation-export">__CITATION_EXPORT_JSON__</script>\n';
 for (const script of scripts) {
   const source = read('app/' + script);
   if (/<\/script/i.test(source)) throw new Error('An inline source contains a closing script tag: ' + script);
   inline += '<script>\n' + source + '\n</script>\n';
 }
-html = html.replace('</body>', inline + '</body>');
+html = html.replace('</body>', () => inline + '</body>');
 if (html.split('__CITATION_EXPORT_JSON__').length !== 2) throw new Error('The JSON placeholder must occur exactly once.');
 fs.mkdirSync(path.dirname(output), { recursive: true });
 fs.writeFileSync(output, html);
